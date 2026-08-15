@@ -1,0 +1,36 @@
+:root{
+    /* Variables for Light Mode */
+
+    --Principal-Background: #F7F7F9;
+    --Secundary-Background: #F0F0F4;
+    --card: #ffffff;
+    --SideBar:#171525;
+    --Principal-text:#17151F;
+    --Secundary-text:#6F6B78;
+    --Primary-faces: #6D35C8;
+    --Primary-Hover: #5825A8;
+    --Accent:#9B6DE3;
+    --Border:#E5E3EA;
+    --Sucess:#21A366;
+    --Error:#E04B4b;
+    --Warning: #E99A32;
+    --backdrop: #F5F2FC;
+
+
+    /* Variables for Dark Mode  */
+
+    --Dark-Background:#0D0B14;
+    --Dark-Secundary-bg: #14121D;
+    --Dark-cards: #1B1826;
+    --SideBar:#0A0910;
+    --Dark-input:#211D2C;
+    --Dark-main-text: #F5F3FA;
+    --Dark-secundary-text:#A8A3B5;
+    --Dark-Primary-faces:#8B4DE8;
+    --Dark-primary-hover:#A66BEF;
+    --Dark-Accent: #B78AF3;
+    --Dark-Border: #302A3D;
+    --Dark-Sucess: #35C983;
+    --Dark-Error: #F05B5B;
+    --Dark-Warning:#F0A33A;
+}    

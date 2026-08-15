@@ -1,0 +1,45 @@
+body{
+    background-color: tomato;
+    
+}
+.main-container{
+    width: 100vw;
+    height: 100vh;
+    display: grid;
+    grid-template: 50px 1fr / 250px 1fr  ;
+
+}
+
+.sidebar{
+    grid-area: 1 / 1 /span 1/ -1 ;
+}
+.heady{
+    grid-area: 1 / 2/ span 1 / span 1  ;
+}
+.content{
+    background-color: aquamarine;
+    grid-area: 2 / 2 / -1 / -1;
+}
+
+@media (min-width: 678px) and (max-width: 1023px) {
+    .main-container{
+        grid-template: 50px 1fr / 70px 1fr ;
+    }
+    .sidebar{
+        grid-area: 1 / 1 span 1/ -1;
+    }
+    .heady{
+        grid-area: 1 / 2 / span 1 / -1  ;
+    }
+}
+@media screen and (max-width: 678px) {
+    .main-container{
+        grid-template: 50px 1fr / 1fr;
+    }
+    .content{
+        grid-area: 2 / 1 / -1/ -1 ;
+    }
+    .heady{
+        grid-area: 1 / 1 / span 1 / span 1;
+    }
+}

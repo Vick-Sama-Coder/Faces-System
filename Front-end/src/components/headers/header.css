@@ -1,0 +1,26 @@
+.heady{
+    position: relative;
+    z-index: 10;
+    background-color: var(--card);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 15px 20px;
+    gap: 20px;
+
+
+}
+
+.menu{
+    cursor: pointer;
+}
+.search{
+    flex: 1;
+    max-width: 500px;
+    min-width: 0;
+    padding: 10px;
+    border: 2px solid var(--Secundary-Background);
+    border-radius: 8px ;
+    outline-color: var(--Primary-Hover) ;
+}
