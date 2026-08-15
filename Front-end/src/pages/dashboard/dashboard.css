@@ -1,11 +1,12 @@
 body{
-    background-color: tomato;
+    background-color: var(--Secundary-Background);
     
 }
 .main-container{
     width: 100vw;
     height: 100vh;
     display: grid;
+    gap: 5px;
     grid-template: 50px 1fr / 250px 1fr  ;
 
 }
@@ -17,7 +18,7 @@ body{
     grid-area: 1 / 2/ span 1 / span 1  ;
 }
 .content{
-    background-color: aquamarine;
+    background-color: var(--Secundary-Background);
     grid-area: 2 / 2 / -1 / -1;
 }
 

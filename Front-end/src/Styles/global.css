@@ -8,7 +8,7 @@ body{
     font-size: 1rem;
     font-family: 'Inter',sans-serif;
     color: var(--background);
-    background-color: var(--Principal-Background);
+    background-color: var(--Secundary-Background);
 }
 h1,h2,h3,h4,h5,h6{
     font-family: 'Manrope', sans-serif;
