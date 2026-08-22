@@ -1,17 +1,22 @@
-.sidebar{
+body{
     position: relative;
-    z-index: 1000;
+}
+
+.sidebar{
+    font-size: var(--text-sm);
+    
+    z-index: 10;
     display: flex;
     flex-flow: column nowrap;
     align-items: flex-start;
     justify-content: flex-start;
     height: 100vh;
-    width: 250px;
-    padding: 10px;
+    width: 215px;
+    padding: 15px;
     grid-column: 1;
     border: 5px;
     
-    background-color: var(--Principal-Background);
+    background-color: var(--card);
 }
 .img{
     display: block;
@@ -38,11 +43,16 @@ h1{
     color: var(--card);
     cursor: pointer;
 }
+.side-link{
+    text-decoration: none;
+    color: black;
+    width: 100%;
+}
 .p{
     display: flex;
     align-items: center;
     font-weight: bold;
-    padding: 10px 10px 10px 15px;
+    padding: 10px 10px 10px 10px;
     margin: 5px 0px;
     width: 100%;
     border-radius: 5px ;
@@ -70,7 +80,10 @@ h1{
     .sidebar{
         width: 70px;
         padding: 10px;
+        
     }
+    .p{
+        padding: 10px 16px 10px 13px;    }
     .logo{
         width: 40px;
         height: 40px;

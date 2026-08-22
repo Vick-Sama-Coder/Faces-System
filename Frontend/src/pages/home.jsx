@@ -9,6 +9,7 @@ export default function Home(){
     return(
         <>
         <section className="container">
+            {/*<Layout/>*/}
                 <Logo/>
                 <h2>Bem Vindo(a) de volta {'\u{1F44B}'}</h2>
                 <p className="text">Entre na sua conta para continuar</p>

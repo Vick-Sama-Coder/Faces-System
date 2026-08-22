@@ -1,12 +1,12 @@
 import { MenuIcon, UserCircle } from "lucide-react"
 import './header.css'
 
-function Headers(){
+function Headers(type, name, id){
     return(
         <>
             <header className="heady">
                 <MenuIcon className="menu" />
-                <input className="search" type="search" name="searchy" id="search" />
+                <h1 className={id}>{name}</h1>
                 <UserCircle className="menu"/>
             </header>
             <hr />

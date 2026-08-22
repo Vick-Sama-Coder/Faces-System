@@ -1,46 +1,64 @@
-body{
-    background-color: var(--Secundary-Background);
-    
-}
-.main-container{
-    width: 100vw;
-    height: 100vh;
+.dash-content{
     display: grid;
-    gap: 5px;
-    grid-template: 50px 1fr / 250px 1fr  ;
-
+    grid-template: 1fr 2.5fr 2fr  / 1fr .4fr .2fr .4fr .5fr .5fr 1fr;
+    gap: 10px;
+    width:100%;
+    min-width: 0;
+    padding-right: 10px;
+}
+.dash-content > * {
+    min-width: 0;
+}
+.reciept-card{
+    grid-area: 1 / 1 / span 1 / span 1 ;
+}
+.expenses-card{
+    grid-area: 1 / 2 / span 1 / 5;
+}
+.income-card{
+    grid-area: 1 / 5 / span 1 / 7
 }
 
-.sidebar{
-    grid-area: 1 / 1 /span 1/ -1 ;
-}
-.heady{
-    grid-area: 1 / 2/ span 1 / span 1  ;
-}
-.content{
-    background-color: var(--Secundary-Background);
-    grid-area: 2 / 2 / -1 / -1;
+.services-card{
+    grid-area: 1 / 7 / span 1 /  -1;
 }
 
-@media (min-width: 678px) and (max-width: 1023px) {
-    .main-container{
-        grid-template: 50px 1fr / 70px 1fr ;
-    }
-    .sidebar{
-        grid-area: 1 / 1 span 1/ -1;
-    }
-    .heady{
-        grid-area: 1 / 2 / span 1 / -1  ;
-    }
+.reciept-vs-expenses-card{
+    grid-area: 2 / 1 / 3 / 4;
 }
+
+.recieps-per-service-card{
+    grid-area: 2 / 4 / 3 / 7 ;
+}
+
+.recent-transactions{
+    grid-area: 2 / 7 / 3 / 8;
+}
+.reciept-evolution{
+    grid-area: 3 / 1 / 4 / 3;
+}
+.resume-per-reciept-category{
+    grid-area: 3 / 3 / 4 / 6;
+}
+
+.featured-professionals{
+    grid-area: 3 / 6 / 4 / 8;
+}
+
+.cards{
+    display: flex;
+    flex-flow: column nowrap;
+    align-items: flex-start;
+    text-align: left;
+    border-radius: 10px;
+    padding: 10px;
+    background-color: var(--card);
+}
+
+
 @media screen and (max-width: 678px) {
-    .main-container{
-        grid-template: 50px 1fr / 1fr;
-    }
-    .content{
-        grid-area: 2 / 1 / -1/ -1 ;
-    }
-    .heady{
-        grid-area: 1 / 1 / span 1 / span 1;
+    .dash-content{
+        display: flex;
+        flex-flow: column nowrap;
     }
 }
