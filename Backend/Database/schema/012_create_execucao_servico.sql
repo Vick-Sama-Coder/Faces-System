@@ -1,5 +1,5 @@
 create table if not exists execucao_servico(
-    id int primary key auto_increment,
+    id int primary key generated always as identity,
     atendimento_id int not null,
     cliente_id int not null,
     servico_id int not null,
