@@ -1,11 +1,14 @@
-import  Layout  from "../../components/Layout/Layout.jsx";
+import SideBar from "../../components/sidebar/siderbar"
+//import  Layout  from "../../components/Layout/Layout.jsx";
 import "./servicos.css"
 
 function Servicos(){
     return(
-        <Layout>
+        <div className="services-main">
+            <SideBar/>
+        </div>
+        
             
-        </Layout>
     )
 }
 export default Servicos

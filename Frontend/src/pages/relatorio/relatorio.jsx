@@ -1,11 +1,15 @@
-import  Layout  from "../../components/Layout/Layout.jsx";
+import SideBar from "../../components/sidebar/siderbar"
+//import  Layout  from "../../components/Layout/Layout.jsx";
 import "./relatorio.css"
 
 function Relatorio(){
     return(
-        <Layout>
+        <div className="rel-main">
+            <SideBar/>
+        </div>
+        
             
-        </Layout>
+        
     )
 }
 export default Relatorio

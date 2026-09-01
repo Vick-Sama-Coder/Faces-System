@@ -1,11 +1,12 @@
-import  Layout  from "../../components/Layout/Layout.jsx";
+import SideBar from "../../components/sidebar/siderbar"
+//import  Layout  from "../../components/Layout/Layout.jsx";
 import "./novoAtendimento.css"
 
 function NovoAtendimento(){
     return(
-        <Layout>
-            
-        </Layout>
+        <div className="newbookmark-main">
+            <SideBar/>
+        </div>
     )
 }
 export default NovoAtendimento

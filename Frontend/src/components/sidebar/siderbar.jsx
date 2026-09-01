@@ -12,7 +12,7 @@ import './sidebar.css'
 
 function SideBar(){
     return(
-        <>
+        
             <aside className='sidebar'>
                 <header>
                     <h1>
@@ -62,9 +62,27 @@ function SideBar(){
                         <span className="info">Despesas</span>
                     </p>
                 </Link>
+                <Link className="side-link" to="/despesas">
+                    <p className= "p">
+                        <span className="icon"><Receipt/></span>
+                        <span className="info">Despesas</span>
+                    </p>
+                </Link>
+                                <Link className="side-link" to="/despesas">
+                    <p className= "p">
+                        <span className="icon"><Receipt/></span>
+                        <span className="info">Despesas</span>
+                    </p>
+                </Link>
+                                <Link className="side-link" to="/despesas">
+                    <p className= "p">
+                        <span className="icon"><Receipt/></span>
+                        <span className="info">Despesas</span>
+                    </p>
+                </Link>
             </aside>
-            <div></div>
-        </>
+    
+        
     )
 }
 export default SideBar

@@ -3,9 +3,11 @@
     padding: 0;
     box-sizing: border-box;
     
+    
 }
 html{
     font-size: 1rem;
+    height: 100vh;
 }
 body{
     font-size: var(--text-sm);
@@ -14,6 +16,7 @@ body{
     background-color: var(--Secundary-Background);
     overflow-x: hidden;
     overflow-y: visible;
+    height: 100vh;
 }
 h1,h2,h3,h4,h5,h6{
     padding: 0;

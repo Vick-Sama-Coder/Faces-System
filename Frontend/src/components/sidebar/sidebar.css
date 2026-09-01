@@ -80,6 +80,7 @@ h1{
     .sidebar{
         width: 70px;
         padding: 10px;
+        height: 100vh;
         
     }
     .p{

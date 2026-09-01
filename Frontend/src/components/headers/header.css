@@ -24,3 +24,9 @@
     border-radius: 8px ;
     outline-color: var(--Primary-Hover) ;
 }
+
+@media screen and (min-width: 678px ) {
+    .heady{
+        display: none;
+    }
+}
