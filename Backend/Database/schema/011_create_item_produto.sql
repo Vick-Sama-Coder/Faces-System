@@ -1,5 +1,5 @@
 create table if not exists item_produto(
-    id int primary key auto_increment,
+    id int primary key generated always as identity,
     produto_id int not null,
     despesa_id  int not null,
     funcionario_id int not null,
