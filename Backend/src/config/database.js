@@ -1,8 +1,20 @@
-import pg from 'pg';
-import 'dotenv/config';
+import pg, { Client } from 'pg';
+import dotenv from 'dotenv';
+import path from 'path'
+import { fileURLToPath } from 'url';
 
+
+//Caminho do ficheiro atual
+const __filename = fileURLToPath(import.meta.url) //variavel que contem o caminho atual do ficheiro
+const __dirname = path.dirname(__filename) // converte o caminho para o caminho o nome da pasta
+
+//configurando o caminho do .env
+dotenv.config({
+  path: path.join(__dirname, '../../.env')
+});
 const { Pool } = pg;
 
+//criando a ponte de conxecao na base de dados SalaoFaces
 const pool = new Pool({
   host: process.env.DATABASE_HOST,
   port: process.env.DATABASE_PORT,
@@ -12,3 +24,6 @@ const pool = new Pool({
 });
 
 export default pool;
+
+
+
