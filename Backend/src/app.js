@@ -4,6 +4,7 @@ import dotnev from 'dotenv';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import cookieParser from 'cookie-parser'
+import authRoutes from './routes/auth.js';
 
 //Carregando as variaveis de ambiente
 const __filename = fileURLToPath(import.meta.url);
@@ -13,11 +14,16 @@ dotnev.config({
 });
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: process.env.CLIENT_URL || "http://localhost:5173",
+  credentials: true,
+}));
 
 //adicionando middlewares globais
 app.use(express.json()); //para ler json
 app.use(cookieParser()); //transformar string cookies em objetos
+
+app.use("/api/auth",authRoutes)
 
 
 
