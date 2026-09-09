@@ -2,6 +2,7 @@ import pg, { Client } from 'pg';
 import dotenv from 'dotenv';
 import path from 'path'
 import { fileURLToPath } from 'url';
+import { error } from 'console';
 
 
 //Caminho do ficheiro atual
@@ -22,6 +23,15 @@ const pool = new Pool({
   user: process.env.DATABASE_USER,
   password: process.env.DATABASE_PASSWORD
 });
+
+pool.on("connect", () => {
+  console.log("Database conectada ")
+});
+
+pool.on("error" , (err) => {
+  console.error("A conexao falhou com a base de dados: ", err)
+  process.exit(-1);
+})
 
 export default pool;
 

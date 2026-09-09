@@ -1,21 +1,27 @@
 import express from 'express';
 import cors from 'cors';
+import dotnev from 'dotenv';
+import { fileURLToPath } from 'url';
+import path from 'path';
+import cookieParser from 'cookie-parser'
+
+//Carregando as variaveis de ambiente
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename)
+dotnev.config({
+  path: path.join(__dirname, '../.env')
+});
 
 const app = express();
-<<<<<<< HEAD
-const port = 3000
 app.use(cors());
-=======
 
-//app.use(cors());
->>>>>>> 11d51c0e28e89e75a284edeee652d45dc1caa7dc
-app.use(express.json());
+//adicionando middlewares globais
+app.use(express.json()); //para ler json
+app.use(cookieParser()); //transformar string cookies em objetos
 
-app.get('/', (req, res) => {
-  if(req.url === '/'){
-    res.end('Hello World!')
-  }
-  //res.json({ message: 'API do Faces System funcionando!' });
-});
-app.listen(port, () => console.log(`Rodando na porta ${port}`))
+
+
+
+
+
 export default app;
