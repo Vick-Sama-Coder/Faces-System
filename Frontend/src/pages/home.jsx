@@ -3,7 +3,7 @@ import Input from "../components/forms/input/input.jsx"
 import { Link } from "react-router-dom"
 import "./home.css"
 import Logo from "../components/Logo/logo.jsx"
-
+import { User, Lock } from "lucide-react"
 
 export default function Home(){
     return(
@@ -13,14 +13,14 @@ export default function Home(){
                 <Logo/>
                 <h2>Bem Vindo(a) de volta {'\u{1F44B}'}</h2>
                 <p className="text">Entre na sua conta para continuar</p>
-            <form action="">
-                <div className="input-section">
+            <form action=''>
+                <div className="input-section username">
                     <Input type="text"
                            className="text-input"
                            labelId="user"
                            labelName= "Nome Do Usuario :"
                            placeholder="Nome do Usuario"
-                           //icon={<User></User>}
+                           icon={<User></User>}
                     >
                     </Input>
                 </div>
@@ -31,7 +31,7 @@ export default function Home(){
                     labelName="Password"
                     labelId="passId"
                     placeholder="Minimo 6 caracteres"
-                    //icon={<Lock></Lock>}
+                    icon={<Lock></Lock>}
                 ></Input>
             </div>
             <p className="p-pass"><Link to="/forgotpass" className="pass link">Esqueceu a senha?</Link></p>

@@ -1,6 +1,7 @@
 //import Layout from "../../components/Layout/Layout.jsx";
 import Sidebar from "../../components/sidebar/siderbar.jsx"
 import Headers from "../../components/headers/header.jsx";
+import Title from "../../components/title/title.jsx";
 import { ArrowUp, ArrowDown } from "lucide-react";
 import './dashboard.css'
 
@@ -10,9 +11,10 @@ function DashBoard(){
         <article className="dashboard-main">
             <Headers/>
         <Sidebar/>
-                        <div className="title">
-                    <h1 className="dash-text">DashBoard</h1>
-                </div>
+            <Title
+            title="Dashboard"
+            classname="dash-title"
+            />
             <main className="dash-content">
                 <article className="reciept-card cards">
                     <h3>Receita Total</h3>
