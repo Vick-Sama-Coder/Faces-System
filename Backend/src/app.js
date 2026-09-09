@@ -3,8 +3,10 @@ import cors from 'cors';
 import dotnev from 'dotenv';
 import { fileURLToPath } from 'url';
 import path from 'path';
-import cookieParser from 'cookie-parser'
-import authRoutes from './routes/auth.js';
+import cookieParser from 'cookie-parser';
+import authRoutes from './routes/auth.js'
+
+
 
 //Carregando as variaveis de ambiente
 const __filename = fileURLToPath(import.meta.url);
