@@ -1,8 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotnev from 'dotenv';
-import { fileURLToPath } from 'url';
-import path from 'path';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.js'
 
