@@ -1,0 +1,25 @@
+.newbookmark-main{
+    height: 100vh;
+    display: grid;
+    grid-template: 60px 1fr / 70px 1fr;
+}
+.newmark-header{
+    grid-area:1 / 2 / 2 / -1;
+    display: flex;
+    justify-content: space-between!;
+}
+.newbookmark-content{
+    grid-area:  2 / 2 / -1 / -1;
+}
+.sidebar{
+    grid-area: 1 / 1 / -1 / 2;
+}
+
+
+@media screen and (max-width:678px) {
+    .newbookmark-main{
+        display: flex;
+        
+
+    }
+}

@@ -26,16 +26,31 @@
         align-self: stretch;
         height: max-content;
 }
-
-.dash-title{
-    position: sticky;
+.user, .menu > .lucide{
+    cursor: pointer;
+}
+.dash-header{
     grid-area: 1 / 2 / span 1 / -1 ;
-    background-color: var(--card);
+    
     text-align: left;
     border-radius:0 0 10px 10px ;
-    margin-right: 10px;
-
-
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px;
+}
+.dash-h1{
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+.user{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.menu{
+    display: none;
 }
 /*First Row*/
 .reciept-card{
@@ -99,7 +114,10 @@
         
         padding: 0;
     }
-    
+    .menu{
+        display: block;
+    }
+
 }
 /*Tablet*/
 @media (min-width: 1024px){

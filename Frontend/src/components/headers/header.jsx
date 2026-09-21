@@ -1,13 +1,19 @@
-import { MenuIcon, UserCircle } from "lucide-react"
+import { MenuIcon, UserCircle, Bell } from "lucide-react"
 import './header.css'
 
-function Headers(type, name, id){
+function Headers({heady, title, h1Class, menuClass, userClass, bellClass, pClass}){
     return(
 
-            <header className="heady">
-                <MenuIcon className="menu" />
-                <h1 className={id}>{name}</h1>
-                <UserCircle className="menu"/>
+            <header className={heady}>
+                
+                <aside className={h1Class}>
+                    <MenuIcon className={menuClass}/>
+                    <h1>{title}</h1>
+                </aside>
+                <aside className={userClass}>
+                    <Bell className={bellClass}/>
+                    <p className={pClass}><span>Ola, Admin</span><UserCircle/></p>
+                </aside>
             </header>
         
     )
