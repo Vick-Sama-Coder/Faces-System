@@ -1,0 +1,22 @@
+.search-comp{
+    padding: 15px 10px 15px 40px;
+    border: 2px 2px 2px solid var(--Secundary-text);
+    position:relative;
+    outline-color: var(--Primary-faces);
+    border-radius: 10px;
+    width: 395px;
+    color:var(--Primary-faces);
+}
+.search-icon{
+    color: var(--Secundary-text);
+    position: relative;
+    left: 33px;
+    top: 11px;
+    z-index: 100;
+
+}
+
+.search-flex{
+    display: flex;
+    
+}

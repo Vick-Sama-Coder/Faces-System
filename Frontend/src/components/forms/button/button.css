@@ -1,0 +1,11 @@
+.btnclass{
+    background-color: var(--Primary-faces);
+    padding: 10px;
+    border: none;
+    color: var(--card);
+    font-weight: bold;
+    font-size: var(--text-xs);
+    cursor: pointer;
+    border-radius: 5px;
+    margin-right: 24px;
+}

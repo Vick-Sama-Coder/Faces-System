@@ -6,20 +6,45 @@
 .newmark-header{
     grid-area:1 / 2 / 2 / -1;
     display: flex;
-    justify-content: space-between!;
+    justify-content: space-between;
 }
 .newbookmark-content{
     grid-area:  2 / 2 / -1 / -1;
+    display: flexbox;
+    
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+
 }
 .sidebar{
     grid-area: 1 / 1 / -1 / 2;
 }
+.input-sect{
+    display: flex;
+    justify-content: space-between;
 
+
+}
+.plus{
+    padding-right: 4px;
+    font-size:var(--text-lg) ;
+}
+.newmark-table{
+    margin: 10px;
+}
+
+.new-table{
+    height: 513px;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    
+}
 
 @media screen and (max-width:678px) {
     .newbookmark-main{
         display: flex;
-        
-
+        flex-direction: column;
     }
 }
