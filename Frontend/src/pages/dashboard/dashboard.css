@@ -38,11 +38,16 @@
     justify-content: space-between;
     align-items: center;
     padding: 5px;
+    position: relative;
 }
+/* General info for every */
 .dash-h1{
+    position: sticky;
+    background-color:var(--Secundary-Background) ;
     display: flex;
     align-items: center;
     gap: 20px;
+    padding-left: 10px;
 }
 .user{
     display: flex;
@@ -113,6 +118,13 @@
         margin: 0px 0 0 0 ;
         
         padding: 0;
+    }
+    /* Default configuration for the profile p in the Header */
+    .p-profile{
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
     }
     .menu{
         display: block;

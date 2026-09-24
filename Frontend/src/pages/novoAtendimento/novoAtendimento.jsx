@@ -15,7 +15,7 @@ const modules = [AllCommunityModule];
 
 
 function NovoAtendimento(){
-
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [rowData]= useState([
         {
             cliente:"Joao",
@@ -96,7 +96,10 @@ function NovoAtendimento(){
 
     return(
         <div className="newbookmark-main">
-            <SideBar/>
+            <SideBar
+                isOpen={isSidebarOpen}
+                setIsOpen={setIsSidebarOpen}
+            />
             <Headers
                 heady="newmark-header"
                 title="Novo Atendimento"
@@ -104,6 +107,7 @@ function NovoAtendimento(){
                 menuClass="menu"
                 userClass="user"
                 bellClass="bell"
+                onMenuClick={() => setIsSidebarOpen(true)}
             />
             <section className="newbookmark-content">
                 <article className="input-sect">

@@ -5,16 +5,30 @@ import {
     ScissorsIcon,
     CalendarPlus,
     ChartNoAxesCombinedIcon,
-    Receipt, } from "lucide-react"
+    Receipt,X } from "lucide-react"
 import { Link } from "react-router-dom"
 import Photo from '../../assets/logo/faces-logo.png'
 import './sidebar.css'
 
-function SideBar(){
+function SideBar({ isOpen, setIsOpen }){
+
+    {isOpen && (
+                <div
+                    className="sidebar-backdrop"
+                    onClick={() => setIsOpen(false)}
+                />
+            )}
+
     return(
-        
-            <aside className='sidebar'>
-                <header>
+            
+            <aside className={`sidebar ${isOpen ? "open" : ""}`}>
+                <button
+                className="close-mobile"
+                onClick={() => setIsOpen(false)}
+            >
+                <X size={24} />
+            </button>
+            <header>
                     <h1>
                         <span className="img"><img  className="logo" src={Photo} alt='Faces-logo' /></span>
                     </h1>

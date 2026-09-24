@@ -2,10 +2,13 @@
 import Sidebar from "../../components/sidebar/siderbar.jsx"
 import Headers from "../../components/headers/header.jsx";
 import { ArrowUp, ArrowDown } from "lucide-react";
+import { useState } from "react";
 import './dashboard.css'
 
 
 function DashBoard(){
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+    
     return(
         <article className="dashboard-main">
             <Headers
@@ -15,9 +18,14 @@ function DashBoard(){
                 menuClass="menu"
                 userClass="user"
                 bellClass="bell"
+                pClass="p-profile"
+                onMenuClick={() => setIsSidebarOpen(true)}
 
             />
-        <Sidebar/>
+        <Sidebar
+            isOpen={isSidebarOpen}
+                setIsOpen={setIsSidebarOpen}
+        />
 
             <main className="dash-content">
                 <article className="reciept-card cards">

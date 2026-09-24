@@ -5,8 +5,12 @@
 }
 .newmark-header{
     grid-area:1 / 2 / 2 / -1;
+    text-align: left;
+    border-radius:0 0 10px 10px ;
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    padding: 5px;
 }
 .newbookmark-content{
     grid-area:  2 / 2 / -1 / -1;
@@ -16,6 +20,12 @@
     align-items: center;
     flex-direction: column;
 
+}
+.newmark-h1{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-left: 5px;
 }
 .sidebar{
     grid-area: 1 / 1 / -1 / 2;
