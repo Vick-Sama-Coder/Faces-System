@@ -3,6 +3,7 @@ import pool from '../config/database.js'
 import bcrypt from 'bcrypt';
 import generetedToken from '../utils/token.js';
 import { authenticate, authorize } from '../middlewares/auth.js';
+import { validarNome, validarTelefone, validarSenha, limparTelefone } from '../utils/validacoes.js';
 
 const cookieOptions = {
     httpOnly: true,
@@ -12,14 +13,15 @@ const cookieOptions = {
 
 }
 
-//sanitiza o telefone: mantem apenas digitos (a coluna na BD e int)
-function limparTelefone(telefone){
-    return String(telefone).replace(/\D/g, '');
+//resposta de validacao com campo especifico: {field, message}
+function erroCampo(res, field, message){
+    return res.status(400).json({ field, message });
 }
 
 const router = express.Router();
 
-//registo: cria sempre com perfil "Usuario" (auto-registo nunca cria Administrador)
+//registo: cria sempre com perfil "Usuario" e NAO inicia sessao
+//(a autenticacao acontece apenas no /login)
 router.post('/register', async (req,res, next)=>{
     try{
         const {nome, telefone, senha} = req.body;
@@ -28,22 +30,28 @@ router.post('/register', async (req,res, next)=>{
             return res.status(400).json({message: "nome ou telefone ou senha nao forma providenciadas"})
         }
 
-        if(String(senha).length < 6){
-            return res.status(400).json({message: "A senha deve ter no minimo 6 caracteres"})
+        const erroNome = validarNome(nome);
+        if(erroNome){
+            return erroCampo(res, "nome", erroNome);
+        }
+
+        const erroTel = validarTelefone(telefone);
+        if(erroTel){
+            return erroCampo(res, "telefone", erroTel);
+        }
+
+        const erroSenha = validarSenha(senha);
+        if(erroSenha){
+            return erroCampo(res, "senha", erroSenha);
         }
 
         const telefoneLimpo = limparTelefone(telefone);
-
-        //a coluna na BD e int (max 2147483647) — valida faixa antes de inserir
-        if(telefoneLimpo.length < 9 || Number(telefoneLimpo) > 2147483647){
-            return res.status(400).json({message: "Telefone invalido"})
-        }
 
         const userExists = await pool.query("select * from usuario where telefone = $1",[telefoneLimpo])
 
         //Verificando a existencia de usuario
         if(userExists.rows.length > 0){
-            return res.status(400).json({message: "O usuario ja existe"})
+            return erroCampo(res, "telefone", "O usuario ja existe");
         }
 
         //Criando a senha com hash
@@ -57,12 +65,7 @@ router.post('/register', async (req,res, next)=>{
 
         const userData = newUser.rows[0];
 
-        //gerando o token
-        const token = generetedToken(userData.id);
-
-        // armazenando as informacoes no cookie
-        res.cookie('token', token, cookieOptions)
-
+        //sem cookie/token: o cliente autentica-se depois no /login
         res.status(201).json({
             message: "usuario registrado com sucesso",
             user: {
@@ -84,6 +87,11 @@ router.post('/login', async(req,res, next)=>{
 
         if(!telefone || !senha){
             return res.status(400).json({message: "telefone ou senha nao foram providenciados"})
+        }
+
+        const erroTel = validarTelefone(telefone);
+        if(erroTel){
+            return erroCampo(res, "telefone", erroTel);
         }
 
         const telefoneLimpo = limparTelefone(telefone);

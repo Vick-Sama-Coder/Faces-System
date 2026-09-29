@@ -11,7 +11,7 @@ function Waiting(){
     );
 }
 
-//Exige sessao activa — redireciona para o login se nao houver
+//Exige sessao activa — redireciona para /login se nao houver
 export function RequireAuth({ children }){
     const { user, initialized, checkAuth } = useAuthStore();
     const location = useLocation();
@@ -27,7 +27,7 @@ export function RequireAuth({ children }){
     }
 
     if(!user){
-        return <Navigate to="/" replace state={{ from: location.pathname }}/>;
+        return <Navigate to="/login" replace state={{ from: location.pathname }}/>;
     }
 
     return children;
@@ -49,18 +49,18 @@ export function RequireRole({ children, perfis }){
     }
 
     if(!user){
-        return <Navigate to="/" replace state={{ from: location.pathname }}/>;
+        return <Navigate to="/login" replace state={{ from: location.pathname }}/>;
     }
 
     if(perfis && !perfis.includes(user.perfil)){
-        //sem autorizacao: volta ao dashboard (rota acessivel a todos)
-        return <Navigate to="/dashboard" replace/>;
+        //sem autorizacao: volta ao dashboard (index, rota acessivel a todos)
+        return <Navigate to="/" replace/>;
     }
 
     return children;
 }
 
-//Para rotas publicas (/ , /register) — ja logado vai directo ao dashboard
+//Para rotas publicas (/login, /register) — ja logado vai directo ao dashboard (index)
 export function RedirectIfAuth({ children }){
     const { user, initialized, checkAuth } = useAuthStore();
 
@@ -75,7 +75,7 @@ export function RedirectIfAuth({ children }){
     }
 
     if(user){
-        return <Navigate to="/dashboard" replace/>;
+        return <Navigate to="/" replace/>;
     }
 
     return children;

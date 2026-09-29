@@ -14,6 +14,11 @@ export const getApiError = (err) => {
     return err?.response?.data?.message || "Erro de conexao com o servidor";
 };
 
+//extrai o campo associado ao erro (backend devolve {field, message})
+export const getApiErrorField = (err) => {
+    return err?.response?.data?.field || null;
+};
+
 export const loginUser = (data) => {
     return server.post("api/auth/login", data);
 };

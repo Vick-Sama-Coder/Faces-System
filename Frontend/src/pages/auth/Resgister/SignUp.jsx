@@ -4,32 +4,31 @@ import { Link, useNavigate } from "react-router-dom"
 import { User, Lock, Phone } from "lucide-react"
 import "../../home.css"
 import { useAuthStore } from "../../../store/authStore.js"
+import { validarRegisto } from "../../../utils/validacoes.js"
 
 function Register(){
     const navigate = useNavigate()
-    const { register, loading, error, clearError } = useAuthStore()
+    const { register, loading, error, errorField, clearError } = useAuthStore()
 
     const [nome, setNome] = useState("")
     const [telefone, setTelefone] = useState("")
     const [senha, setSenha] = useState("")
     const [confirmarSenha, setConfirmarSenha] = useState("")
-    const [erroLocal, setErroLocal] = useState("")
+    const [erros, setErros] = useState({})
+
+    //valida um campo no momento em que e editado
+    function validarCampo(campo, valor){
+        const validacoes = validarRegisto({ nome, telefone, senha, confirmarSenha, [campo]: valor })
+        setErros((prev) => ({ ...prev, [campo]: validacoes[campo] || null }))
+    }
 
     async function handleSubmit(e){
         e.preventDefault()
         clearError()
-        setErroLocal("")
 
-        if(!nome.trim() || !telefone.trim() || !senha){
-            setErroLocal("Preencha todos os campos")
-            return
-        }
-        if(senha.length < 6){
-            setErroLocal("A senha deve ter no minimo 6 caracteres")
-            return
-        }
-        if(senha !== confirmarSenha){
-            setErroLocal("As senhas nao coincidem")
+        const validados = validarRegisto({ nome, telefone, senha, confirmarSenha })
+        setErros(validados)
+        if(Object.values(validados).some(Boolean)){
             return
         }
 
@@ -40,11 +39,21 @@ function Register(){
         })
 
         if(ok){
-            navigate("/dashboard", { replace: true })
+            //registo nao autentica: direciona para o login com aviso
+            navigate("/login", {
+                replace: true,
+                state: { success: "Conta criada com sucesso! Faca login para entrar." }
+            })
         }
     }
 
-    const mensagem = erroLocal || error
+    //erro local de validacao tem prioridade sobre o erro do backend,
+    //e o erro do backend realca o campo que ele indicar
+    function erroDe(campo){
+        if(erros[campo]) return erros[campo]
+        if(errorField === campo) return error
+        return null
+    }
 
     return(
        <section className="container">
@@ -52,7 +61,7 @@ function Register(){
         <h1 className="h1">Crie a Sua Conta</h1>
         <p className="paragraph">Comece a gerir a sua conta agora</p>
 
-        {mensagem && <p className="error-msg" role="alert">{mensagem}</p>}
+        {error && !errorField && <p className="error-msg" role="alert">{error}</p>}
 
         <form onSubmit={handleSubmit} noValidate>
             <div className="input-section">
@@ -63,8 +72,11 @@ function Register(){
                     placeholder="Nome do Usuario"
                     icon={<User></User>}
                     value={nome}
-                    onChange={(e) => setNome(e.target.value)}
+                    onChange={(e) => { setNome(e.target.value); validarCampo("nome", e.target.value) }}
+                    onBlur={() => validarCampo("nome", nome)}
+                    error={erroDe("nome")}
                     autoComplete="name"
+                    maxLength={100}
                     required
                 />
             </div>
@@ -76,8 +88,11 @@ function Register(){
                     placeholder="84-123-4567"
                     icon={<Phone></Phone>}
                     value={telefone}
-                    onChange={(e) => setTelefone(e.target.value)}
+                    onChange={(e) => { setTelefone(e.target.value); validarCampo("telefone", e.target.value) }}
+                    onBlur={() => validarCampo("telefone", telefone)}
+                    error={erroDe("telefone")}
                     autoComplete="tel"
+                    maxLength={20}
                     required
                 />
             </div>
@@ -86,11 +101,14 @@ function Register(){
                     labelId="pass"
                     className='text-input'
                     labelName= "Senha"
-                    placeholder="Minimo 6 caracteres"
+                    placeholder="8+ caracteres, 1 letra e 1 numero"
                     icon={<Lock></Lock>}
                     value={senha}
-                    onChange={(e) => setSenha(e.target.value)}
+                    onChange={(e) => { setSenha(e.target.value); validarCampo("senha", e.target.value) }}
+                    onBlur={() => validarCampo("senha", senha)}
+                    error={erroDe("senha")}
                     autoComplete="new-password"
+                    maxLength={72}
                     required
                     />
             </div>
@@ -99,11 +117,14 @@ function Register(){
                     labelId="confirm-pass"
                     className='text-input'
                     labelName= "Confirmar Senha"
-                    placeholder="confirme a sua senha"
+                    placeholder="repita a sua senha"
                     icon={<Lock></Lock>}
                     value={confirmarSenha}
-                    onChange={(e) => setConfirmarSenha(e.target.value)}
+                    onChange={(e) => { setConfirmarSenha(e.target.value); validarCampo("confirmarSenha", e.target.value) }}
+                    onBlur={() => validarCampo("confirmarSenha", confirmarSenha)}
+                    error={erroDe("confirmarSenha")}
                     autoComplete="new-password"
+                    maxLength={72}
                     required
                     />
             </div>
@@ -118,7 +139,7 @@ function Register(){
 
         </form>
         <p className="footer-p">
-            Ja tem conta? <Link to="/" className="link">Entrar</Link>
+            Ja tem conta? <Link to="/login" className="link">Entrar</Link>
         </p>
        </section> 
     )

@@ -2,3 +2,18 @@ label{
     font-weight: bold;
     
 }
+
+/* erro de validacao por campo */
+.field-error{
+    display: block;
+    margin: -10px 0 12px;
+    color: var(--Error);
+    font-size: var(--text-sm);
+    font-weight: 600;
+}
+.input-invalido{
+    border-color: var(--Error) !important;
+}
+.input-invalido:focus{
+    outline-color: var(--Error);
+}

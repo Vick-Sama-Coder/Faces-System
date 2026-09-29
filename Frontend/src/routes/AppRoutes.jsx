@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 
 import Home from '../pages/home.jsx'
 import Register from "../pages/auth/Resgister/SignUp.jsx";
@@ -10,29 +10,38 @@ import Funcionarios from "../pages/funcionarios/funcionarios.jsx"
 import NovoAtendimento from "../pages/novoAtendimento/novoAtendimento.jsx"
 import Relatorio from "../pages/relatorio/relatorio.jsx"
 import Servico from "../pages/servicos/servicos.jsx"
+import GestaoUtilizadores from "../pages/admin/GestaoUtilizadores.jsx"
+import Permissoes from "../pages/admin/Permissoes.jsx"
 import { RequireAuth, RequireRole, RedirectIfAuth } from "./RequireAuth.jsx"
 
 
 export default function AppRoutes(){
     return(
         <Routes>
-            {/* --- rotas publicas (so para quem nao esta logado) --- */}
-            <Route path='/' element={<RedirectIfAuth><Home/></RedirectIfAuth>}/>
-            <Route path="/login" element={<Navigate to="/" replace/>} />
+            {/* --- dashboard e o index: unica rota protegida por sessao --- */}
+            <Route path='/' element={<RequireAuth><DashBoard/></RequireAuth>}/>
+
+            {/* --- rotas publicas de auth --- */}
+            <Route path="/login" element={<RedirectIfAuth><Home/></RedirectIfAuth>}/>
             <Route path="/register" element={<RedirectIfAuth><Register/></RedirectIfAuth>} />
             <Route path="/forgotpass" element={<ForgotPass/>}/>
 
-            {/* --- rotas autenticadas --- */}
-            <Route path="/dashboard" element={<RequireAuth><DashBoard/></RequireAuth>} />
-            <Route path="/clientes" element={<RequireAuth><Clientes/></RequireAuth>}/>
-            <Route path="/novoAtendimento" element={<RequireAuth><NovoAtendimento/></RequireAuth>}/>
-            <Route path="/servicos" element={<RequireAuth><Servico/></RequireAuth>}/>
-            <Route path="/relatorio" element={<RequireAuth><Relatorio/></RequireAuth>}/>
-            <Route path="/despesas" element={<RequireAuth><Despesas/></RequireAuth>}/>
+            {/* --- rotas de operacao (publicas, sem protecao de rota) --- */}
+            <Route path="/clientes" element={<Clientes/>}/>
+            <Route path="/novoAtendimento" element={<NovoAtendimento/>}/>
+            <Route path="/servicos" element={<Servico/>}/>
+            <Route path="/relatorio" element={<Relatorio/>}/>
+            <Route path="/despesas" element={<Despesas/>}/>
 
-            {/* --- restritas ao Administrador --- */}
+            {/* --- reservadas ao Administrador --- */}
             <Route path="/funcionarios" element={
                 <RequireRole perfis={["Administrador"]}><Funcionarios/></RequireRole>
+            }/>
+            <Route path="/gestao-utilizadores" element={
+                <RequireRole perfis={["Administrador"]}><GestaoUtilizadores/></RequireRole>
+            }/>
+            <Route path="/permissoes" element={
+                <RequireRole perfis={["Administrador"]}><Permissoes/></RequireRole>
             }/>
         </Routes>
     )

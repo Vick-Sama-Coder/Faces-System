@@ -1,11 +1,25 @@
 import './input.css'
 
-function Input ({ type, icon, labelId, labelName, className, value, placeholder, ...rest }) {
+//`error` mostra a mensagem de validacao por campo; `icon`/`labelName` opcionais
+function Input ({ type, icon, labelId, labelName, className, value, placeholder, error, ...rest }) {
+const ehSubmit = type === "submit" || type === "button";
+
 return(
     <>
-        <p><label htmlFor={labelId}>{labelName}</label></p>
-        <label className='icony' htmlFor={labelId}>{icon}</label>
-        <input className={className} type={type} id={labelId} value={value} placeholder={placeholder} {...rest} />
+        {labelName && <p><label htmlFor={labelId}>{labelName}</label></p>}
+        {icon && <label className='icony' htmlFor={labelId}>{icon}</label>}
+        <input
+            className={`${className || ""}${error ? " input-invalido" : ""}`}
+            type={type}
+            id={labelId}
+            value={ehSubmit ? undefined : value}
+            defaultValue={ehSubmit ? value : undefined}
+            placeholder={placeholder}
+            aria-invalid={error ? "true" : undefined}
+            aria-describedby={error && labelId ? `${labelId}-erro` : undefined}
+            {...rest}
+        />
+        {error && <span className="field-error" id={labelId ? `${labelId}-erro` : undefined} role="alert">{error}</span>}
     </>
 )
 }

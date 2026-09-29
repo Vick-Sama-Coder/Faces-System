@@ -1,11 +1,13 @@
 import { create } from 'zustand';
-import { loginUser, registerUser, getMe, logoutUser, getApiError } from '../services/api.js';
+import { loginUser, registerUser, getMe, logoutUser, getApiError, getApiErrorField } from '../services/api.js';
 
 export const useAuthStore = create((set) => ({
     user: null,
     loading: false,
     initialized: false,
     error: null,
+    errorField: null,   //campo associado ao ultimo erro do backend
+    sucesso: null,      //mensagem de sucesso (ex.: registo feito)
 
     //verifica a sessao existente no arranque da app (cookie httpOnly)
     checkAuth: async () => {
@@ -18,25 +20,26 @@ export const useAuthStore = create((set) => ({
     },
 
     login: async (data) => {
-        set({ loading: true, error: null });
+        set({ loading: true, error: null, errorField: null, sucesso: null });
         try{
             const res = await loginUser(data);
-            set({ user: res.data.user, loading: false, error: null });
+            set({ user: res.data.user, loading: false, error: null, errorField: null });
             return true;
         }catch(err){
-            set({ loading: false, error: getApiError(err) });
+            set({ loading: false, error: getApiError(err), errorField: getApiErrorField(err) });
             return false;
         }
     },
 
+    //cria a conta mas NAO inicia sessao — a autenticacao e feita no /login
     register: async (data) => {
-        set({ loading: true, error: null });
+        set({ loading: true, error: null, errorField: null });
         try{
-            const res = await registerUser(data);
-            set({ user: res.data.user, loading: false, error: null });
+            await registerUser(data);
+            set({ loading: false, error: null, errorField: null });
             return true;
         }catch(err){
-            set({ loading: false, error: getApiError(err) });
+            set({ loading: false, error: getApiError(err), errorField: getApiErrorField(err) });
             return false;
         }
     },
@@ -45,9 +48,10 @@ export const useAuthStore = create((set) => ({
         try{
             await logoutUser();
         }finally{
-            set({ user: null, error: null });
+            set({ user: null, error: null, errorField: null });
         }
     },
 
-    clearError: () => set({ error: null }),
+    clearError: () => set({ error: null, errorField: null }),
+    clearSucesso: () => set({ sucesso: null }),
 }));
