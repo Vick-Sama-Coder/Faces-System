@@ -5,26 +5,51 @@ import {
     ScissorsIcon,
     CalendarPlus,
     ChartNoAxesCombinedIcon,
-    Receipt,X } from "lucide-react"
-import { Link } from "react-router-dom"
+    Receipt,
+    LogOut,
+    X } from "lucide-react"
+import { Link, useNavigate } from "react-router-dom"
 import Photo from '../../assets/logo/faces-logo.png'
+import { useAuthStore } from '../../store/authStore.js'
 import './sidebar.css'
 
-function SideBar({ isOpen, setIsOpen }){
+//Seccoes da sidebar: `perfis` define quem pode ver (vazio = todos)
+const SECOES = [
+    { nome: "DashBoard",       path: "/dashboard",         Icone: LayoutDashboardIcon,       perfis: [] },
+    { nome: "Novo Atendimento",path: "/novoAtendimento",   Icone: CalendarPlus,             perfis: [] },
+    { nome: "Clientes",        path: "/clientes",          Icone: UserRound,                perfis: [] },
+    { nome: "Servicos",        path: "/servicos",          Icone: ScissorsIcon,             perfis: [] },
+    { nome: "Funcionarios",    path: "/funcionarios",      Icone: Users,                    perfis: ["Administrador"] },
+    { nome: "Relatorio",       path: "/relatorio",         Icone: ChartNoAxesCombinedIcon,  perfis: [] },
+    { nome: "Despesas",        path: "/despesas",          Icone: Receipt,                  perfis: [] },
+];
 
-    {isOpen && (
-                <div
-                    className="sidebar-backdrop"
-                    onClick={() => setIsOpen(false)}
-                />
-            )}
+function SideBar({ isOpen, setIsOpen }){
+    const { user, logout } = useAuthStore()
+    const navigate = useNavigate()
+
+    //so mostra as seccoes autorizadas ao perfil do utilizador
+    const seccoes = SECOES.filter(
+        (s) => s.perfis.length === 0 || (user && s.perfis.includes(user.perfil))
+    )
+
+    async function handleLogout(){
+        await logout()
+        navigate("/", { replace: true })
+    }
 
     return(
-            
+            <>
+            {isOpen && (
+                <div
+                    className="sidebar-backdrop"
+                    onClick={() => setIsOpen && setIsOpen(false)}
+                />
+            )}
             <aside className={`sidebar ${isOpen ? "open" : ""}`}>
                 <button
                 className="close-mobile"
-                onClick={() => setIsOpen(false)}
+                onClick={() => setIsOpen && setIsOpen(false)}
             >
                 <X size={24} />
             </button>
@@ -33,70 +58,24 @@ function SideBar({ isOpen, setIsOpen }){
                         <span className="img"><img  className="logo" src={Photo} alt='Faces-logo' /></span>
                     </h1>
                 </header>
-                <Link to="/dashboard" className="side-link">
-                    <p className= "p">
-                        <span className="block"></span>
-                        <span className="icon"><LayoutDashboardIcon/></span>
-                        <span className="info">DashBoard</span>
-                    </p >
-                </Link>
-                <Link className="side-link" to='/novoAtendimento'>
-                    <p className= "p">
-                        <span className="icon"><CalendarPlus/></span>
-                        <span className="info">Novo Atendimento</span>
+
+                {seccoes.map(({ nome, path, Icone }) => (
+                    <Link key={path} className="side-link" to={path} onClick={() => setIsOpen && setIsOpen(false)}>
+                        <p className="p">
+                            <span className="icon"><Icone/></span>
+                            <span className="info">{nome}</span>
+                        </p>
+                    </Link>
+                ))}
+
+                <button className="side-link logout-btn" onClick={handleLogout}>
+                    <p className="p">
+                        <span className="icon"><LogOut/></span>
+                        <span className="info">Sair</span>
                     </p>
-                </Link>
-                <Link className="side-link" to='/funcionarios'>
-                    <p className= "p">
-                        <span className="icon"><Users/></span>
-                        <span className="info">Funcionarios</span>
-                    </p >
-                </Link>
-                <Link className="side-link" to='/clientes'>
-                    <p className= "p">
-                        <span className="icon"><UserRound/></span>
-                        <span className="info">Clientes</span>
-                    </p>
-                </Link>
-                <Link className="side-link" to='/servicos'>
-                    <p className= "p">
-                        <span className="icon"><ScissorsIcon/></span>
-                        <span className="info">Servicos</span>
-                    </p>
-                </Link>
-                <Link className="side-link" to="/relatorio">
-                    <p className= "p">
-                        <span className="icon"><ChartNoAxesCombinedIcon/></span>
-                        <span className="info">Relatorio</span>
-                    </p>
-                </Link>
-                <Link className="side-link" to="/despesas">
-                    <p className= "p">
-                        <span className="icon"><Receipt/></span>
-                        <span className="info">Despesas</span>
-                    </p>
-                </Link>
-                <Link className="side-link" to="/despesas">
-                    <p className= "p">
-                        <span className="icon"><Receipt/></span>
-                        <span className="info">Despesas</span>
-                    </p>
-                </Link>
-                                <Link className="side-link" to="/despesas">
-                    <p className= "p">
-                        <span className="icon"><Receipt/></span>
-                        <span className="info">Despesas</span>
-                    </p>
-                </Link>
-                                <Link className="side-link" to="/despesas">
-                    <p className= "p">
-                        <span className="icon"><Receipt/></span>
-                        <span className="info">Despesas</span>
-                    </p>
-                </Link>
+                </button>
             </aside>
-    
-        
+            </>
     )
 }
 export default SideBar

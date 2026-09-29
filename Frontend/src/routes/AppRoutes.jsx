@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import Home from '../pages/home.jsx'
 import Register from "../pages/auth/Resgister/SignUp.jsx";
@@ -10,20 +10,30 @@ import Funcionarios from "../pages/funcionarios/funcionarios.jsx"
 import NovoAtendimento from "../pages/novoAtendimento/novoAtendimento.jsx"
 import Relatorio from "../pages/relatorio/relatorio.jsx"
 import Servico from "../pages/servicos/servicos.jsx"
+import { RequireAuth, RequireRole, RedirectIfAuth } from "./RequireAuth.jsx"
 
 
 export default function AppRoutes(){
     return(
         <Routes>
-            <Route path='/' element={<Home/>}/>
-            <Route path="/register" element={<Register/>} />
-            <Route path="/forgotpass" element={<ForgotPass/>}/><Route path="/dashboard" element={<DashBoard/>} />
-            <Route path="/clientes" element={<Clientes/>}/>
-            <Route path="/despesas" element={<Despesas/>}/>
-            <Route path="/funcionarios" element={<Funcionarios/>}/>
-            <Route path="/novoAtendimento" element={<NovoAtendimento/>}/>
-            <Route path="/relatorio" element={<Relatorio/>}/>
-            <Route path="/servicos" element={<Servico/>}/>
+            {/* --- rotas publicas (so para quem nao esta logado) --- */}
+            <Route path='/' element={<RedirectIfAuth><Home/></RedirectIfAuth>}/>
+            <Route path="/login" element={<Navigate to="/" replace/>} />
+            <Route path="/register" element={<RedirectIfAuth><Register/></RedirectIfAuth>} />
+            <Route path="/forgotpass" element={<ForgotPass/>}/>
+
+            {/* --- rotas autenticadas --- */}
+            <Route path="/dashboard" element={<RequireAuth><DashBoard/></RequireAuth>} />
+            <Route path="/clientes" element={<RequireAuth><Clientes/></RequireAuth>}/>
+            <Route path="/novoAtendimento" element={<RequireAuth><NovoAtendimento/></RequireAuth>}/>
+            <Route path="/servicos" element={<RequireAuth><Servico/></RequireAuth>}/>
+            <Route path="/relatorio" element={<RequireAuth><Relatorio/></RequireAuth>}/>
+            <Route path="/despesas" element={<RequireAuth><Despesas/></RequireAuth>}/>
+
+            {/* --- restritas ao Administrador --- */}
+            <Route path="/funcionarios" element={
+                <RequireRole perfis={["Administrador"]}><Funcionarios/></RequireRole>
+            }/>
         </Routes>
     )
 }

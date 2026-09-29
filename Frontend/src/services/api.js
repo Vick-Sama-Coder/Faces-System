@@ -9,17 +9,28 @@ const server = axios.create({
 
 });
 
-export const loginUser = (data) =>{
-    server.post("api/auth/login",data);
+//extrai a mensagem de erro vinda do backend
+export const getApiError = (err) => {
+    return err?.response?.data?.message || "Erro de conexao com o servidor";
 };
 
-export const registerUser = (data) =>{
-    server.post("api/auth/register",data);
+export const loginUser = (data) => {
+    return server.post("api/auth/login", data);
 };
 
+export const registerUser = (data) => {
+    return server.post("api/auth/register", data);
+};
 
- 
-// export default registerUser;
+export const getMe = () => {
+    return server.get("api/auth/me");
+};
 
+export const logoutUser = () => {
+    return server.post("api/auth/logout");
+};
 
+export const getUsers = () => {
+    return server.get("api/auth/users");
+};
 

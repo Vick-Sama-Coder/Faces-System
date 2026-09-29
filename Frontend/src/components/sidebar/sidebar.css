@@ -46,6 +46,22 @@ h1{
     color: black;
     width: 100%;
 }
+/* botao de logout (e um <button>, precisa reset de estilo) */
+.logout-btn{
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    font-size: inherit;
+    cursor: pointer;
+    padding: 0;
+    margin-top: auto;
+    text-align: left;
+    color: var(--Error);
+}
+.logout-btn .p:hover{
+    background-color: var(--Error);
+    color: var(--card);
+}
 .p{
     display: flex;
     align-items: center;

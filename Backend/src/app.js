@@ -29,9 +29,17 @@ app.use(cookieParser()); //transformar string cookies em objetos
 
 app.use("/api/auth",authRoutes)
 
+//404 em JSON (rotas de API inexistentes)
+app.use((req, res) => {
+  res.status(404).json({ message: "Rota nao encontrada" });
+});
 
-
-
-
+//handler de erros em JSON (sem stack em producao)
+app.use((err, req, res, next) => {
+  console.error("Erro no servidor:", err.message);
+  res.status(err.status || 500).json({
+    message: err.status ? err.message : "Erro interno do servidor",
+  });
+});
 
 export default app;

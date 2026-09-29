@@ -1,14 +1,21 @@
+import { useState } from "react"
 import SideBar from "../../components/sidebar/siderbar.jsx";
-//import Layout  from "../../components/Layout/Layout.jsx";
 import Headers from "../../components/headers/header.jsx";
 import "./funcionarios.css"
 
 function Funcionarios(){
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+
     return(
         <div className="employee-main">
-            <SideBar/>
-            
-            <Headers/>
+            <SideBar
+                isOpen={isSidebarOpen}
+                setIsOpen={setIsSidebarOpen}
+            />
+            <Headers
+                title="Funcionarios"
+                onMenuClick={() => setIsSidebarOpen(true)}
+            />
         </div>
 
     )
