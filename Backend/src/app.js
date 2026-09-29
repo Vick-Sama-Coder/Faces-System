@@ -16,8 +16,10 @@ dotnev.config({
 });
 
 const app = express();
+//Normaliza a origem (o .env pode ter "/" final, senao o browser bloqueia o CORS)
+const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 app.use(cors({
-  origin: process.env.CLIENT_URL || "http://localhost:5173",
+  origin: new URL(CLIENT_URL).origin,
   credentials: true,
 }));
 

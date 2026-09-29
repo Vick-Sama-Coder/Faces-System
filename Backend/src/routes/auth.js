@@ -54,12 +54,12 @@ router.post('/login', async(req,res)=>{
     const {nome, senha} = req.body
 
     if(!nome || !senha){
-        res.status(400).json({message: "nome ou senha nao foram providenciados"})
+        return res.status(400).json({message: "nome ou senha nao foram providenciados"})
     }
 
     const userExists = await pool.query('select * from usuario where nome = $1',[nome])
     if(userExists.rows.length === 0){
-        res.status(400).json({message: "Esse usuario nao existe"})
+        return res.status(400).json({message: "Esse usuario nao existe"})
     }
 
     const userData = userExists.rows[0];
@@ -67,7 +67,7 @@ router.post('/login', async(req,res)=>{
     const isMatch = await bcrypt.compare(senha,userData.senha)
 
     if(!isMatch){
-        res.status(400).json({message: "A senha esta invalida"})
+        return res.status(400).json({message: "A senha esta invalida"})
     }
 
     

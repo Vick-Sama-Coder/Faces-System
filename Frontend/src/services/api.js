@@ -1,22 +1,25 @@
 import axios from 'axios';
-import { useEffect } from 'react';
 
 
 const BASE_API = "http://localhost:5000/";
 
 const server = axios.create({
     baseURL: BASE_API,
+    withCredentials: true
 
 });
 
-const loginUser = (data) =>{
+export const loginUser = (data) =>{
     server.post("api/auth/login",data);
 };
 
-const registerUser = (data) =>{
+export const registerUser = (data) =>{
     server.post("api/auth/register",data);
 };
 
 
-export default loginUser registerUser;
+ 
+// export default registerUser;
+
+
 
