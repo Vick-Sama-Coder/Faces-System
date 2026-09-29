@@ -1,20 +1,32 @@
 //import Layout from "../../components/Layout/Layout.jsx";
 import Sidebar from "../../components/sidebar/siderbar.jsx"
 import Headers from "../../components/headers/header.jsx";
-import Title from "../../components/title/title.jsx";
 import { ArrowUp, ArrowDown } from "lucide-react";
+import { useState } from "react";
 import './dashboard.css'
 
 
 function DashBoard(){
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+    
     return(
         <article className="dashboard-main">
-            <Headers/>
-        <Sidebar/>
-            <Title
-            title="Dashboard"
-            classname="dash-title"
+            <Headers
+                heady="dash-header"
+                title="Dashboard"
+                h1Class="dash-h1"
+                menuClass="menu"
+                userClass="user"
+                bellClass="bell"
+                pClass="p-profile"
+                onMenuClick={() => setIsSidebarOpen(true)}
+
             />
+        <Sidebar
+            isOpen={isSidebarOpen}
+                setIsOpen={setIsSidebarOpen}
+        />
+
             <main className="dash-content">
                 <article className="reciept-card cards">
                     <h3>Receita Total</h3>
@@ -39,31 +51,34 @@ function DashBoard(){
                     <h1>312</h1>
                     <p><span><ArrowUp/>22.3%</span> vs mes passado</p>
                 </article>
-                <article className="reciept-vs-expenses-card cards">
-                    <h2>Receitas Vs Despesas</h2>
-                    <p>este mes</p>
+                <article className="billing cards">
+                    <h2>Faturamento</h2>
+                    <p></p>
                 </article>
 
-                <article className="recieps-per-service-card cards">
-                    <h2>Receitas Por Servicos</h2>
-                    <p>este mes`</p>
-                    
+                <article className="most-services cards">
+                    <h2>Servicos mais Realizados</h2>
                 </article>
 
-                <article className="recent-transactions cards">
-                    <h2>Transacoes recentes</h2>
-                </article>
-
-                <article className="reciept-evolution cards">
-                    <h2>Evolucao de receitas <span>(ultimos 6 meses)</span></h2>
-                </article>
-
-                <article className="resume-per-reciept-category cards">
-                    <h2>Resumo por categoria de despesa</h2>
-                </article>
 
                 <article className="featured-professionals cards">
                     <h2>Profissionais em Destaque</h2>
+                    <p>este mes</p>
+                </article>
+                <article className="billing-per-service cards">
+                    <h2>Faturamento por servico</h2>
+                    <p>este mes</p>
+                </article>
+                <article className="expenses cards">
+                    <h2>Despesas</h2>
+                    <p>este mes</p>
+                </article>
+                <article className="profile cards">
+                    <h2>Perfil</h2>
+                    <p>este mes</p>
+                </article>
+                    <article className="recent-treatment cards">
+                    <h2>Atendimentos Recentes</h2>
                     <p>este mes</p>
                 </article>
             </main>

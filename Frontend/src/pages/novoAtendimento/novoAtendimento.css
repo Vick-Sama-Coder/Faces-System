@@ -1,0 +1,60 @@
+.newbookmark-main{
+    height: 100vh;
+    display: grid;
+    grid-template: 60px 1fr / 70px 1fr;
+}
+.newmark-header{
+    grid-area:1 / 2 / 2 / -1;
+    text-align: left;
+    border-radius:0 0 10px 10px ;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px;
+}
+.newbookmark-content{
+    grid-area:  2 / 2 / -1 / -1;
+    display: flexbox;
+    
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+
+}
+.newmark-h1{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-left: 5px;
+}
+.sidebar{
+    grid-area: 1 / 1 / -1 / 2;
+}
+.input-sect{
+    display: flex;
+    justify-content: space-between;
+
+
+}
+.plus{
+    padding-right: 4px;
+    font-size:var(--text-lg) ;
+}
+.newmark-table{
+    margin: 10px;
+}
+
+.new-table{
+    height: 513px;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    
+}
+
+@media screen and (max-width:678px) {
+    .newbookmark-main{
+        display: flex;
+        flex-direction: column;
+    }
+}
