@@ -83,3 +83,33 @@ label:hover{
 .username{
     margin-bottom: 5px ;
 }
+
+/* mensagens de erro/sucesso dos formularios de auth */
+.error-msg{
+    width: 80vw;
+    max-width: 420px;
+    margin: 0 0 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--Error);
+    background-color: rgba(224, 75, 75, 0.1);
+    color: var(--Error);
+    font-weight: 600;
+    text-align: center;
+}
+.success-msg{
+    width: 80vw;
+    max-width: 420px;
+    margin: 0 0 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--Sucess);
+    background-color: rgba(33, 163, 102, 0.1);
+    color: var(--Sucess);
+    font-weight: 600;
+    text-align: center;
+}
+.submit-btn:disabled{
+    opacity: 0.6;
+    cursor: not-allowed;
+}

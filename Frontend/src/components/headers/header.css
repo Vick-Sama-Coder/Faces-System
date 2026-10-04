@@ -1,1 +1,8 @@
-
+.logout-icon{
+    cursor: pointer;
+    color: var(--Secundary-text);
+    transition: color 0.2s;
+}
+.logout-icon:hover{
+    color: var(--Error);
+}
