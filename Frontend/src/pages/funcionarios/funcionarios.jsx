@@ -1,5 +1,5 @@
-import { useState } from "react"
 import SideBar from "../../components/sidebar/siderbar.jsx";
+//import Layout  from "../../components/Layout/Layout.jsx";
 import Headers from "../../components/headers/header.jsx";
 import Button from "../../components/forms/button/button.jsx"
 import Search from "../../components/forms/search/search.jsx"
@@ -13,7 +13,6 @@ import { useState } from "react"
 const modules = [AllCommunityModule];
 
 function Funcionarios(){
-<<<<<<< HEAD
 
      const [rowData]= useState([
         {
@@ -64,17 +63,12 @@ function Funcionarios(){
 
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-=======
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-
->>>>>>> 553e37bd1513383126f481336d845ac366f74d57
     return(
         <div className="employee-main">
             <SideBar
                 isOpen={isSidebarOpen}
                 setIsOpen={setIsSidebarOpen}
             />
-<<<<<<< HEAD
             
             <Headers
                 heady="dash-header"
@@ -110,12 +104,6 @@ function Funcionarios(){
                 </article>
             </section>
 
-=======
-            <Headers
-                title="Funcionarios"
-                onMenuClick={() => setIsSidebarOpen(true)}
-            />
->>>>>>> 553e37bd1513383126f481336d845ac366f74d57
         </div>
 
     )

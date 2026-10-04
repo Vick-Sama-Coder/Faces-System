@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 
-const BASE_API = "http://localhost:5000/";
+const BASE_API = "http://192.168.0.14:5000/";
 
 const server = axios.create({
     baseURL: BASE_API,

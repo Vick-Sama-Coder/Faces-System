@@ -1,6 +1,6 @@
 import { useState } from "react"
 import Input from "../../../components/forms/input/input.jsx"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useNavigate } from "react-dom"
 import { User, Lock, Phone } from "lucide-react"
 import "../../home.css"
 import { useAuthStore } from "../../../store/authStore.js"

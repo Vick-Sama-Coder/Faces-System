@@ -1,6 +1,6 @@
 import dotnev from 'dotenv';
-import { fileURLToPath } from 'url';
-import path from 'path';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import app from './app.js';
 
 

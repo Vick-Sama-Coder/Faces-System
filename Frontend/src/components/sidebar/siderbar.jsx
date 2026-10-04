@@ -10,9 +10,9 @@ import {
     ShieldCheck,
     LogOut,
     X } from "lucide-react"
-import { NavLink, useNavigate } from "react-router-dom"
+import { Link, NavLink, useNavigate } from "react-router"
 import Photo from '../../assets/logo/faces-logo.png'
-import { useAuthStore } from '../../store/authStore.js'
+import { useAuthStore } from '../../store/authStore.js';
 import './sidebar.css'
 
 //Seccoes da sidebar agrupadas: `perfis` define quem pode ver (vazio = todos)
@@ -87,7 +87,7 @@ function SideBar({ isOpen, setIsOpen }){
                         <span className="img"><img  className="logo" src={Photo} alt='Faces-logo' /></span>
                     </h1>
                 </header>
-<<<<<<< HEAD
+
                 <Link to="/dashboard" className="side-link">
                     <p title="Dashboard" className= "p">
                         <span className="block"></span>
@@ -149,7 +149,6 @@ function SideBar({ isOpen, setIsOpen }){
                         <span className="info">Despesas</span>
                     </p>
                 </Link>
-=======
 
                 {grupos.map((grupo) => (
                     <nav key={grupo.titulo} className="sidebar-group" aria-label={grupo.titulo}>
@@ -176,7 +175,7 @@ function SideBar({ isOpen, setIsOpen }){
                         <span className="info">Sair</span>
                     </p>
                 </button>
->>>>>>> 553e37bd1513383126f481336d845ac366f74d57
+
             </aside>
             </>
     )
