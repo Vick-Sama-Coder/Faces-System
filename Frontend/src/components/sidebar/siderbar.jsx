@@ -34,44 +34,44 @@ function SideBar({ isOpen, setIsOpen }){
                     </h1>
                 </header>
                 <Link to="/dashboard" className="side-link">
-                    <p className= "p">
+                    <p title="Dashboard" className= "p">
                         <span className="block"></span>
                         <span className="icon"><LayoutDashboardIcon/></span>
                         <span className="info">DashBoard</span>
                     </p >
                 </Link>
                 <Link className="side-link" to='/novoAtendimento'>
-                    <p className= "p">
+                    <p title="Novo Atendimento" className= "p">
                         <span className="icon"><CalendarPlus/></span>
                         <span className="info">Novo Atendimento</span>
                     </p>
                 </Link>
                 <Link className="side-link" to='/funcionarios'>
-                    <p className= "p">
+                    <p title="Funcionarios" className= "p">
                         <span className="icon"><Users/></span>
                         <span className="info">Funcionarios</span>
                     </p >
                 </Link>
                 <Link className="side-link" to='/clientes'>
-                    <p className= "p">
+                    <p title="Clientes" className= "p">
                         <span className="icon"><UserRound/></span>
                         <span className="info">Clientes</span>
                     </p>
                 </Link>
                 <Link className="side-link" to='/servicos'>
-                    <p className= "p">
+                    <p title="Servicos" className= "p">
                         <span className="icon"><ScissorsIcon/></span>
                         <span className="info">Servicos</span>
                     </p>
                 </Link>
                 <Link className="side-link" to="/relatorio">
-                    <p className= "p">
+                    <p title="Relatorios" className= "p">
                         <span className="icon"><ChartNoAxesCombinedIcon/></span>
                         <span className="info">Relatorio</span>
                     </p>
                 </Link>
                 <Link className="side-link" to="/despesas">
-                    <p className= "p">
+                    <p title="Despesas" className= "p">
                         <span className="icon"><Receipt/></span>
                         <span className="info">Despesas</span>
                     </p>

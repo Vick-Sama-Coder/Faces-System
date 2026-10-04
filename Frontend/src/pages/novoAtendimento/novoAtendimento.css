@@ -51,10 +51,18 @@
     overflow: hidden;
     
 }
-
+/* Moblie */
 @media screen and (max-width:678px) {
     .newbookmark-main{
         display: flex;
         flex-direction: column;
     }
+}
+
+/* Big Screens */
+@media screen and (min-width:1024px) {
+    .newbookmark-main{
+        grid-template: 60px 1fr / 220px 1fr;
+    }
+    
 }

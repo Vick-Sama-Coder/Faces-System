@@ -4,7 +4,7 @@
     position:relative;
     outline-color: var(--Primary-faces);
     border-radius: 10px;
-    width: 395px;
+    width: 60vw;
     color:var(--Primary-faces);
 }
 .search-icon{
