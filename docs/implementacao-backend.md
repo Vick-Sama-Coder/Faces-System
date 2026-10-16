@@ -1,0 +1,953 @@
+# Implementação do Backend — Plano por Fases
+
+[← Voltar ao índice](./README.md)
+
+Este documento é o **plano de execução da camada de backend** do Faces System. Descreve,
+fase a fase, o que construir, em que ordem, com que migrações de base de dados, endpoints,
+regras de negócio e critérios de conclusão. Deve ser lido em conjunto com:
+
+- [`arquitetura.md`](./arquitetura.md) — camadas e estrutura de pastas.
+- [`base-de-dados.md`](./base-de-dados.md) — esquema atual.
+- [`api.md`](./api.md) — endpoints já implementados.
+- [`autenticacao-permissoes.md`](./autenticacao-permissoes.md) — sessão e perfis.
+- [`documentacao.md`](./documentacao.md) — análise de requisitos (RF, RN, RNF) e plano de produto.
+- [`historias-usuario-salao-beleza.md`](./historias-usuario-salao-beleza.md) — backlog (HU).
+
+> **Objetivo do backend:** expor todos os módulos do produto através de uma API REST
+> consistente, aplicando regras de negócio e autorização **no servidor**, com PostgreSQL
+> e SQL parametrizado (sem ORM), conforme [`regras-tecnologia.md`](./regras-tecnologia.md).
+
+## 0. Estado de execução
+
+| Fase | Estado | Notas |
+| --- | :---: | --- |
+| Fase 0 — Fundação técnica | ✅ Concluída | mapeamento central de erros PostgreSQL→HTTP em `app.js`; validação reduzida a "campo obrigatório" (o frontend valida formatos) |
+| Fase 1 — Contas, perfis e permissões | ✅ Concluída | Tabelas `permissao`/`perfil_permissao`/`usuario_permissao`, 22 permissões, 4 perfis, CRUD de contas/perfis, `authorizePermission`, alteração de senha |
+| Fase 2 — Clientes | ✅ Concluída | CRUD + pesquisa por nome/apelido/telefone + estado; telefone único |
+| Fases 3–15 | ⏳ Pendente | Ver detalhe abaixo |
+
+> **Base de dados:** esquema aplicado do zero com os scripts `001`–`017` (ver
+> [`base-de-dados.md`](./base-de-dados.md)). Não foram usadas migrações `ALTER TABLE`
+> porque o esquema foi recriado a partir das definições.
+
+---
+
+
+## 1. Estado atual (baseline)
+
+O que **já existe e funciona** no backend:
+
+| Área | Estado | Ficheiros |
+| --- | --- | --- |
+| Autenticação (registo, login, `/me`, logout) | ✅ | `routes/auth.js` |
+| Middlewares `authenticate` / `authorize` | ✅ | `middlewares/auth.js` |
+| Gestão de utilizadores (listagem) | ✅ | `routes/auth.js` |
+| CRUD categorias de serviço | ✅ | `controller` + `repository` + `routes/categoria.js` |
+| CRUD serviços | ✅ | `controller` + `repository` + `routes/servico.js` |
+| CRUD funcionários | ✅ | `controller` + `repository` + `routes/funcionario.js` |
+| Validações (nome, telefone, senha) | ✅ | `utils/validacoes.js` |
+| Token JWT | ✅ | `utils/token.js` |
+| Esquema SQL (16 scripts, `001`–`015`) | ✅ | `Database/schema/` |
+
+O que **falta** (objeto deste plano): cliente, atendimentos, serviços realizados,
+pagamentos, comissões, caixa, despesas, produtos, fidelização, horários, assiduidade,
+salários, relatórios, catálogo público, auditoria, gestão de contas/permissões e
+sincronização offline.
+
+### Estrutura de pastas alvo
+
+```
+Backend/
+├── Database/
+│   └── schema/            # scripts SQL numerados (016+ a partir deste plano)
+└── src/
+    ├── config/            # pool pg
+    ├── controller/        # entrada HTTP → validação mínima → repositórios
+    ├── services/          # regras de negócio (comissão, caixa, fidelização…) — só quando necessário
+    ├── repository/        # SQL parametrizado (sem regras, sem HTTP)
+    ├── middlewares/       # authenticate, authorize, authorizePermission
+    ├── routes/            # definição de rotas
+    ├── utils/             # token, validações
+    ├── app.js
+    └── server.js
+```
+
+> A camada `services/` fica **reservada** aos módulos com regras complexas
+> (pagamentos, comissões, caixa, fidelização, salários); os CRUD simples continuam
+> `controller → repository`.
+
+---
+
+## 2. Convenções transversais (aplicar em todas as fases)
+
+Estas decisões devem ser respeitadas em **todo** o código novo para manter consistência.
+
+### 2.1 Camadas e responsabilidades
+
+1. **`routes/`** — método + caminho → controlador; aplica `authenticate`/`authorize`/`authorizePermission`.
+2. **`controller/`** — lê a entrada, verifica **campos obrigatórios**, chama o
+   `service`/`repository`, define o código HTTP e o corpo. Erros inesperados seguem para
+   o handler central com `next(error)`.
+3. **`services/`** — regras de negócio e **transações** (`pool.connect()` + `BEGIN/COMMIT/ROLLBACK`).
+4. **`repository/`** — apenas SQL parametrizado, devolve linhas ou `null`.
+5. **`config/database.js`** — `Pool` partilhado (já existe).
+
+### 2.2 Respostas HTTP (padrão do backend)
+
+| Situação | Padrão |
+| --- | --- |
+| Lista | `200` com **array** `[...]` |
+| Recurso único | `200`/`201` com o **objeto** |
+| Criação | `201` com o objeto criado |
+| Remoção | `204` sem corpo |
+| Sucesso sem recurso | `200` com `{ message }` |
+| Erro de campo | `400` com `{ field, message }` |
+| Erro genérico | `400`/`404`/`409`/`500` com `{ message }` |
+
+> Mantém-se o padrão dominante já usado em `servico`/`categoria`/`funcionario`
+> (objetos/arrays diretos). O `auth` continua embrulhado (`{ user }`, `{ users }`) por
+> compatibilidade com o frontend.
+
+### 2.3 Códigos de erro PostgreSQL → HTTP
+
+| SQLSTATE | Significado | Resposta |
+| --- | --- | --- |
+| `23503` | foreign key | `400` (FK inválida) ou `409` (bloqueio de delete) |
+| `23505` | unique violation | `409` `{ field, message }` |
+| `23502` | not null violation | `400` |
+| `22P02` | valor inválido (ex.: id não numérico) | `400` |
+| — | não existe | `404` |
+
+O mapeamento está centralizado no handler de erros de `app.js`
+(`ERROS_CONHECIDOS`); os controladores só tratam casos de domínio específicos
+(ex.: `23505` de telefone → `409 { field }`) e encaminham o resto com `next(error)`.
+
+### 2.4 Validação de entrada
+
+- O **frontend** é responsável pela validação de formato (ver
+  [`validacoes.md`](./validacoes.md)).
+- No backend, o controlador verifica apenas se os **campos obrigatórios estão vazios**
+  (devolve `400 { message }`).
+- A integridade de dados é garantida pelas **constraints** da base de dados; os erros
+  resultantes são traduzidos pelo handler central.
+
+### 2.5 Autorização
+
+- `authenticate` em todas as rotas privadas.
+- `authorize('Administrador')` para escrita administrativa simples.
+- **`authorizePermission('modulo:acao')`** (novo) para permissões finas — ver Fase 1.
+- A fonte de verdade é **sempre** o backend.
+
+### 2.6 Migrações
+
+- Nunca editar scripts já aplicados; criar sempre novo ficheiro numerado.
+- Numeração sugerida neste plano: **`016` em diante** (indicativa; aplicar por ordem).
+- Migrações **aditivas e idempotentes** sempre que possível (`add column if not exists`,
+  `create table if not exists`).
+- Como o projeto está em desenvolvimento inicial, a remodelação de tabelas ainda não
+  usadas (ex.: `execucao_servico`) é aceitável; registar sempre o impacto na FK.
+
+### 2.7 Nomenclatura de rotas
+
+O código atual tem inconsistências (`GET /api/funcionarios` mas `POST /api/funcionario`).
+Regra para rotas **novas**: **plural** e coerente (`/api/clientes`,
+`/api/atendimentos`, `/api/pagamentos`). As rotas antigas mantêm-se para não quebrar o
+frontend; se forem normalizadas, criar alias e documentar em [`api.md`](./api.md).
+
+### 2.8 Auditoria e campos de rastreio
+
+- Tabelas de negócio recebem `registado_por` (FK `usuario`), `criado_em`, `atualizado_em`
+  onde faça sentido.
+- Operações relevantes (financeiras, anulações, permissões, fidelização) escrevem em
+  `log_auditoria` via helper `registrarAuditoria(...)` (Fase 13), chamado dentro da
+  mesma transação da operação.
+
+### 2.9 Testes
+
+- Usar o runner nativo `node:test` + `fetch` global (Node 18+), **sem novas dependências**.
+- Cada fase termina com testes manuais (curl) documentados e, quando possível, testes
+  automatizados para as regras críticas (pagamento, comissão, fidelização, caixa).
+
+---
+
+## 3. Resumo das fases
+
+| Fase | Nome | Módulos | Depende de |
+| --- | --- | --- | --- |
+| **0** | Fundação técnica e padronização | handler de erros central, padronização de respostas | — |
+| **1** | Contas, perfis e permissões (RBAC) | usuários, perfis, permissões | 0 |
+| **2** | Clientes | cliente | 0 |
+| **3** | Serviços (evolução) | servico, histórico de preço | 0 |
+| **4** | Funcionários (evolução) | funcionario, configuração de comissão | 0 |
+| **5** | Atendimentos e serviços realizados | atendimento, atendimento_servico | 2,3,4 |
+| **6** | Pagamentos | pagamento, pagamento_parcela | 5 |
+| **7** | Comissões | comissao | 6,4 |
+| **8** | Caixa e despesas | caixa, movimentos, despesa, produto | 6 |
+| **9** | Fidelização | cartao_fidelizacao, movimentos | 5,6 |
+| **10** | Horários, assiduidade e salários | horario, assiduidade, processamento | 4,7 |
+| **11** | Relatórios | endpoints agregados | 5–10 |
+| **12** | Catálogo público | serviços ativos (sem auth) | 3 |
+| **13** | Auditoria (consolidação) | log_auditoria | transversal |
+| **14** | Sincronização offline | operacao_sincronizacao, idempotência | 5–9 |
+| **15** | Qualidade, segurança e produção | testes, backups, migração de dados | todas |
+
+> Mapeamento com o plano de produto (`documentacao.md` §13): as Fases 1–2 correspondem à
+> "Fase 1 — Fundação"; as Fases 5–6 à "Fase 2 — Atendimento e pagamentos"; a Fase 8 à
+> "Fase 3 — Caixa e despesas"; a Fase 9 à "Fase 4 — Fidelização"; a Fase 10 à "Fase 5 —
+> Assiduidade, horários e salários"; a Fase 11 à "Fase 6 — Relatórios"; a Fase 12 à
+> "Fase 7 — Catálogo público"; a Fase 14 à "Fase 8 — Offline"; a Fase 15 à "Fase 9 —
+> Migração e produção". A **Fase 0**, a **Fase 13** e o RBAC da **Fase 1** são
+> requisitos transversais derivados dos RNF e do §4 do documento de análise.
+
+---
+
+## Fase 0 — Fundação técnica e padronização
+
+**Objetivo:** preparar infraestrutura transversal antes de criar módulos, para evitar
+retrabalho e inconsistência.
+
+**Entregáveis**
+
+- Handler de erro central em `app.js` com o mapa `ERROS_CONHECIDOS`
+  (SQLSTATE → `status` + mensagem), sem stack em produção.
+- Controladores com assinatura `(req, res, next)`: tratam os casos de domínio e
+  encaminham o resto com `next(error)`.
+- Validação mínima: os controladores só verificam **campos obrigatórios vazios**; o
+  frontend valida formatos.
+
+**Alterações**
+
+- Uniformizar `controller/{categoria,servico,funcionario,cliente,usuario,perfil}.js`
+  para o mesmo padrão de erros.
+- Corrigir pendências de [`estado-e-pendencias.md`](./estado-e-pendencias.md):
+  duração de sessão (alinhar JWT 30d × cookie 10d), unificar logs em português.
+
+**Critério de conclusão**
+
+- Backend arranca, endpoints atuais mantêm o mesmo comportamento.
+- Erros de FK/unique/não numérico devolvem mensagens legíveis e códigos corretos.
+- Testes de fumo dos endpoints existentes passam (curl documentado).
+
+---
+
+## Fase 1 — Contas, perfis e permissões (RBAC)
+
+**Objetivo:** completar a gestão de contas (RF02) e o modelo de autorização por
+permissões (documentacao.md §4, §7.1).
+
+**Migrações**
+
+- `016_evolucao_usuario_perfil.sql`
+  - `usuario`: `estado varchar(20) default 'Ativo'` (`Ativo`/`Inativo`),
+    `alteracao_obrigatoria_senha boolean default false`,
+    `ultimo_acesso timestamp`, `data_criacao timestamp default now()`,
+    `unique (telefone)`.
+  - `perfil`: `descricao varchar(255)`, `estado varchar(20) default 'Ativo'`.
+  - Semear perfis adicionais previstos: `3` Auditor, `4` Financeiro (opcional, conforme §4).
+- `017_create_permissao.sql` — `permissao (id, codigo unique, descricao, modulo)`,
+  `perfil_permissao (id_perfil, id_permissao)`,
+  `usuario_permissao (id_usuario, id_permissao, efeito 'conceder'|'revogar')`,
+  `usuario_perfil` (opcional, se multi-perfil for aprovado).
+- `018_seed_permissoes.sql` — cataloga permissões por módulo
+  (`clientes:ler`, `clientes:escrever`, `pagamentos:anular`, `caixa:fechar`,
+  `relatorios:ler`, `auditoria:ler`, `contas:gerir`, …) e associa aos perfis.
+
+**Endpoints** (`/api/...`, plural nas rotas novas)
+
+| Método | Rota | Permissão | Descrição |
+| --- | --- | --- | --- |
+| GET | `/api/usuarios` | `contas:gerir` | Lista contas (id, nome, telefone, perfil, estado) |
+| POST | `/api/usuarios` | `contas:gerir` | Cria conta com credencial temporária |
+| GET | `/api/usuarios/:id` | `contas:gerir` | Detalhe |
+| PUT | `/api/usuarios/:id` | `contas:gerir` | Atualiza dados/perfil/estado |
+| PATCH | `/api/usuarios/:id/estado` | `contas:gerir` | Ativa/inativa conta |
+| POST | `/api/usuarios/:id/repor-senha` | `contas:gerir` | Gera credencial temporária |
+| POST | `/api/auth/alterar-senha` | autenticado | Troca de senha (1.º acesso/inatividade) |
+| GET | `/api/perfis` | `contas:gerir` | Lista perfis + permissões |
+| PUT | `/api/perfis/:id/permissoes` | `contas:gerir` | Atualiza permissões do perfil |
+| PUT | `/api/usuarios/:id/permissoes` | `contas:gerir` | Exceções individuais |
+
+**Regras de negócio**
+
+- Conta `Inativo` não inicia sessão (bloquear no `/login`).
+- Credencial temporária força `alteracao_obrigatoria_senha = true`; enquanto ativo, o
+  login devolve estado que obriga a trocar a senha antes de usar a app.
+- Registo público mantém perfil `Usuario` (compatibilidade).
+- Log de permissões e contas na auditoria (Fase 13).
+
+**Middleware novo**
+
+- `authorizePermission(...codigos)` — resolve permissões efetivas = permissões do perfil
+  (+ exceções `usuario_permissao`), com `revogar` a ter precedência.
+
+**Ficheiros:** `repository/{usuario,perfil,permissao}.js`, `controller/{usuario,perfil}.js`,
+`services/permissoes.js`, `routes/{usuario,perfil}.js`, middleware atualizado.
+
+**Critério de conclusão**
+
+- Administrador cria/desativa contas e atribui perfis.
+- Utilizador inativo não entra; novo utilizador troca senha no 1.º acesso.
+- `authorizePermission` protegendo um endpoint de teste.
+
+---
+
+## Fase 2 — Clientes
+
+**Objetivo:** CRUD de clientes com pesquisa e regras de duplicação (RF03, HU-13–16).
+
+**Migrações**
+
+- `019_evolucao_cliente.sql`
+  - `cliente`: tornar `apelido` opcional, adicionar `endereco varchar(255)`,
+    `data_nascimento date`, `data_registo timestamp default now()`,
+    `estado varchar(20) default 'Ativo'`, `saldo_pendente int default 0`,
+    `unique (telefone)`.
+
+> ⚠️ `telefone` é `int`. Recomenda-se migrar para `varchar(20)` para suportar
+> normalização/prefixos sem perda de zeros à esquerda — decisão pendente (§8). Manter
+> `int` é aceitável se o telefone continuar a ser normalizado como hoje.
+
+**Endpoints**
+
+| Método | Rota | Permissão | Descrição |
+| --- | --- | --- | --- |
+| GET | `/api/clientes?search=` | autenticado | Lista + pesquisa por nome/apelido/telefone |
+| GET | `/api/clientes/:id` | autenticado | Detalhe |
+| GET | `/api/clientes/:id/historico` | autenticado | Atendimentos + pendências (HU-03/14) |
+| POST | `/api/clientes` | `clientes:escrever` | Cria (rejeita telefone duplicado) |
+| PUT | `/api/clientes/:id` | `clientes:escrever` | Atualiza |
+| DELETE | `/api/clientes/:id` | `clientes:escrever` | Remove se sem histórico; senão `409` + inativar |
+| PATCH | `/api/clientes/:id/estado` | `clientes:escrever` | Ativa/inativa |
+
+**Regras de negócio**
+
+- Nome e telefone obrigatórios (RN30); telefone único (RN31, RN33).
+- Pesquisa por correspondência parcial de nome ou telefone (RN32).
+- Cliente com histórico não pode ser apagado fisicamente (RN34/RN02) → inativação.
+- Antes de criar, devolver possíveis correspondências (by design no frontend; a API
+  aceita `?verificarDuplicado=1`).
+
+**Ficheiros:** `repository/cliente.js`, `controller/cliente.js`, `routes/cliente.js`,
+`utils/validacoes.js` (novos validadores).
+
+**Critério de conclusão**
+
+- Criar, pesquisar, editar, inativar e apagar cliente; duplicado devolve `409`.
+
+---
+
+## Fase 3 — Serviços (evolução)
+
+**Objetivo:** aproximar o recurso existente do modelo (RF04, HU-04–07): descrição,
+duração, tipo de preço, estado e histórico de preços.
+
+**Migrações**
+
+- `020_evolucao_servico.sql`
+  - `servico`: `descricao text`, `duracao_min int`, `tipo_preco varchar(20) default 'fixo'`
+    (`fixo`/`variavel`), `estado varchar(20) default 'Ativo'`, `data_criacao timestamp default now()`.
+- `021_create_historico_preco_servico.sql`
+  - `historico_preco_servico (id, servico_id, valor_anterior, valor_novo, alterado_por, criado_em)`.
+
+**Endpoints**
+
+- Manter os atuais (`GET /api/servicos`, `POST /api/servicos`, …).
+- Adicionar: `PATCH /api/servicos/:id/estado` (ativar/inativar),
+  `GET /api/servicos/:id/historico-precos`.
+- Listagem por omissão mostra apenas **ativos**; `?estado=todos` para administração (RN16).
+
+**Regras de negócio**
+
+- Preço > 0 (RN13).
+- Dois serviços **ativos** não podem ter o mesmo nome; serviço inativo pode (RN: HU-04).
+- Alterar preço grava histórico e **não** afeta atendimentos passados (RN15/RN19/RN20).
+- Serviço com execuções não pode ser apagado → inativar (RN17/RN18) — manter `409`.
+
+**Critério de conclusão**
+
+- Histórico de preços registado em cada alteração; inativação bloqueia seleção futura.
+
+---
+
+## Fase 4 — Funcionários (evolução)
+
+**Objetivo:** completar cadastro (RF14, HU-08–12): contacto, documento, admissão, cargo,
+estado, ligação a conta e configuração de comissão.
+
+**Migrações**
+
+- `022_evolucao_funcionario.sql`
+  - `funcionario`: `telefone varchar(20)`, `documento varchar(50) unique`,
+    `cargo varchar(100)`, `data_admissao date`, `estado varchar(20) default 'Ativo'`,
+    `id_usuario int unique null references usuario(id)` (associação opcional),
+    `comissao_percentual numeric(5,2) default 30.00`.
+- `023_create_comissao_config.sql`
+  - `comissao_config (id, funcionario_id, servico_id null, taxa_percentual, vigencia_inicio, vigencia_fim, estado)`
+    — regra geral por funcionário ou específica por serviço (RN27).
+
+**Endpoints**
+
+- Manter CRUD atual; adicionar `PATCH /api/funcionarios/:id/estado`,
+  `GET /api/funcionarios/:id/desempenho` (serviços e comissões do período, RN26),
+  `GET`/`PUT /api/funcionarios/:id/comissao`.
+
+**Regras de negócio**
+
+- Documento único (RN21); novos funcionários entram `Ativo` (RN22).
+- Comissão entre 0% e 100% (HU-12); específica sobrepõe-se à geral (RN27).
+- Funcionário com histórico não é apagado fisicamente → inativar (RN24/RN25).
+
+**Critério de conclusão**
+
+- CRUD completo + inativação; comissão configurável e consultável.
+
+---
+
+## Fase 5 — Atendimentos e serviços realizados
+
+**Módulo central.** Objetivo: registar um atendimento com um ou mais serviços, cada um
+com o seu funcionário e preço efetivo (RF05, RF06, RN01–RN03, HU-01).
+
+**Migrações**
+
+- `024_evolucao_atendimento.sql`
+  - Remodelar `atendimento`: `cliente_id int not null` (FK `cliente`),
+    `data_hora timestamp default now()`, `estado varchar(20) default 'Em andamento'`
+    (`Em andamento`/`Concluido`/`Anulado`/`Pago`), `valor_bruto int`, `valor_desconto int default 0`,
+    `valor_total int`, `registado_por int` (FK `usuario`).
+  - **Nota:** o atual `atendimento.pagamento_id` (FK `pagamento`) é uma relação invertida;
+    na Fase 6 o pagamento passa a apontar para o atendimento.
+- `025_create_atendimento_servico.sql`
+  - `atendimento_servico (id, atendimento_id FK, servico_id FK, funcionario_id FK,
+    preco_original int not null, tipo_preco varchar(20), valor_desconto int default 0,
+    valor_final int not null, estado varchar(20) default 'Ativo', registado_por,
+    criado_em)`.
+  - Substitui a tabela `execucao_servico` (greenfield): migrar dados se existirem e
+    depois desativar/remover `execucao_servico`. Atualizar o `409` de `servico.delete`
+    para a nova tabela.
+
+**Endpoints**
+
+| Método | Rota | Permissão | Descrição |
+| --- | --- | --- | --- |
+| GET | `/api/atendimentos?de=&ate=&cliente=&funcionario=&estado=&page=` | autenticado | Lista paginada com filtros |
+| GET | `/api/atendimentos/:id` | autenticado | Detalhe + serviços |
+| POST | `/api/atendimentos` | `atendimentos:escrever` | Cria atendimento + serviços (transacional) |
+| PUT | `/api/atendimentos/:id` | `atendimentos:escrever` | Atualiza cabeçalho |
+| POST | `/api/atendimentos/:id/servicos` | `atendimentos:escrever` | Adiciona serviço |
+| DELETE | `/api/atendimentos/:id/servicos/:itemId` | `atendimentos:escrever` | Remove serviço |
+| PATCH | `/api/atendimentos/:id/concluir` | `atendimentos:escrever` | Marca "Concluído" |
+| POST | `/api/atendimentos/:id/anular` | `atendimentos:anular` | Anulação com motivo (RF09) |
+
+**Corpo de criação (exemplo)**
+
+```json
+{
+  "cliente_id": 12,
+  "servicos": [
+    { "servico_id": 3, "funcionario_id": 2, "preco_praticado": 500, "desconto": 100 },
+    { "servico_id": 7, "funcionario_id": 5, "preco_praticado": 300, "desconto": 0 }
+  ]
+}
+```
+
+**Regras de negócio**
+
+- Atendimento exige cliente cadastrado e ativo (RN01, RN05/HU-01).
+- Cada serviço exige funcionário responsável, que pode variar por serviço (RN03).
+- `preco_praticado` gravado na transação (não lido dinamicamente do catálogo) — RN03/RF06.
+- `valor_final = preco_praticado − desconto`; `valor_total` = soma (RN04).
+- Serviço precisa de estar `Ativo` para ser selecionado (RN18).
+- Cálculo do cabeçalho e inserção das linhas **na mesma transação** (RNF02).
+
+**Ficheiros:** `repository/atendimento.js`, `services/atendimento.js`,
+`controller/atendimento.js`, `routes/atendimento.js`.
+
+**Critério de conclusão**
+
+- Atendimento com vários serviços e funcionários distintos é gravado atomicamente.
+- Preço praticado permanece imutável no histórico.
+
+---
+
+## Fase 6 — Pagamentos
+
+**Objetivo:** registar pagamento (simples e dividido), controlar liquidação e anular
+(RF08, RF09, RN04–RN05, HU-02).
+
+**Migrações**
+
+- `026_evolucao_pagamento.sql`
+  - Remodelar `pagamento`: `atendimento_id int not null` (FK `atendimento`),
+    `valor_total int not null`, `estado varchar(20) default 'Pendente'`
+    (`Pendente`/`Parcial`/`Liquidado`/`Anulado`), `data_hora timestamp default now()`,
+    `registado_por int`.
+  - Ajustar `atendimento`: remover `pagamento_id`.
+- `027_create_pagamento_parcela.sql`
+  - `pagamento_parcela (id, pagamento_id FK, metodo_pagamento varchar(50),
+    valor int, referencia varchar(100), criado_em)`.
+  - Métodos: `Dinheiro`, `M-Pesa`, e o serviço adicional a confirmar (§8).
+
+**Endpoints**
+
+| Método | Rota | Permissão | Descrição |
+| --- | --- | --- | --- |
+| GET | `/api/pagamentos?de=&ate=&estado=&metodo=` | autenticado | Lista paginada |
+| GET | `/api/pagamentos/:id` | autenticado | Detalhe + parcelas |
+| POST | `/api/atendimentos/:id/pagamentos` | `pagamentos:registar` | Regista pagamento (parcelas) |
+| GET | `/api/atendimentos/:id/pagamento` | autenticado | Estado de liquidação |
+| POST | `/api/pagamentos/:id/anular` | `pagamentos:anular` | Anulação com motivo |
+
+**Corpo (pagamento dividido)**
+
+```json
+{
+  "parcelas": [
+    { "metodo_pagamento": "Dinheiro", "valor": 300 },
+    { "metodo_pagamento": "M-Pesa", "valor": 200, "referencia": "MP-123" }
+  ]
+}
+```
+
+**Regras de negócio**
+
+- Um pagamento está sempre associado a um atendimento válido (RN06).
+- Soma das parcelas ≤ valor devido; sem crédito nesta fase (RN07/RF08). Estado
+  `Liquidado` apenas quando soma = devido (RN08).
+- Toda parcela guarda data/hora e responsável (RN09).
+- Anulação preserva histórico, exige motivo, recalcula derivados e **não** é apagamento
+  físico (RF09, RN08).
+- Pagamento (e anulação) escrevem em auditoria e impactam o caixa (Fase 8).
+
+**Critério de conclusão**
+
+- Pagamento simples e dividido funcionam; soma validada; atendimento muda para `Pago`
+  só com liquidação total.
+
+---
+
+## Fase 7 — Comissões
+
+**Objetivo:** calcular e disponibilizar comissões elegíveis (RF18, RN06, HU-12).
+
+**Migrações**
+
+- `028_create_comissao.sql`
+  - `comissao (id, atendimento_servico_id FK unique, funcionario_id FK, taxa numeric(5,2),
+    base_calculo int, valor_comissao int, estado varchar(20) default 'Elegivel',
+    criado_em)`.
+
+**Endpoints**
+
+| Método | Rota | Permissão | Descrição |
+| --- | --- | --- | --- |
+| GET | `/api/comissoes?funcionario=&de=&ate=&estado=` | `relatorios:ler` | Lista |
+| GET | `/api/funcionarios/:id/comissoes` | autenticado (próprio) / `relatorios:ler` | Comissões por período |
+
+**Regras de negócio**
+
+- Taxa padrão 30% (RN06); base = `valor_final` do serviço (após desconto).
+- Geração **apenas** quando o pagamento estiver integralmente liquidado (RN05/RN28/RN10).
+- Alterações de comissão não afetam pagamentos já efetuados (RN29).
+- Geração idempotente: um `atendimento_servico` origina no máximo uma comissão
+  (`unique`), evitando duplicação.
+- Funcionários que não são funcionários não recebem comissão por terem conta (RF17).
+
+**Critério de conclusão**
+
+- Comissão gerada no momento da liquidação, com base correta e sem duplicados.
+
+---
+
+## Fase 8 — Caixa e despesas
+
+**Objetivo:** caixa operacional único, movimentos, levantamentos, despesas com produtos,
+saldo esperado, contagem física e fecho diário (RF10–RF13, RN09–RN13, HU-17/18).
+
+**Migrações**
+
+- `029_create_caixa.sql` — `caixa (id, designacao, estado default 'Ativo')`; semear
+  "Caixa Principal".
+- `030_create_caixa_sessao.sql` — `caixa_sessao (id, caixa_id FK, data_abertura,
+  saldo_inicial int, aberto_por, data_fecho, valor_esperado int, valor_contado int,
+  diferenca int, observacoes text, fechado_por, estado default 'Aberta')`.
+- `031_create_movimento_caixa.sql` — `movimento_caixa (id, id_sessao FK,
+  tipo_movimento, valor int, descricao, data_hora, origem, referencia_id, registado_por, estado)`.
+- `032_create_categoria_despesa.sql` — categoria de despesa (fixa, variável, produtos, salários).
+- `033_evolucao_despesa.sql` — `despesa`: `descricao`, `categoria_id`, `valor_total`,
+  `data_compra`, `metodo_pagamento`, `caixa_sessao_id`, `comprovativo`,
+  `registado_por`, `estado`.
+- `034_evolucao_produto.sql` — ajustar `produto`/`item_produto` ao uso de despesas
+  (quantidade, preço unitário, total). O stock detalhado fica fora de âmbito (RN25).
+
+**Endpoints**
+
+| Método | Rota | Permissão | Descrição |
+| --- | --- | --- | --- |
+| POST | `/api/caixa/abrir` | `caixa:operar` | Abre sessão com saldo inicial |
+| GET | `/api/caixa/atual` | `caixa:operar` | Sessão aberta + saldo esperado |
+| POST | `/api/caixa/levantamento` | `caixa:levantar` | Regista levantamento |
+| GET | `/api/caixa/movimentos` | `caixa:operar` | Movimentos da sessão |
+| POST | `/api/caixa/fechar` | `caixa:fechar` | Contagem física + diferença + fecho |
+| GET | `/api/caixa/fechos` | `relatorios:ler` | Histórico de fechos |
+| GET/POST | `/api/despesas` | `despesas:escrever` | Listar/registar despesas |
+| PUT/DELETE | `/api/despesas/:id` | `despesas:escrever` | Editar/remover |
+| GET/POST | `/api/categorias-despesa` | `despesas:escrever` | Categorias de despesa |
+
+**Regras de negócio**
+
+- Caixa único (RN09). Se existir sessão aberta do dia anterior, **bloquear** novas
+  operações até ao fecho (RN10) — com procedimento administrativo controlado.
+- Receitas de pagamentos entram como movimentos; despesas pagas pelo caixa geram
+  movimento de saída associado de forma inequívoca (evitar dupla contabilização, RF13).
+- `valor_esperado` calculado a partir dos movimentos válidos; `diferenca = contado − esperado`.
+- Fecho guarda responsável e data/hora (RN11). Levantamentos reduzem o saldo (RN12).
+- Despesa com valor ≤ 0 é rejeitada (RN37/RF13). Despesas só por perfis autorizados (RN40).
+- Operações financeiras idempotentes por `referencia_id` (RNF05).
+
+**Critério de conclusão**
+
+- Abrir → movimentos → fecho com diferença calculada; bloqueio quando caixa anterior
+  não fechado; despesas refletidas no relatório e no caixa.
+
+---
+
+## Fase 9 — Fidelização
+
+**Objetivo:** cartão de fidelização apenas para cortes de cabelo (RF20, RN16–RN20).
+
+**Migrações**
+
+- `035_create_cartao_fidelizacao.sql` — `cartao_fidelizacao (id, cliente_id FK unique,
+  data_ativacao, estado)`.
+- `036_create_movimento_fidelizacao.sql` — `movimento_fidelizacao (id, cartao_id FK,
+  atendimento_servico_id null, tipo_movimento
+  ('marca'|'beneficio_ganho'|'beneficio_utilizado'|'correcao'), data_hora, ciclo int,
+  registado_por, observacao)`.
+
+**Endpoints**
+
+| Método | Rota | Permissão | Descrição |
+| --- | --- | --- | --- |
+| GET | `/api/clientes/:id/fidelizacao` | autenticado | Progresso + benefícios disponíveis/utilizados |
+| POST | `/api/clientes/:id/fidelizacao/correcao` | `fidelizacao:corrigir` | Correção autorizada |
+
+**Regras de negócio**
+
+- Uma marca por cliente por dia, mesmo com vários cortes (RN17).
+- Ao 5.º corte elegível → 1 benefício gratuito (RN18); benefícios **acumulam** (RN19).
+- Corte gratuito conta para o ciclo seguinte **sem** gerar marca visível (RN20).
+- Distinguir histórico real de cortes, marcas visíveis e progresso do ciclo.
+- Implementação **transacional e idempotente** (RNF02/RNF05) — operações repetidas ou
+  sincronizações não geram benefícios duplicados.
+- Só serviços do tipo "corte de cabelo" são elegíveis (configurável por `servico_id`/categoria).
+
+**Critério de conclusão**
+
+- Ciclo e benefícios corretos; repetição de operação não duplica marcas/benefícios.
+
+---
+
+## Fase 10 — Horários, assiduidade e salários
+
+**Objetivo:** horários individuais, registo de assiduidade, processamento salarial mensal
+e aprovação (RF15–RF19, RN14–RN15, HU relacionadas).
+
+**Migrações**
+
+- `037_create_horario_funcionario.sql` — `horario_funcionario (id, funcionario_id FK,
+  dia_semana int, hora_entrada time, hora_saida time, data_inicio_vigencia,
+  data_fim_vigencia, estado)`.
+- `038_create_assiduidade.sql` — `assiduidade (id, funcionario_id FK, data,
+  hora_entrada_real, hora_saida_real, tipo_ocorrencia
+  ('atraso'|'falta_justificada'|'falta_injustificada'|'saida_antecipada'|'ausencia'|'sem_registo'),
+  justificacao, estado, registado_por)`.
+- `039_create_processamento_salarial.sql` — `processamento_salarial (id, funcionario_id FK,
+  periodo_inicio, periodo_fim, salario_base int, total_comissoes int, total_deducoes int,
+  total_a_pagar int, estado ('Preparado'|'Aprovado'|'Pago'), aprovado_por, data_aprovacao,
+  data_pagamento)`.
+- `040_create_deducao_salarial.sql` — `deducao_salarial (id, processamento_id FK, tipo,
+  descricao, valor int, motivo, aprovado_por)`.
+
+**Endpoints**
+
+| Método | Rota | Permissão | Descrição |
+| --- | --- | --- | --- |
+| GET/POST/PUT | `/api/funcionarios/:id/horarios` | `horarios:gerir` | Programação |
+| GET/POST | `/api/assiduidade` | `assiduidade:gerir` | Registos e ocorrências |
+| PUT | `/api/assiduidade/:id` | `assiduidade:gerir` | Correção (com auditoria) |
+| GET | `/api/salarios/processamentos?periodo=` | `salarios:gerir` | Lista |
+| POST | `/api/salarios/processar` | `salarios:gerir` | Gera processamento do período |
+| PUT | `/api/salarios/processamentos/:id/deducoes` | `salarios:gerir` | Deduções |
+| PATCH | `/api/salarios/processamentos/:id/aprovar` | `salarios:aprovar` | Aprovação |
+| PATCH | `/api/salarios/processamentos/:id/pagar` | `salarios:gerir` | Registo do pagamento |
+
+**Regras de negócio**
+
+- Salário base + comissões elegíveis − deduções = total a pagar (RF17).
+- Distinguir ocorrência de assiduidade **do** efeito salarial (RN15).
+- Fluxo Preparado → Aprovado → Pago (RF19); só admin autorizado aprova.
+- Administrador que não é funcionário não recebe salário/comissão (RF17).
+- Alterações de assiduidade e salário são auditadas.
+
+**Critério de conclusão**
+
+- Processamento mensal com valores conferíveis; pagamento registado no histórico.
+
+---
+
+## Fase 11 — Relatórios
+
+**Objetivo:** relatórios operacionais e financeiros com filtros de período (RF21, §12.9).
+
+**Endpoints** (todos `relatorios:ler`; restritos por permissão/ocultação financeira)
+
+| Método | Rota | Conteúdo |
+| --- | --- | --- |
+| GET | `/api/relatorios/resumo?de=&ate=` | Receita, despesas, resultado |
+| GET | `/api/relatorios/caixa?de=&ate=` | Entradas/saídas, saldo esperado, diferenças |
+| GET | `/api/relatorios/servicos?de=&ate=` | Serviços mais realizados |
+| GET | `/api/relatorios/funcionarios?de=&ate=` | Serviços e comissões por funcionário |
+| GET | `/api/relatorios/assiduidade?de=&ate=` | Assiduidade |
+| GET | `/api/relatorios/clientes?de=&ate=` | Clientes mais frequentes |
+| GET | `/api/relatorios/fidelizacao?de=&ate=` | Benefícios ganhos/utilizados |
+| GET | `/api/relatorios/anulacoes?de=&ate=` | Histórico de anulações |
+| GET | `/api/relatorios/movimentos?de=&ate=` | Movimentos financeiros |
+
+**Regras de negócio**
+
+- Consultas agregadas (SQL `group by`) — sem dupla contabilização (RNF10).
+- Filtragem por período e, quando aplicável, funcionário/serviço/método/estado.
+- Exportação (CSV agora; PDF/Excel a confirmar — §8). Nunca expor dados no catálogo público.
+
+**Critério de conclusão**
+
+- Indicadores do dashboard alimentados por dados reais; totais conferem com os movimentos.
+
+---
+
+## Fase 12 — Catálogo público
+
+**Objetivo:** consulta pública dos serviços ativos (RF22, RN22, §12.11).
+
+**Endpoints** (sem `authenticate`)
+
+| Método | Rota | Conteúdo |
+| --- | --- | --- |
+| GET | `/api/public/servicos` | Serviços ativos (nome, descrição, categoria, tipo de preço) |
+| GET | `/api/public/servicos/:id` | Detalhe público |
+
+**Regras de negócio**
+
+- Apenas serviços ativos e campos de divulgação (RN22) — sem dados internos.
+- Preço apresentado conforme tipo fixo/variável (§8, decisão pendente).
+- Não expor clientes, funcionários ou qualquer dado pessoal (RNF11).
+
+**Critério de conclusão**
+
+- Página pública funciona sem sessão e sem vazar dados internos.
+
+---
+
+## Fase 13 — Auditoria (consolidação)
+
+**Objetivo:** registo auditável transversal e consulta protegida (RF23, RN21, RNF03).
+
+**Migrações**
+
+- `041_create_log_auditoria.sql` — `log_auditoria (id, id_utilizador, data_hora,
+  entidade, id_registo_afetado, tipo_operacao, valores_anteriores jsonb,
+  valores_posteriores jsonb, motivo, identificador_operacao)`.
+
+**Componentes**
+
+- `services/auditoria.js` → `registrarAuditoria({ req, entidade, idRegisto, operacao,
+  antes, depois, motivo })`, chamado **dentro da mesma transação** da operação.
+- Aplicar a: alterações financeiras, anulações, permissões, salários, assiduidade,
+  fidelização.
+- Logs **append-only**: sem `UPDATE`/`DELETE` pela aplicação (permissões restritas na BD).
+
+**Endpoints**
+
+| Método | Rota | Permissão | Descrição |
+| --- | --- | --- | --- |
+| GET | `/api/auditoria?entidade=&utilizador=&de=&ate=` | `auditoria:ler` | Consulta paginada |
+| GET | `/api/auditoria/:id` | `auditoria:ler` | Detalhe |
+
+**Critério de conclusão**
+
+- Operações relevantes deixam histórico com utilizador, data/hora e valores.
+
+---
+
+## Fase 14 — Sincronização offline
+
+> Fase arquitetural; requer a decisão pendente §8 sobre dispositivo/estratégia (RNF04).
+
+**Objetivo:** permitir operações offline com sincronização segura e idempotente
+(RF25, RN23, RNF05).
+
+**Migrações**
+
+- `042_create_operacao_sincronizacao.sql` — `operacao_sincronizacao (id,
+  identificador_unico unique, tipo_entidade, id_registo, tipo_operacao, data_criacao,
+  estado_sincronizacao, tentativas, ultima_tentativa, erro)`.
+- Adicionar a tabelas financeiras uma chave idempotente (`identificador_unico`)
+  para impedir duplicação de receitas/despesas/comissões.
+
+**Endpoints**
+
+| Método | Rota | Descrição |
+| --- | --- | --- |
+| POST | `/api/sync/push` | Recebe lote de operações locais (idempotente) |
+| GET | `/api/sync/pull?desde=` | Devolve alterações desde um ponto |
+| GET | `/api/sync/estado` | Estado da fila |
+
+**Regras de negócio**
+
+- Processamento idempotente por `identificador_unico` (RNF05).
+- Prevenção de duplicações em pagamentos, movimentos de caixa e fidelização.
+- Tratamento de conflitos e repetição segura documentados no `docs/`.
+
+**Critério de conclusão**
+
+- Operação offline reenviada **não** duplica receita/despesa/comissão.
+
+---
+
+## Fase 15 — Qualidade, segurança e produção
+
+**Objetivo:** consolidar qualidade, segurança e entrada em produção.
+
+**Tarefas**
+
+- **Testes:** `node:test` para regras críticas (pagamento, comissão, caixa, fidelização,
+  sessão) e de integração (endpoints); testes manuais em `docs/`.
+- **Segurança:** confirmar `JWT_SECRET` forte e rodado (ver
+  [`estado-e-pendencias.md`](./estado-e-pendencias.md)); `.env` nunca comitado; cookie
+  `secure` em produção; rate limiting e *helmet-like* headers se aprovado (§8).
+- **Backups:** script de cópia semanal + procedimento de restauro documentado (RF24, RNF06).
+- **Migração de dados:** importação controlada dos cadernos (clientes, cartões, serviços),
+  com verificação de duplicados (RN24).
+- **Documentação:** atualizar `api.md`, `base-de-dados.md`, `estado-e-pendencias.md` e
+  este documento a cada fase concluída.
+- **Performance:** índices para colunas de filtro (`cliente_id`, `data_hora`, `estado`,
+  `funcionario_id`), paginação em todas as listagens.
+
+**Critério de conclusão**
+
+- Suíte de testes verde; backup restaurável; documentação sincronizada.
+
+---
+
+## 4. Matriz de permissões alvo
+
+Expande a matriz simples atual (`Administrador`/`Usuario`) para a granularidade das
+Fases 1 e seguintes. Cada código corresponde a `modulo:acao` em `permissao.codigo`.
+
+| Permissão | Administrador | Usuario | Financeiro | Auditor |
+| --- | :---: | :---: | :---: | :---: |
+| `clientes:ler` | ✅ | ✅ | ✅ | ✅ |
+| `clientes:escrever` | ✅ | ✅ | — | — |
+| `servicos:ler` | ✅ | ✅ | ✅ | ✅ |
+| `servicos:escrever` | ✅ | — | — | — |
+| `funcionarios:ler` | ✅ | — | ✅ | ✅ |
+| `funcionarios:escrever` | ✅ | — | — | — |
+| `atendimentos:escrever` | ✅ | ✅ | — | — |
+| `atendimentos:anular` | ✅ | — | — | — |
+| `pagamentos:registar` | ✅ | ✅ | — | — |
+| `pagamentos:anular` | ✅ | — | ✅ | — |
+| `caixa:operar` | ✅ | ✅ | ✅ | — |
+| `caixa:levantar` | ✅ | — | ✅ | — |
+| `caixa:fechar` | ✅ | — | ✅ | — |
+| `despesas:escrever` | ✅ | — | ✅ | — |
+| `fidelizacao:corrigir` | ✅ | — | — | — |
+| `horarios:gerir` | ✅ | — | ✅ | — |
+| `assiduidade:gerir` | ✅ | — | ✅ | — |
+| `salarios:gerir` | ✅ | — | ✅ | — |
+| `salarios:aprovar` | ✅ | — | — | — |
+| `relatorios:ler` | ✅ | — | ✅ | ✅ |
+| `contas:gerir` | ✅ | — | — | — |
+| `auditoria:ler` | ✅ | — | — | ✅ |
+
+> Esta matriz é a **configuração inicial**; deve ser ajustável por perfil e por
+> utilizador (exceções individuais), conforme documentacao.md §4.
+
+---
+
+## 5. Regras de negócio de referência (consolidado)
+
+Rastreio rápido das regras mais críticas e onde são aplicadas:
+
+| Regra | Descrição | Fase |
+| --- | --- | --- |
+| RN03 | Preço praticado gravado na transação (imutável) | 5 |
+| RN04 | Pagamento dividido em parcelas | 6 |
+| RN05 | Comissão só com pagamento integral | 6, 7 |
+| RN06 | Comissão padrão 30% sobre valor após desconto | 7 |
+| RN08 | Anulação preserva histórico + motivo | 5, 6 |
+| RN09 | Caixa único | 8 |
+| RN10 | Fecho diário obrigatório; bloqueio no dia seguinte | 8 |
+| RN17–RN20 | Regras de fidelização (marca diária, 5→1, acúmulo, ciclo) | 9 |
+| RN30–RN34 | Clientes (obrigatórios, telefone único, inativação) | 2 |
+| RN21–RN29 | Funcionários e comissões | 4, 7 |
+| RN35–RN40 | Despesas e empréstimos | 8 |
+
+---
+
+## 6. Dependências e decisões pendentes
+
+Antes de implementar as fases afetadas, confirmar (documentacao.md §16):
+
+1. **Métodos de pagamento** (2.º serviço móvel além de M-Pesa) — Fase 6.
+2. **Modelo de desconto:** valor fixo, percentagem ou ambos — Fase 5.
+3. **Tipo de `telefone`:** manter `int` ou migrar para `varchar` — Fases 2, 4.
+4. **Empréstimos** (HU-17): incluídos na Fase 8 ou fase própria — Fase 8.
+5. **Perfis adicionais** (Financeiro, Auditor) e multi-perfil — Fase 1.
+6. **Deduções salariais:** automáticas ou manuais — Fase 10.
+7. **Anulações:** todos os admins ou restrito por módulo — Fases 5, 6.
+8. **Exportação de relatórios:** CSV/PDF/Excel — Fase 11.
+9. **Offline:** dispositivo principal e estratégia de sincronização — Fase 14.
+10. **Catálogo público:** como apresentar preço variável — Fase 12.
+11. **Middleware de segurança** (rate limit / headers) e runner de testes — Fase 0/15.
+12. **Valores de negócio:** taxa de comissão, categorias de despesa, horários padrão.
+
+---
+
+## 7. Checklist de progresso por fase
+
+Copiar para o PR de cada fase:
+
+```text
+Fase N — <nome>
+[ ] Migrações SQL numeradas criadas e testadas (aplicáveis por ordem)
+[ ] repository/ com SQL parametrizado
+[ ] service/ quando há regras/transações
+[ ] controller/ com validação e tradução de erros
+[ ] routes/ registadas em app.js e protegidas
+[ ] Validações adicionadas em utils/validacoes.js (+ espelho no frontend)
+[ ] Auditoria nos pontos exigidos
+[ ] Documentação atualizada (api.md, base-de-dados.md, este doc)
+[ ] Testes (node:test) para regras críticas
+[ ] Endpoints verificados com curl
+```
+
+---
+
+## 8. Ordem recomendada de execução
+
+1. **Fase 0** (fundação) →
+2. **Fase 1** (RBAC) em paralelo com **Fases 2, 3, 4** (entidades isoladas) →
+3. **Fase 5** (atendimentos) →
+4. **Fase 6** (pagamentos) →
+5. **Fase 7** (comissões) em paralelo com **Fase 9** (fidelização) →
+6. **Fase 8** (caixa e despesas) →
+7. **Fase 10** (horários, assiduidade, salários) →
+8. **Fase 11** (relatórios) →
+9. **Fase 12** (catálogo público) →
+10. **Fase 13** (auditoria) ao longo de todas →
+11. **Fase 14** (offline) →
+12. **Fase 15** (qualidade e produção).
+
+> A auditoria (Fase 13) e as convenções da Fase 0 são **transversais**: os helpers devem
+> existir cedo, mesmo que os endpoints de consulta só venham no fim.
