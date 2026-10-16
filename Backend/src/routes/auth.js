@@ -1,7 +1,7 @@
 import express from 'express';
-import pool from '../config/database.js'
 import bcrypt from 'bcrypt';
 import generetedToken from '../utils/token.js';
+import Usuario from '../repository/usuario.js';
 import { authenticate, authorize } from '../middlewares/auth.js';
 import { validarNome, validarTelefone, validarSenha, limparTelefone } from '../utils/validacoes.js';
 
@@ -47,34 +47,30 @@ router.post('/register', async (req,res, next)=>{
 
         const telefoneLimpo = limparTelefone(telefone);
 
-        const userExists = await pool.query("select * from usuario where telefone = $1",[telefoneLimpo])
-
-        //Verificando a existencia de usuario
-        if(userExists.rows.length > 0){
+        if(await Usuario.existeTelefone(telefoneLimpo)){
             return erroCampo(res, "telefone", "O usuario ja existe");
         }
 
-        //Criando a senha com hash
         const senhaHash = await bcrypt.hash(senha,10);
 
-        //criando novo usuario (perfil 2 = Usuario)
-        const newUser = await pool.query(
-            "insert into usuario (nome, senha, telefone,id_perfil) values ($1,$2,$3,$4) returning id, nome, telefone ",
-            [nome,senhaHash,telefoneLimpo,2]
-        )
-
-        const userData = newUser.rows[0];
+        //perfil 2 = Usuario
+        const novo = await Usuario.create({
+            nome,
+            telefone: telefoneLimpo,
+            senhaHash,
+            id_perfil: 2
+        });
 
         //sem cookie/token: o cliente autentica-se depois no /login
         res.status(201).json({
             message: "usuario registrado com sucesso",
             user: {
-                id: userData.id,
-                nome: userData.nome,
-                telefone: userData.telefone,
+                id: novo.id,
+                nome: novo.nome,
+                telefone: novo.telefone,
                 perfil: "Usuario"
             }
-        })
+        });
     }catch(err){
         next(err);
     }
@@ -96,22 +92,20 @@ router.post('/login', async(req,res, next)=>{
 
         const telefoneLimpo = limparTelefone(telefone);
 
-        const userExists = await pool.query(
-            `select u.*, p.nome as perfil from usuario u
-             join perfil p on p.id = u.id_perfil
-             where u.telefone = $1`,
-            [telefoneLimpo]
-        )
-        if(userExists.rows.length === 0){
+        const userData = await Usuario.findByTelefoneComSenha(telefoneLimpo);
+        if(!userData){
             return res.status(401).json({message: "Telefone ou senha invalidos"})
         }
 
-        const userData = userExists.rows[0];
-
-        const isMatch = await bcrypt.compare(senha,userData.senha)
+        const isMatch = await bcrypt.compare(senha, userData.senha)
 
         if(!isMatch){
             return res.status(401).json({message: "Telefone ou senha invalidos"})
+        }
+
+        //contas inativas nao iniciam sessao
+        if(userData.estado !== "Ativo"){
+            return res.status(403).json({message: "Conta inativa: contacte o administrador"})
         }
 
         //gerando o token
@@ -120,12 +114,14 @@ router.post('/login', async(req,res, next)=>{
         // armazenando as informacoes no cookie
         res.cookie('token', token, cookieOptions)
 
+        await Usuario.registarAcesso(userData.id);
+
         res.status(200).json({message:"login feito com sucesso", user:{
             id: userData.id,
             nome: userData.nome,
             telefone: userData.telefone,
-            perfil: userData.perfil
-
+            perfil: userData.perfil,
+            deve_alterar_senha: userData.alteracao_obrigatoria_senha
         }})
 
     }catch(err){
@@ -134,34 +130,57 @@ router.post('/login', async(req,res, next)=>{
 
 })
 
-//sessao actual: devolve o utilizador logado (base da autorizacao no frontend)
+//sessao actual: devolve o utilizador logado (inclui permissoes efetivas)
 router.get('/me', authenticate, (req,res)=>{
     res.status(200).json({user: req.user});
 })
 
-//lista de utilizadores: apenas Administrador
+//troca de senha pelo proprio utilizador (primeiro acesso ou alteracao normal)
+router.post('/alterar-senha', authenticate, async (req,res, next)=>{
+    try{
+        const {senha_atual, senha_nova} = req.body;
+
+        if(!senha_atual || !senha_nova){
+            return res.status(400).json({message: "senha_atual e senha_nova sao obrigatorias"})
+        }
+
+        const erroSenha = validarSenha(senha_nova);
+        if(erroSenha){
+            return erroCampo(res, "senha_nova", erroSenha);
+        }
+
+        const atual = await Usuario.findByIdComSenha(req.user.id);
+        if(!atual){
+            return res.status(404).json({message: "Utilizador nao encontrado"})
+        }
+
+        const isMatch = await bcrypt.compare(senha_atual, atual.senha);
+        if(!isMatch){
+            return res.status(401).json({ field: "senha_atual", message: "Senha atual invalida" })
+        }
+
+        const senhaHash = await bcrypt.hash(senha_nova, 10);
+        await Usuario.updateSenha(req.user.id, senhaHash, false);
+
+        res.status(200).json({message: "Senha alterada com sucesso"})
+    }catch(err){
+        next(err);
+    }
+})
+
+//lista de utilizadores: apenas Administrador (mantido por compatibilidade)
 router.get('/users', authenticate, authorize('Administrador'), async (req,res, next)=>{
     try{
-        const result = await pool.query(
-            "select id, nome, telefone, id_perfil from usuario order by id"
-        );
-        res.status(200).json({users: result.rows});
+        res.status(200).json({ users: await Usuario.findAll() });
     }catch(err){
         next(err);
     }
 })
 
 //logout
-
 router.post('/logout',(req,res)=>{
     res.cookie('token','',{...cookieOptions, maxAge: 1})
     res.json({message: "logged out sucessfully"})
 })
 
 export default router;
-
-
-
-
-
-
