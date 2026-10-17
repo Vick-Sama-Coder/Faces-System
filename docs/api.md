@@ -222,6 +222,50 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 
 ---
 
+## Atendimentos — `/api/atendimentos`
+
+- `GET /api/atendimentos?de=&ate=&cliente=&funcionario=&estado=` 🔒 — lista com filtros
+- `GET /api/atendimentos/:id` 🔒 — detalhe + `servicos`
+- `POST /api/atendimentos` 🔒🛠️ — corpo:
+  `{ cliente_id, servicos: [{ servico_id, funcionario_id, preco_praticado, desconto?, tipo_preco? }] }`.
+  Cria cabeçalho + linhas **numa transação**. `201`
+  - `400` se faltar `cliente_id`/`servicos` ou campos de cada serviço
+  - `409` se algum serviço estiver **inativo**
+- `PUT /api/atendimentos/:id` 🔒🛠️ — corpo: `{ cliente_id }`
+- `POST /api/atendimentos/:id/servicos` 🔒🛠️ — adiciona serviço (recalcula totais)
+- `DELETE /api/atendimentos/:id/servicos/:itemId` 🔒🛠️ — `204` (recalcula totais)
+- `PATCH /api/atendimentos/:id/concluir` 🔒🛠️ — marca `Concluido`
+- `POST /api/atendimentos/:id/anular` 🔒🛠️(`atendimentos:anular`) — corpo: `{ motivo }`
+
+> Totais do cabeçalho: `valor_bruto` = Σ `preco_original`,
+> `valor_desconto` = Σ `valor_desconto`, `valor_total` = Σ `valor_final`
+> (`valor_final = preco_original − desconto`). O preço fica gravado na linha.
+
+## Pagamentos — `/api`
+
+- `GET /api/pagamentos?de=&ate=&estado=&metodo=` 🔒 — lista com filtros
+- `GET /api/pagamentos/:id` 🔒 — detalhe + `parcelas`
+- `POST /api/atendimentos/:id/pagamentos` 🔒(`pagamentos:registar`) — corpo:
+  `{ parcelas: [{ metodo_pagamento, valor, referencia? }] }`. `201`
+  - `400` se a soma das parcelas exceder o valor devido
+- `GET /api/atendimentos/:id/pagamento` 🔒 — estado de liquidação
+- `POST /api/pagamentos/:id/anular` 🔒(`pagamentos:anular`) — corpo: `{ motivo }`
+
+> Um pagamento está `Liquidado` quando a soma das parcelas iguala o valor devido;
+> nesse momento o atendimento passa a `Pago` e as **comissões** são geradas.
+> Anular um pagamento recalcula o estado do atendimento (não apaga nada).
+
+## Comissões — `/api`
+
+- `GET /api/comissoes?funcionario=&de=&ate=&estado=` 🔒(`relatorios:ler`) — lista
+- `GET /api/funcionarios/:id/comissoes?de=&ate=` 🔒 — comissões do funcionário
+  (o próprio via conta ligada, ou `relatorios:ler`)
+
+> A taxa é a específica do serviço (`comissao_config`) ou, na sua ausência, a geral do
+> funcionário; a base é o `valor_final` do serviço. A geração é idempotente.
+
+---
+
 ## Exemplos com `curl`
 
 ```bash

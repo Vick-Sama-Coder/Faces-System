@@ -15,16 +15,19 @@ e os **problemas conhecidos** a corrigir.
 - ✅ CRUD completo (API) de **funcionários**.
 - ✅ Gestão de **contas, perfis e permissões** (RBAC) e alteração de senha.
 - ✅ CRUD completo (API) de **clientes** (com pesquisa e estado).
+- ✅ **Atendimentos** com serviços realizados (criação transacional, totais automáticos).
+- ✅ **Pagamentos** (parcelas, liquidação parcial/total, anulação).
+- ✅ **Comissões** geradas na liquidação (taxa específica sobrepõe-se à geral).
 
 ## O que é mock / placeholder
 
 | Página | Situação |
 | --- | --- |
 | Dashboard | Valores fixos, sem ligação à API |
-| Novo Atendimento | AG Grid com dados de exemplo |
+| Novo Atendimento | AG Grid com dados de exemplo (API pronta, UI por ligar) |
 | Funcionários | AG Grid com dados de exemplo (campos inconsistentes) |
 | Serviços | Placeholder (backend pronto, UI por ligar) |
-| Clientes | Placeholder (sem API) |
+| Clientes | Placeholder (backend pronto, UI por ligar) |
 | Despesas | Placeholder (sem API) |
 | Relatório | Placeholder (sem API) |
 | Esqueci a senha | Ecrã sem fluxo de recuperação |
@@ -67,8 +70,8 @@ _Nenhum ponto crítico em aberto._
 
 9. **Duração da sessão inconsistente.** JWT expira em 30 dias, cookie em 10 dias.
 
-10. **Sem controladores para atendimentos, pagamentos, despesas e produtos.**
-    As tabelas existem na base de dados; falta a camada de API.
+10. **Sem controladores para despesas e produtos.** As tabelas existem na base de dados;
+    falta a camada de API. (Atendimentos, pagamentos e comissões já têm API.)
 
 11. **`Backend` tem `.env` comitável?** Confirme que o `.env` real nunca é comitado;
     só o `.env.example` deve estar no repositório.
@@ -87,7 +90,6 @@ _Nenhum ponto crítico em aberto._
 ## Sugestões de próximos passos
 
 1. Ligar as páginas **Serviços** e **Funcionários** aos endpoints já existentes.
-2. Ligar as páginas **Serviços** e **Funcionários** aos endpoints já existentes.
-3. Criar os controladores/repositórios de **cliente** e **atendimento**.
-4. Popular o **Dashboard** com dados reais.
-5. Implementar **Despesas** e **Relatórios**.
+2. Ligar a página **Novo Atendimento** aos endpoints de atendimentos/pagamentos.
+3. Popular o **Dashboard** com dados reais.
+4. Implementar **Despesas** e **Relatórios**.

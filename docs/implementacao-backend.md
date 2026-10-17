@@ -26,7 +26,10 @@ regras de negócio e critérios de conclusão. Deve ser lido em conjunto com:
 | Fase 2 — Clientes | ✅ Concluída | CRUD + pesquisa por nome/apelido/telefone + estado; telefone único |
 | Fase 3 — Serviços (evolução) | ✅ Concluída | `descricao`, `duracao_min`, `tipo_preco`, `estado`; histórico de preços; `PATCH /estado`; nome único entre ativos |
 | Fase 4 — Funcionários (evolução) | ✅ Concluída | contacto/documento/admissão/cargo/estado, ligação a conta, `comissao_percentual`, `comissao_config`, desempenho |
-| Fases 5–15 | ⏳ Pendente | Ver detalhe abaixo |
+| Fase 5 — Atendimentos e serviços realizados | ✅ Concluída | `atendimento` remodelado, `atendimento_servico` (substitui `execucao_servico`), criação transacional, `services/atendimento.js` |
+| Fase 6 — Pagamentos | ✅ Concluída | `pagamento` remodelado + `pagamento_parcela`; liquidação, anulação e estado do atendimento |
+| Fase 7 — Comissões | ✅ Concluída | `comissao` gerada na liquidação (idempotente), taxa específica sobrepõe-se à geral |
+| Fases 8–15 | ⏳ Pendente | Ver detalhe abaixo |
 
 > **Base de dados:** esquema aplicado do zero com os scripts `001`–`017` (ver
 > [`base-de-dados.md`](./base-de-dados.md)). Não foram usadas migrações `ALTER TABLE`
@@ -47,14 +50,16 @@ O que **já existe e funciona** no backend:
 | CRUD categorias de serviço | ✅ | `controller` + `repository` + `routes/categoria.js` |
 | CRUD serviços | ✅ | `controller` + `repository` + `routes/servico.js` |
 | CRUD funcionários | ✅ | `controller` + `repository` + `routes/funcionario.js` |
+| Clientes | ✅ | `controller` + `repository` + `routes/cliente.js` |
+| Atendimentos + serviços realizados | ✅ | `controller` + `repository` + `services/atendimento.js` + `routes/atendimento.js` |
+| Pagamentos + parcelas | ✅ | `controller` + `repository` + `services/pagamento.js` + `routes/pagamento.js` |
+| Comissões | ✅ | `controller` + `repository` + `routes/comissao.js` |
 | Validações (nome, telefone, senha) | ✅ | `utils/validacoes.js` |
 | Token JWT | ✅ | `utils/token.js` |
-| Esquema SQL (20 scripts, `001`–`020`) | ✅ | `Database/schema/` |
+| Esquema SQL (23 scripts, `001`–`023`) | ✅ | `Database/schema/` |
 
-O que **falta** (objeto deste plano): cliente, atendimentos, serviços realizados,
-pagamentos, comissões, caixa, despesas, produtos, fidelização, horários, assiduidade,
-salários, relatórios, catálogo público, auditoria, gestão de contas/permissões e
-sincronização offline.
+O que **falta** (objeto deste plano): caixa, despesas, produtos, fidelização, horários,
+assiduidade, salários, relatórios, catálogo público, auditoria e sincronização offline.
 
 ### Estrutura de pastas alvo
 
@@ -410,29 +415,23 @@ estado, ligação a conta e configuração de comissão.
 **Módulo central.** Objetivo: registar um atendimento com um ou mais serviços, cada um
 com o seu funcionário e preço efetivo (RF05, RF06, RN01–RN03, HU-01).
 
-**Migrações**
+**Migrações** (esquema editado diretamente, sem `ALTER TABLE` exceto as FKs diferidas)
 
-- `024_evolucao_atendimento.sql`
-  - Remodelar `atendimento`: `cliente_id int not null` (FK `cliente`),
-    `data_hora timestamp default now()`, `estado varchar(20) default 'Em andamento'`
-    (`Em andamento`/`Concluido`/`Anulado`/`Pago`), `valor_bruto int`, `valor_desconto int default 0`,
-    `valor_total int`, `registado_por int` (FK `usuario`).
-  - **Nota:** o atual `atendimento.pagamento_id` (FK `pagamento`) é uma relação invertida;
-    na Fase 6 o pagamento passa a apontar para o atendimento.
-- `025_create_atendimento_servico.sql`
-  - `atendimento_servico (id, atendimento_id FK, servico_id FK, funcionario_id FK,
-    preco_original int not null, tipo_preco varchar(20), valor_desconto int default 0,
-    valor_final int not null, estado varchar(20) default 'Ativo', registado_por,
-    criado_em)`.
-  - Substitui a tabela `execucao_servico` (greenfield): migrar dados se existirem e
-    depois desativar/remover `execucao_servico`. Atualizar o `409` de `servico.delete`
-    para a nova tabela.
+- `006_create_atendimento.sql` — remodelado: `cliente_id int not null` (FK `cliente`),
+  `data_hora timestamp default now()`, `estado varchar(20) default 'Em andamento'`
+  (`Em andamento`/`Concluido`/`Anulado`/`Pago`), `valor_bruto`, `valor_desconto`,
+  `valor_total`, `registado_por`, `motivo_anulacao`.
+- `012_create_atendimento_servico.sql` — substitui `execucao_servico` (renomeado):
+  `atendimento_servico (id, atendimento_id FK, servico_id FK, funcionario_id FK,
+  preco_original, tipo_preco, valor_desconto, valor_final, estado, registado_por, criado_em)`.
+- `023_ligacoes.sql` — FKs `atendimento.registado_por`/`atendimento_servico.registado_por`
+  → `usuario` (diferidas por ordem dos scripts).
 
 **Endpoints**
 
 | Método | Rota | Permissão | Descrição |
 | --- | --- | --- | --- |
-| GET | `/api/atendimentos?de=&ate=&cliente=&funcionario=&estado=&page=` | autenticado | Lista paginada com filtros |
+| GET | `/api/atendimentos?de=&ate=&cliente=&funcionario=&estado=` | autenticado | Lista com filtros |
 | GET | `/api/atendimentos/:id` | autenticado | Detalhe + serviços |
 | POST | `/api/atendimentos` | `atendimentos:escrever` | Cria atendimento + serviços (transacional) |
 | PUT | `/api/atendimentos/:id` | `atendimentos:escrever` | Atualiza cabeçalho |
@@ -477,24 +476,23 @@ com o seu funcionário e preço efetivo (RF05, RF06, RN01–RN03, HU-01).
 **Objetivo:** registar pagamento (simples e dividido), controlar liquidação e anular
 (RF08, RF09, RN04–RN05, HU-02).
 
-**Migrações**
+**Migrações** (esquema editado diretamente, sem `ALTER TABLE` exceto as FKs diferidas)
 
-- `026_evolucao_pagamento.sql`
-  - Remodelar `pagamento`: `atendimento_id int not null` (FK `atendimento`),
-    `valor_total int not null`, `estado varchar(20) default 'Pendente'`
-    (`Pendente`/`Parcial`/`Liquidado`/`Anulado`), `data_hora timestamp default now()`,
-    `registado_por int`.
-  - Ajustar `atendimento`: remover `pagamento_id`.
-- `027_create_pagamento_parcela.sql`
+- `005_create_pagamento.sql` — remodelado: `atendimento_id int not null` (FK `atendimento`),
+  `valor_total`, `estado` (`Pendente`/`Parcial`/`Liquidado`/`Anulado`), `data_hora`,
+  `registado_por`, `motivo_anulacao`.
+- `021_create_pagamento_parcela.sql`
   - `pagamento_parcela (id, pagamento_id FK, metodo_pagamento varchar(50),
     valor int, referencia varchar(100), criado_em)`.
   - Métodos: `Dinheiro`, `M-Pesa`, e o serviço adicional a confirmar (§8).
+- `023_ligacoes.sql` — FKs `pagamento.atendimento_id` → `atendimento` e
+  `pagamento.registado_por` → `usuario` (diferidas por ordem dos scripts).
 
 **Endpoints**
 
 | Método | Rota | Permissão | Descrição |
 | --- | --- | --- | --- |
-| GET | `/api/pagamentos?de=&ate=&estado=&metodo=` | autenticado | Lista paginada |
+| GET | `/api/pagamentos?de=&ate=&estado=&metodo=` | autenticado | Lista com filtros |
 | GET | `/api/pagamentos/:id` | autenticado | Detalhe + parcelas |
 | POST | `/api/atendimentos/:id/pagamentos` | `pagamentos:registar` | Regista pagamento (parcelas) |
 | GET | `/api/atendimentos/:id/pagamento` | autenticado | Estado de liquidação |
@@ -534,10 +532,11 @@ com o seu funcionário e preço efetivo (RF05, RF06, RN01–RN03, HU-01).
 
 **Migrações**
 
-- `028_create_comissao.sql`
+- `022_create_comissao.sql`
   - `comissao (id, atendimento_servico_id FK unique, funcionario_id FK, taxa numeric(5,2),
     base_calculo int, valor_comissao int, estado varchar(20) default 'Elegivel',
-    criado_em)`.
+    criado_em)`. Gerada dentro da transação de liquidação do pagamento
+    (`repository/comissao.js`), de forma idempotente.
 
 **Endpoints**
 
