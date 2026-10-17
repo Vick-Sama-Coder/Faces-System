@@ -367,6 +367,44 @@ filtro devolve todo o histórico.
 
 ---
 
+## Catálogo público — `/api/public` 🔓 (sem sessão)
+
+Apenas **serviços ativos** e campos de divulgação (RF22/RN22/RNF11): nunca expõe
+clientes, funcionários, custos ou qualquer dado interno.
+
+- `GET /api/public/servicos` — lista `[{ id, nome, descricao, valor, duracao_min,
+  tipo_preco, categoria_nome }]`
+- `GET /api/public/servicos/:id` — detalhe (`200`); `404` se não existir ou estiver inativo
+
+> O preço é apresentado com `valor` + `tipo_preco` (`fixo`/`variavel`), ficando a decisão
+> de apresentação (preço fixo, preço inicial ou "variável") a cargo do frontend
+> (ver "Decisões pendentes").
+
+## Auditoria — `/api/auditoria`
+
+Registo auditável das operações relevantes (RF23/RN21/RNF03). Todas as rotas exigem
+`auditoria:ler` (Administrador e Auditor).
+
+- `GET /api/auditoria?entidade=&utilizador=&de=&ate=&operacao=` — lista (filtros opcionais)
+- `GET /api/auditoria/:id` — detalhe (`200`/`404`)
+
+```json
+{
+  "id": 11, "id_utilizador": 1, "utilizador_nome": "Administrador",
+  "data_hora": "2026-10-17T...", "entidade": "pagamento", "id_registo_afetado": 2,
+  "tipo_operacao": "anular", "valores_anteriores": { "estado": "Liquidado" },
+  "valores_posteriores": { "estado": "Anulado" }, "motivo": "erro de caixa"
+}
+```
+
+> Operações auditadas: criação de atendimentos e pagamentos; anulações; abertura,
+> levantamentos e fecho de caixa; despesas (criar/atualizar/remover); processamento
+> salarial (criar/atualizar deduções/aprovar/pagar); assiduidade (criar/atualizar);
+> correções de fidelização; alterações de permissões (utilizador e perfil).
+> O registo é **append-only**: um trigger da base de dados bloqueia `UPDATE`/`DELETE`.
+
+---
+
 ## Exemplos com `curl`
 
 ```bash

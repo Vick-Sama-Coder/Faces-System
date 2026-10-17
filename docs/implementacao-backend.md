@@ -33,9 +33,12 @@ regras de negócio e critérios de conclusão. Deve ser lido em conjunto com:
 | Fase 9 — Fidelização | ✅ Concluída | `cartao_fidelizacao`/`movimento_fidelizacao`; marcas por dia, benefício à 5.ª, corte gratuito |
 | Fase 10 — Horários, assiduidade e salários | ✅ Concluída | `horario_funcionario`, `assiduidade`, `processamento_salarial`/`deducao_salarial`; fluxo Preparado→Aprovado→Pago; comissões elegíveis do período |
 | Fase 11 — Relatórios | ✅ Concluída | 9 relatórios agregados (`repository/relatorio.js`), filtro opcional `de`/`ate`, permissão `relatorios:ler` |
-| Fases 12–15 | ⏳ Pendente | Ver detalhe abaixo |
+| Fase 12 — Catálogo público | ✅ Concluída | `GET /api/public/servicos` (+`:id`) sem autenticação; só serviços ativos e campos de divulgação |
+| Fase 13 — Auditoria | ✅ Concluída | `log_auditoria` append-only (trigger na BD) + `services/auditoria.js`; integrado em pagamentos, atendimentos, caixa, despesas, salários, assiduidade, fidelização e permissões |
+| Fases 14–15 | ⏳ Pendente | Ver detalhe abaixo |
+| Fase 16 — Fecho das decisões pendentes | 📝 A cargo do utilizador | Lacunas da análise a decidir/documentar (não é código) — ver §16 de [`documentacao.md`](./documentacao.md) |
 
-> **Base de dados:** esquema aplicado do zero com os scripts `001`–`034` (ver
+> **Base de dados:** esquema aplicado do zero com os scripts `001`–`035` (ver
 > [`base-de-dados.md`](./base-de-dados.md)). Não foram usadas migrações `ALTER TABLE`
 > porque o esquema foi recriado a partir das definições.
 
@@ -65,11 +68,14 @@ O que **já existe e funciona** no backend:
 | Assiduidade | ✅ | `controller` + `repository` + `routes/assiduidade.js` |
 | Salários (processamento/deduções/aprovação) | ✅ | `controller` + `repository` + `services/salario.js` + `routes/salario.js` |
 | Relatórios agregados | ✅ | `controller` + `repository` + `routes/relatorio.js` |
+| Catálogo público | ✅ | `controller` + `repository` (funções públicas de `servico`) + `routes/publico.js` |
+| Auditoria | ✅ | `controller` + `repository` + `services/auditoria.js` + `routes/auditoria.js` |
 | Validações (nome, telefone, senha) | ✅ | `utils/validacoes.js` |
 | Token JWT | ✅ | `utils/token.js` |
-| Esquema SQL (34 scripts, `001`–`034`) | ✅ | `Database/schema/` |
+| Esquema SQL (35 scripts, `001`–`035`) | ✅ | `Database/schema/` |
 
-O que **falta** (objeto deste plano): catálogo público, auditoria e sincronização offline.
+O que **falta** (objeto deste plano): auditoria transversal consolidada na UI, sincronização
+offline e o fecho das decisões da análise (Fase 16).
 
 ### Estrutura de pastas alvo
 
@@ -207,6 +213,7 @@ frontend; se forem normalizadas, criar alias e documentar em [`api.md`](./api.md
 | **13** | Auditoria (consolidação) | log_auditoria | transversal |
 | **14** | Sincronização offline | operacao_sincronizacao, idempotência | 5–9 |
 | **15** | Qualidade, segurança e produção | testes, backups, migração de dados | todas |
+| **16** | Fecho das decisões pendentes | documentação/produto (não é código) | — |
 
 > Mapeamento com o plano de produto (`documentacao.md` §13): as Fases 1–2 correspondem à
 > "Fase 1 — Fundação"; as Fases 5–6 à "Fase 2 — Atendimento e pagamentos"; a Fase 8 à
@@ -761,6 +768,11 @@ e aprovação (RF15–RF19, RN14–RN15, HU relacionadas).
 | GET | `/api/public/servicos` | Serviços ativos (nome, descrição, categoria, tipo de preço) |
 | GET | `/api/public/servicos/:id` | Detalhe público |
 
+> Implementado com funções públicas em `repository/servico.js` (`findPublicos`,
+> `findPublicoById`) e `controller/publico.js`; as rotas **não** usam `authenticate`.
+> `findPublicoById` devolve `404` para serviços inativos (não só inexistentes), para não
+> revelar serviços retirados.
+
 **Regras de negócio**
 
 - Apenas serviços ativos e campos de divulgação (RN22) — sem dados internos.
@@ -779,23 +791,27 @@ e aprovação (RF15–RF19, RN14–RN15, HU relacionadas).
 
 **Migrações**
 
-- `041_create_log_auditoria.sql` — `log_auditoria (id, id_utilizador, data_hora,
+- `035_create_log_auditoria.sql` — `log_auditoria (id, id_utilizador, data_hora,
   entidade, id_registo_afetado, tipo_operacao, valores_anteriores jsonb,
-  valores_posteriores jsonb, motivo, identificador_operacao)`.
+  valores_posteriores jsonb, motivo, identificador_operacao)`; índices por entidade e data,
+  e um **trigger** que rejeita `UPDATE`/`DELETE` (append-only na BD).
 
 **Componentes**
 
-- `services/auditoria.js` → `registrarAuditoria({ req, entidade, idRegisto, operacao,
-  antes, depois, motivo })`, chamado **dentro da mesma transação** da operação.
-- Aplicar a: alterações financeiras, anulações, permissões, salários, assiduidade,
-  fidelização.
-- Logs **append-only**: sem `UPDATE`/`DELETE` pela aplicação (permissões restritas na BD).
+- `services/auditoria.js` → `registar({ id_utilizador, entidade, id_registo, operacao,
+  antes, depois, motivo }, db)`, chamado **dentro da mesma transação** da operação
+  (recebe o `client`); fora de transação usa o `pool` por omissão.
+- Integrado em: **pagamentos** (criar/anular), **atendimentos** (criar/anular),
+  **caixa** (abrir, levantamento, fechar), **despesas** (criar/atualizar/remover),
+  **salários** (criar/atualizar deduções/aprovar/pagar), **assiduidade** (criar/atualizar),
+  **fidelização** (corrigir) e **permissões** (utilizador e perfil).
+- Logs **append-only**: sem `UPDATE`/`DELETE` pela aplicação, garantido por trigger.
 
 **Endpoints**
 
 | Método | Rota | Permissão | Descrição |
 | --- | --- | --- | --- |
-| GET | `/api/auditoria?entidade=&utilizador=&de=&ate=` | `auditoria:ler` | Consulta paginada |
+| GET | `/api/auditoria?entidade=&utilizador=&de=&ate=&operacao=` | `auditoria:ler` | Consulta (filtros opcionais) |
 | GET | `/api/auditoria/:id` | `auditoria:ler` | Detalhe |
 
 **Critério de conclusão**
@@ -864,6 +880,42 @@ e aprovação (RF15–RF19, RN14–RN15, HU relacionadas).
 
 ---
 
+## Fase 16 — Fecho das decisões pendentes (lacunas da análise)
+
+**Estado:** 📝 a cargo do utilizador (produto/negócio) — não é código.
+
+**Objetivo:** fechar as lacunas da análise antes (ou durante) as fases que delas dependem,
+registando aqui a decisão final de cada questão do §16 de
+[`documentacao.md`](./documentacao.md). Serve de checklist para não se implementar regras
+"por adivinhação".
+
+**Como usar:** para cada item, escrever a decisão numa frase e o respetivo impacto na
+implementação (fase/regra afetada). Quando uma decisão alterar o comportamento já
+implementado, deve ser aberta uma tarefa na fase correspondente.
+
+| # | Questão (§16) | Decisão (a preencher) | Impacto |
+| --- | --- | --- | --- |
+| 1 | Métodos de pagamento (2.º serviço móvel além de M-Pesa) | _pendente_ | Fase 6 (parcelas) |
+| 2 | Descontos: valor fixo, percentagem ou ambos | _pendente_ | Fase 5 |
+| 3 | Deduções salariais: automáticas ou manuais | _pendente_ | Fase 10 (implementadas como manuais/aprovadas) |
+| 4 | Anulações: todos os admins ou restrito por módulo | _pendente_ | Fases 5, 6 |
+| 5 | Comissões: serviços gratuitos, pagamentos anulados, reembolsos e correções | _pendente_ | Fases 6, 7 |
+| 6 | Caixa: valor inicial, forma de abertura e correção de um fecho incorreto | _pendente_ | Fase 8 |
+| 7 | Horários: turnos semanais variáveis e horários excecionais | _pendente_ | Fase 10 |
+| 8 | Catálogo público: preço fixo, preço inicial ou indicação de "variável" | _pendente_ | Fase 12 |
+| 9 | Relatórios: formatos de exportação (PDF/Excel) | _pendente_ | Fase 11 |
+| 10 | Migração: dados históricos a recuperar além de clientes e cartões | _pendente_ | Fase 15 |
+| 11 | Offline: dispositivo, instalação local e estratégia de sincronização | _pendente_ | Fase 14 |
+| 12 | Fidelização: vários cortes no mesmo dia e apresentação do progresso | _pendente_ | Fase 9 |
+| 13 | Reservas de clientes: introduzir agendamento numa fase futura? | _pendente_ | §12 (fora do âmbito atual) |
+| 14 | Controlo de stock: requisitos detalhados quando o módulo existir | _pendente_ | §12 (fora do âmbito atual) |
+
+**Critério de conclusão**
+
+- Todas as questões com decisão registada e as fases afetadas ajustadas em conformidade.
+
+---
+
 ## 4. Matriz de permissões alvo
 
 Expande a matriz simples atual (`Administrador`/`Usuario`) para a granularidade das
@@ -921,7 +973,8 @@ Rastreio rápido das regras mais críticas e onde são aplicadas:
 
 ## 6. Dependências e decisões pendentes
 
-Antes de implementar as fases afetadas, confirmar (documentacao.md §16):
+Antes de implementar as fases afetadas, confirmar (documentacao.md §16). O registo das
+decisões e o seu impacto está consolidado na **Fase 16** (a cargo do utilizador):
 
 1. **Métodos de pagamento** (2.º serviço móvel além de M-Pesa) — Fase 6.
 2. **Modelo de desconto:** valor fixo, percentagem ou ambos — Fase 5.
@@ -971,7 +1024,10 @@ Fase N — <nome>
 9. **Fase 12** (catálogo público) →
 10. **Fase 13** (auditoria) ao longo de todas →
 11. **Fase 14** (offline) →
-12. **Fase 15** (qualidade e produção).
+12. **Fase 15** (qualidade e produção) →
+13. **Fase 16** (fecho das decisões pendentes) em paralelo, à medida que cada fase dependente avança.
 
 > A auditoria (Fase 13) e as convenções da Fase 0 são **transversais**: os helpers devem
-> existir cedo, mesmo que os endpoints de consulta só venham no fim.
+> existir cedo, mesmo que os endpoints de consulta só venham no fim. As decisões da
+> **Fase 16** devem ser fechadas antes das fases que delas dependem, para não implementar
+> regras por adivinhação.

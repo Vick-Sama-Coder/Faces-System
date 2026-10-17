@@ -45,6 +45,7 @@ Os scripts estão em `Backend/Database/schema/` e devem ser aplicados **por orde
 | `032_create_assiduidade.sql` | `assiduidade` | Registo diário (FK → `funcionario`, `usuario`); índice único `(funcionario_id, data)` |
 | `033_create_processamento_salarial.sql` | `processamento_salarial` | Base + comissões − deduções; FK → `funcionario`, `usuario`; índice único `(funcionario_id, periodo_inicio, periodo_fim)` |
 | `034_create_deducao_salarial.sql` | `deducao_salarial` | Deduções do processamento (FK → `processamento_salarial` `on delete cascade`, `usuario`) |
+| `035_create_log_auditoria.sql` | `log_auditoria` | Registo auditável (append-only); FK → `usuario`; trigger bloqueia `UPDATE`/`DELETE` |
 
 > ⚠️ **Script 000:** o PostgreSQL não aceita `create database if not exists` nem permite
 > executar `CREATE DATABASE` dentro de uma transacção. Execute este script **isoladamente**
@@ -75,6 +76,7 @@ cliente 1───1 cartao_fidelizacao 1───n movimento_fidelizacao
 funcionario 1───n horario_funcionario
 funcionario 1───n assiduidade
 funcionario 1───n processamento_salarial 1───n deducao_salarial
+usuario 1───n log_auditoria   (registo de quem fez cada operacao)
 ```
 
 ### Tabelas do domínio (ainda sem API)
@@ -151,6 +153,11 @@ aplicacao   (sem uso actual)
 - **`deducao_salarial`** — `id`, `processamento_id` (FK, `on delete cascade`), `tipo`,
   `descricao`, `valor int` (`check > 0`), `motivo`, `aprovado_por` (FK → `usuario`),
   `criado_em`.
+- **`log_auditoria`** — `id`, `id_utilizador` (FK → `usuario`), `data_hora`, `entidade`,
+  `id_registo_afetado`, `tipo_operacao`, `valores_anteriores jsonb`,
+  `valores_posteriores jsonb`, `motivo`, `identificador_operacao`. Índices por
+  `(entidade, id_registo_afetado)` e `data_hora`. Um **trigger** impede `UPDATE`/`DELETE`. O `log_auditoria` é
+  a única tabela sem API de escrita — só consulta (`auditoria:ler`).
 - **`perfil`** — `id` (identity `by default`), `nome`, `descricao`, `estado`.
 - **`usuario`** — `id` (identity), `nome`, `senha varchar(100)`, `telefone int` (único),
   `id_perfil` (FK), `estado`, `alteracao_obrigatoria_senha`, `ultimo_acesso`, `data_criacao`.
@@ -209,6 +216,8 @@ O backend conta com a integridade referencial para proteger integridade de dados
   a geração usa `on conflict do nothing`.
 - `despesa.valor_total` ≤ 0 → erro `23514` → resposta `400`.
 - `deducao_salarial.valor` ≤ 0 → erro `23514` → resposta `400`.
+- O `log_auditoria` é **append-only**: qualquer `UPDATE`/`DELETE` é rejeitado por trigger,
+  preservando a integridade do histórico (RN21/RNF03).
 
 ## Notas de modelação
 

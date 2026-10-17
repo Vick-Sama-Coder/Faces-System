@@ -26,6 +26,11 @@ e os **problemas conhecidos** a corrigir.
 - ✅ **Salários** (processamento mensal base + comissões − deduções, aprovação e pagamento).
 - ✅ **Relatórios** agregados (resumo financeiro, caixa, serviços, funcionários, assiduidade,
   clientes, fidelização, anulações e movimentos).
+- ✅ **Catálogo público** de serviços ativos, sem autenticação (`/api/public/servicos`),
+  expondo apenas dados de divulgação.
+- ✅ **Auditoria** (`/api/auditoria`): registo append-only das operações relevantes
+  (pagamentos, anulações, caixa, despesas, salários, assiduidade, fidelização e permissões),
+  consultável por `auditoria:ler`.
 
 ## O que é mock / placeholder
 
@@ -39,6 +44,8 @@ e os **problemas conhecidos** a corrigir.
 | Despesas | Placeholder (backend pronto, UI por ligar) |
 | Relatório | Placeholder (backend pronto, UI por ligar) |
 | Horários / Assiduidade / Salários | Sem UI (backend pronto) |
+| Catálogo público | Sem UI (backend pronto) |
+| Auditoria | Sem UI (backend pronto) |
 | Esqueci a senha | Ecrã sem fluxo de recuperação |
 
 ## Pendências técnicas
@@ -94,8 +101,14 @@ _Nenhum ponto crítico em aberto._
 15. Adicionar um `README.md` na raiz do repositório (ou apontar para `docs/README.md`).
 16. Uniformizar logs (`console.error` vs `console.log`) e mensagens em português.
 17. Paginação nas listagens maiores (atendimentos, pagamentos) quando o volume o justificar.
+    (Por decisão de projeto, as listagens devolvem arrays simples nesta fase.)
 18. Adicionar testes automatizados (backend e frontend).
 19. Centralizar a URL da API e as variáveis de ambiente do frontend.
+20. **Fechar as decisões pendentes da análise.** Catorze questões (§16 de `documentacao.md`)
+    ainda sem decisão de produto; estão consolidadas na **Fase 16** de
+    `implementacao-backend.md` para resolução pelo utilizador. Sem elas, algumas regras
+    (descontos, comissões em casos-limite, preço no catálogo, exportação de relatórios)
+    ficam implementadas por interpretação.
 
 ## Sugestões de próximos passos
 
