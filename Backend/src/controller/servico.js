@@ -24,13 +24,13 @@ const getServicoById = async (req, res, next) => {
 
 const createServico = async (req, res, next) => {
     try {
-        const { nome, descricao, valor, duracao_min, tipo_preco, categoria_id } = req.body;
+        const { nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id } = req.body;
 
         if (!nome || valor === undefined || !categoria_id) {
             return res.status(400).json({ message: "Os campos nome, valor e categoria_id sao obrigatorios" });
         }
 
-        const servico = await Servico.create({ nome, descricao, valor, duracao_min, tipo_preco, categoria_id });
+        const servico = await Servico.create({ nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id });
 
         res.status(201).json(servico);
     } catch (error) {
@@ -49,10 +49,11 @@ const createServico = async (req, res, next) => {
 const updateServico = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { nome, descricao, valor, duracao_min, tipo_preco, categoria_id } = req.body;
+        const { nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id } = req.body;
 
         if (nome === undefined && descricao === undefined && valor === undefined &&
-            duracao_min === undefined && tipo_preco === undefined && categoria_id === undefined) {
+            duracao_min === undefined && tipo_preco === undefined &&
+            elegivel_fidelizacao === undefined && categoria_id === undefined) {
             return res.status(400).json({ message: "Nenhum campo para atualizar foi enviado" });
         }
 
@@ -61,7 +62,7 @@ const updateServico = async (req, res, next) => {
             return res.status(404).json({ message: "Servico nao encontrado" });
         }
 
-        const servico = await Servico.update(id, { nome, descricao, valor, duracao_min, tipo_preco, categoria_id });
+        const servico = await Servico.update(id, { nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id });
 
         //alterar o preco grava historico e nao afeta atendimentos passados (RN15/RN19/RN20)
         if (valor !== undefined && Number(valor) !== atual.valor) {

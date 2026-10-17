@@ -65,12 +65,15 @@ const insertHeader = async (client, { cliente_id, valor_bruto, valor_desconto, v
 };
 
 const insertServico = async (client, { atendimento_id, servico_id, funcionario_id, preco_original, tipo_preco, valor_desconto, valor_final, registado_por }) => {
-    await client.query(
+    const result = await client.query(
         `insert into atendimento_servico
             (atendimento_id, servico_id, funcionario_id, preco_original, tipo_preco, valor_desconto, valor_final, registado_por)
-         values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+         values ($1, $2, $3, $4, $5, $6, $7, $8)
+         returning id`,
         [atendimento_id, servico_id, funcionario_id, preco_original, tipo_preco, valor_desconto, valor_final, registado_por]
     );
+
+    return result.rows[0].id;
 };
 
 //recalcula os totais do cabecalho a partir das linhas ativas

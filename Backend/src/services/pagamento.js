@@ -2,6 +2,7 @@ import pool from '../config/database.js';
 import Pagamento from '../repository/pagamento.js';
 import Atendimento from '../repository/atendimento.js';
 import Comissao from '../repository/comissao.js';
+import Caixa from '../repository/caixa.js';
 import { criarErro } from '../utils/erro.js';
 
 //regista um pagamento (uma ou mais parcelas) e atualiza a liquidacao do atendimento
@@ -45,6 +46,20 @@ const registrar = async (atendimento_id, { parcelas, registado_por }) => {
                 metodo_pagamento: parcela.metodo_pagamento,
                 valor: parcela.valor,
                 referencia: parcela.referencia
+            });
+        }
+
+        //entrada no caixa, se houver sessao aberta (RF13/RF10); idempotente por referencia
+        const sessao = await Caixa.findSessaoAberta(client);
+        if (sessao) {
+            await Caixa.inserirMovimento(client, {
+                id_sessao: sessao.id,
+                tipo_movimento: "Entrada",
+                valor: somaNovas,
+                descricao: `Pagamento #${pagamento_id}`,
+                origem: "Pagamento",
+                referencia_id: pagamento_id,
+                registado_por
             });
         }
 

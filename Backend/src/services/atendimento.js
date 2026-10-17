@@ -1,6 +1,7 @@
 import pool from '../config/database.js';
 import Atendimento from '../repository/atendimento.js';
 import Servico from '../repository/servico.js';
+import FidelizacaoService from './fidelizacao.js';
 import { criarErro } from '../utils/erro.js';
 
 //calcula os totais do cabecalho a partir das linhas (valor_final = preco - desconto)
@@ -30,11 +31,27 @@ async function validarServicoAtivo(servico_id) {
     if (servico.estado !== "Ativo") {
         throw criarErro(409, `O servico "${servico.nome}" esta inativo`);
     }
+
+    return servico;
+}
+
+//registar as marcas de fidelizacao dos servicos elegiveis (cortes)
+async function registarFidelizacao(client, servico, { cliente_id, atendimento_servico_id, valor_final, registado_por }) {
+    if (servico.elegivel_fidelizacao) {
+        await FidelizacaoService.registarCorte(client, {
+            cliente_id,
+            atendimento_servico_id,
+            valor_final,
+            registado_por
+        });
+    }
 }
 
 const criar = async ({ cliente_id, servicos, registado_por }) => {
+    const validados = [];
+
     for (const servico of servicos) {
-        await validarServicoAtivo(servico.servico_id);
+        validados.push(await validarServicoAtivo(servico.servico_id));
     }
 
     const client = await pool.connect();
@@ -51,17 +68,24 @@ const criar = async ({ cliente_id, servicos, registado_por }) => {
             registado_por
         });
 
-        for (const servico of servicos) {
-            const preco = Number(servico.preco_praticado);
-            const desconto = Number(servico.desconto || 0);
+        for (let i = 0; i < servicos.length; i++) {
+            const preco = Number(servicos[i].preco_praticado);
+            const desconto = Number(servicos[i].desconto || 0);
 
-            await Atendimento.insertServico(client, {
+            const item_id = await Atendimento.insertServico(client, {
                 atendimento_id,
-                servico_id: servico.servico_id,
-                funcionario_id: servico.funcionario_id,
+                servico_id: servicos[i].servico_id,
+                funcionario_id: servicos[i].funcionario_id,
                 preco_original: preco,
-                tipo_preco: servico.tipo_preco,
+                tipo_preco: servicos[i].tipo_preco,
                 valor_desconto: desconto,
+                valor_final: preco - desconto,
+                registado_por
+            });
+
+            await registarFidelizacao(client, validados[i], {
+                cliente_id,
+                atendimento_servico_id: item_id,
                 valor_final: preco - desconto,
                 registado_por
             });
@@ -87,8 +111,7 @@ const adicionarServico = async (atendimento_id, dados, registado_por) => {
         throw criarErro(409, "Um atendimento anulado nao pode ser alterado");
     }
 
-    await validarServicoAtivo(dados.servico_id);
-
+    const servico = await validarServicoAtivo(dados.servico_id);
     const preco = Number(dados.preco_praticado);
     const desconto = Number(dados.desconto || 0);
     const client = await pool.connect();
@@ -96,13 +119,20 @@ const adicionarServico = async (atendimento_id, dados, registado_por) => {
     try {
         await client.query('begin');
 
-        await Atendimento.insertServico(client, {
+        const item_id = await Atendimento.insertServico(client, {
             atendimento_id,
             servico_id: dados.servico_id,
             funcionario_id: dados.funcionario_id,
             preco_original: preco,
             tipo_preco: dados.tipo_preco,
             valor_desconto: desconto,
+            valor_final: preco - desconto,
+            registado_por
+        });
+
+        await registarFidelizacao(client, servico, {
+            cliente_id: atendimento.cliente_id,
+            atendimento_servico_id: item_id,
             valor_final: preco - desconto,
             registado_por
         });

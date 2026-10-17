@@ -2,7 +2,7 @@ import pool from '../config/database.js';
 
 //campos devolvidos pela API (com o nome da categoria ja resolvido por join)
 const campos = `s.id, s.nome, s.descricao, s.valor, s.duracao_min, s.tipo_preco,
-    s.categoria_id, c.nome as categoria_nome, s.estado, s.data_criacao`;
+    s.elegivel_fidelizacao, s.categoria_id, c.nome as categoria_nome, s.estado, s.data_criacao`;
 
 //listagem: por omissao apenas servicos ativos; estado = 'todos' mostra tudo (administracao)
 const findAll = async ({ estado } = {}) => {
@@ -32,19 +32,19 @@ const findById = async (id) => {
     return result.rows[0] || null;
 };
 
-const create = async ({ nome, descricao, valor, duracao_min, tipo_preco, categoria_id }) => {
+const create = async ({ nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id }) => {
     const result = await pool.query(
-        `insert into servico (nome, descricao, valor, duracao_min, tipo_preco, categoria_id)
-         values ($1, $2, $3, $4, coalesce($5, 'fixo'), $6)
-         returning id, nome, descricao, valor, duracao_min, tipo_preco, categoria_id, estado`,
-        [nome, descricao, valor, duracao_min, tipo_preco, categoria_id]
+        `insert into servico (nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id)
+         values ($1, $2, $3, $4, coalesce($5, 'fixo'), coalesce($6, false), $7)
+         returning id, nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id, estado`,
+        [nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id]
     );
 
     return result.rows[0];
 };
 
 //atualizacao parcial: campos a null sao ignorados e mantem o valor atual
-const update = async (id, { nome, descricao, valor, duracao_min, tipo_preco, categoria_id }) => {
+const update = async (id, { nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id }) => {
     const result = await pool.query(
         `update servico
             set nome = coalesce($2, nome),
@@ -52,10 +52,11 @@ const update = async (id, { nome, descricao, valor, duracao_min, tipo_preco, cat
                 valor = coalesce($4, valor),
                 duracao_min = coalesce($5, duracao_min),
                 tipo_preco = coalesce($6, tipo_preco),
-                categoria_id = coalesce($7, categoria_id)
+                elegivel_fidelizacao = coalesce($7, elegivel_fidelizacao),
+                categoria_id = coalesce($8, categoria_id)
           where id = $1
-          returning id, nome, descricao, valor, duracao_min, tipo_preco, categoria_id, estado`,
-        [id, nome, descricao, valor, duracao_min, tipo_preco, categoria_id]
+          returning id, nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id, estado`,
+        [id, nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id]
     );
 
     return result.rows[0] || null;
