@@ -52,6 +52,7 @@ const ERROS_CONHECIDOS = {
   "23502": [400, "Campo obrigatorio em falta"],       // not null violado
   "23503": [409, "Operacao bloqueada: existem registos associados"], // foreign key
   "23505": [409, "Registo duplicado"],                // unique violado
+  "23514": [400, "Valor fora do intervalo permitido"], // check violado
 };
 
 //handler de erros em JSON (sem stack em producao)

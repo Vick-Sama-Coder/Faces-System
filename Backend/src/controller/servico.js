@@ -2,7 +2,7 @@ import Servico from "../repository/servico.js";
 
 const getServicos = async (req, res, next) => {
     try {
-        res.status(200).json(await Servico.findAll());
+        res.status(200).json(await Servico.findAll({ estado: req.query.estado }));
     } catch (error) {
         next(error);
     }
@@ -24,17 +24,23 @@ const getServicoById = async (req, res, next) => {
 
 const createServico = async (req, res, next) => {
     try {
-        const { nome, valor, categoria_id } = req.body;
+        const { nome, descricao, valor, duracao_min, tipo_preco, categoria_id } = req.body;
 
         if (!nome || valor === undefined || !categoria_id) {
             return res.status(400).json({ message: "Os campos nome, valor e categoria_id sao obrigatorios" });
         }
 
-        res.status(201).json(await Servico.create({ nome, valor, categoria_id }));
+        const servico = await Servico.create({ nome, descricao, valor, duracao_min, tipo_preco, categoria_id });
+
+        res.status(201).json(servico);
     } catch (error) {
         //23503 = a categoria informada nao existe
         if (error.code === "23503") {
-            return res.status(400).json({ message: "Categoria nao encontrada" });
+            return res.status(400).json({ field: "categoria_id", message: "Categoria nao encontrada" });
+        }
+        //23505 = ja existe um servico ativo com este nome
+        if (error.code === "23505") {
+            return res.status(409).json({ field: "nome", message: "Ja existe um servico ativo com este nome" });
         }
         next(error);
     }
@@ -42,13 +48,52 @@ const createServico = async (req, res, next) => {
 
 const updateServico = async (req, res, next) => {
     try {
-        const { nome, valor, categoria_id } = req.body;
+        const { id } = req.params;
+        const { nome, descricao, valor, duracao_min, tipo_preco, categoria_id } = req.body;
 
-        if (nome === undefined && valor === undefined && categoria_id === undefined) {
+        if (nome === undefined && descricao === undefined && valor === undefined &&
+            duracao_min === undefined && tipo_preco === undefined && categoria_id === undefined) {
             return res.status(400).json({ message: "Nenhum campo para atualizar foi enviado" });
         }
 
-        const servico = await Servico.update(req.params.id, { nome, valor, categoria_id });
+        const atual = await Servico.findById(id);
+        if (!atual) {
+            return res.status(404).json({ message: "Servico nao encontrado" });
+        }
+
+        const servico = await Servico.update(id, { nome, descricao, valor, duracao_min, tipo_preco, categoria_id });
+
+        //alterar o preco grava historico e nao afeta atendimentos passados (RN15/RN19/RN20)
+        if (valor !== undefined && Number(valor) !== atual.valor) {
+            await Servico.registrarHistoricoPreco({
+                servico_id: id,
+                valor_anterior: atual.valor,
+                valor_novo: valor,
+                alterado_por: req.user.id
+            });
+        }
+
+        res.status(200).json(servico);
+    } catch (error) {
+        if (error.code === "23503") {
+            return res.status(400).json({ field: "categoria_id", message: "Categoria nao encontrada" });
+        }
+        if (error.code === "23505") {
+            return res.status(409).json({ field: "nome", message: "Ja existe um servico ativo com este nome" });
+        }
+        next(error);
+    }
+};
+
+const updateEstadoServico = async (req, res, next) => {
+    try {
+        const { estado } = req.body;
+
+        if (!estado) {
+            return res.status(400).json({ message: "O campo estado e obrigatorio" });
+        }
+
+        const servico = await Servico.updateEstado(req.params.id, estado);
 
         if (!servico) {
             return res.status(404).json({ message: "Servico nao encontrado" });
@@ -56,9 +101,24 @@ const updateServico = async (req, res, next) => {
 
         res.status(200).json(servico);
     } catch (error) {
-        if (error.code === "23503") {
-            return res.status(400).json({ message: "Categoria nao encontrada" });
+        if (error.code === "23505") {
+            return res.status(409).json({ field: "nome", message: "Ja existe um servico ativo com este nome" });
         }
+        next(error);
+    }
+};
+
+const getHistoricoPrecos = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const servico = await Servico.findById(id);
+
+        if (!servico) {
+            return res.status(404).json({ message: "Servico nao encontrado" });
+        }
+
+        res.status(200).json(await Servico.findHistoricoPrecos(id));
+    } catch (error) {
         next(error);
     }
 };
@@ -86,6 +146,8 @@ const ServicoController = {
     getServicoById,
     createServico,
     updateServico,
+    updateEstadoServico,
+    getHistoricoPrecos,
     deleteServico
 };
 
