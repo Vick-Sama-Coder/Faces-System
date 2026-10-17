@@ -12,16 +12,16 @@ Os scripts estão em `Backend/Database/schema/` e devem ser aplicados **por orde
 | --- | --- | --- |
 | `000_create_database_SalaoFaces.sql` | (base de dados) | Cria a base; executar isoladamente (ver nota) |
 | `001_create_categoria_salao.sql` | `categoria_salao` | Categorias de serviços |
-| `002_create_servico.sql` | `servico` | FK → `categoria_salao`; `descricao`, `duracao_min`, `tipo_preco`, `estado`, `data_criacao`; índice único de nome entre ativos |
+| `002_create_servico.sql` | `servico` | FK → `categoria_salao`; `descricao`, `duracao_min`, `tipo_preco`, `elegivel_fidelizacao`, `estado`, `data_criacao`; índice único de nome entre ativos |
 | `003_create_aplicacao.sql` | `aplicacao` | Sem uso actual |
 | `004_create_cliente.sql` | `cliente` | CRUD na API implementado (nome, apelido, telefone único, endereço, nascimento, estado) |
 | `005_create_pagamento.sql` | `pagamento` | Pagamento de um atendimento; `valor_total`, `estado`, `data_hora`, `registado_por`, `motivo_anulacao` |
 | `006_create_atendimento.sql` | `atendimento` | Cabeçalho do atendimento; FK → `cliente`; totais derivados dos serviços |
 | `007_create_funcionario.sql` | `funcionario` | CRUD implementado; `telefone`, `documento` (único), `cargo`, `data_admissao`, `comissao_percentual`, `estado`, `id_usuario` |
-| `008_create_despesa.sql` | `despesa` | Sem CRUD na API ainda |
+| `008_create_despesa.sql` | `despesa` | Despesa operacional; `categoria_id`, `valor_total`, `data_compra`, `metodo_pagamento`, `caixa_sessao_id`, `comprovativo`, `registado_por`, `estado` |
 | `009_create_categoria_produto.sql` | `categoria_produto` | Categoria de produtos |
-| `010_create_produto.sql` | `produto` | FK → `categoria_produto` |
-| `011_create_item_produto.sql` | `item_produto` | FKs → produto, despesa, funcionario |
+| `010_create_produto.sql` | `produto` | FK → `categoria_produto`; `valor`, `estado` |
+| `011_create_item_produto.sql` | `item_produto` | Produtos de uma despesa (quantidade, preço unitário, total); FKs → produto, despesa, funcionario |
 | `012_create_atendimento_servico.sql` | `atendimento_servico` | Serviços realizados no atendimento (substitui `execucao_servico`); FKs → atendimento, servico, funcionario |
 | `013_create_perfil.sql` | `perfil` | Perfis de acesso (`nome`, `descricao`, `estado`) |
 | `014_create_usuario.sql` | `usuario` | FK → `perfil`; `telefone` único, `estado`, `alteracao_obrigatoria_senha`, `ultimo_acesso`, `data_criacao` |
@@ -34,6 +34,13 @@ Os scripts estão em `Backend/Database/schema/` e devem ser aplicados **por orde
 | `021_create_pagamento_parcela.sql` | `pagamento_parcela` | Parcelas do pagamento (método, valor, referência) |
 | `022_create_comissao.sql` | `comissao` | Comissão gerada por serviço liquidado (`unique` em `atendimento_servico_id`) |
 | `023_ligacoes.sql` | — | FKs diferidas: `atendimento`/`atendimento_servico`/`pagamento` → `usuario`; `pagamento` → `atendimento` |
+| `024_create_caixa.sql` | `caixa` | Caixa operacional único (semeia "Caixa Principal") |
+| `025_create_caixa_sessao.sql` | `caixa_sessao` | Sessão de caixa; índice único parcial garante uma só sessão aberta |
+| `026_create_movimento_caixa.sql` | `movimento_caixa` | Entradas/saídas/levantamentos; índice único parcial por `(origem, referencia_id)` |
+| `027_create_categoria_despesa.sql` | `categoria_despesa` | Categorias de despesa (semeia fixas/variáveis/produtos/salários) |
+| `028_create_cartao_fidelizacao.sql` | `cartao_fidelizacao` | Um cartão por cliente (FK → `cliente`) |
+| `029_create_movimento_fidelizacao.sql` | `movimento_fidelizacao` | Marcas/benefícios; índice único parcial por `(atendimento_servico_id, tipo_movimento)` |
+| `030_ligacoes_despesa.sql` | — | FKs diferidas: `despesa` → `categoria_despesa`, `caixa_sessao`, `usuario` |
 
 > ⚠️ **Script 000:** o PostgreSQL não aceita `create database if not exists` nem permite
 > executar `CREATE DATABASE` dentro de uma transacção. Execute este script **isoladamente**
@@ -54,15 +61,17 @@ cliente 1───n atendimento 1───n atendimento_servico
                      │                 └── n──1 funcionario
                      └── 1───n pagamento 1───n pagamento_parcela
 atendimento_servico 1───1 comissao
+
+caixa 1───n caixa_sessao 1───n movimento_caixa
+categoria_despesa 1───n despesa 1───n item_produto n──1 produto
+                        └── n──1 caixa_sessao
+
+cliente 1───1 cartao_fidelizacao 1───n movimento_fidelizacao
 ```
 
 ### Tabelas do domínio (ainda sem API)
 
 ```
-categoria_produto ──▶ produto ──▶ item_produto ◀── despesa
-                                        ▲
-                                        └── funcionario
-
 aplicacao   (sem uso actual)
 ```
 
@@ -70,12 +79,13 @@ aplicacao   (sem uso actual)
 
 - **`categoria_salao`** — `id` (identity), `nome varchar(100) not null`.
 - **`servico`** — `id`, `nome`, `descricao text`, `valor int not null` (`check > 0`),
-  `duracao_min int`, `tipo_preco` (`fixo`/`variavel`), `categoria_id` (FK), `estado`,
-  `data_criacao`. Índice único de `lower(nome)` entre serviços **ativos**.
+  `duracao_min int`, `tipo_preco` (`fixo`/`variavel`), `elegivel_fidelizacao boolean`,
+  `categoria_id` (FK), `estado`, `data_criacao`. Índice único de `lower(nome)` entre
+  serviços **ativos**.
 - **`historico_preco_servico`** — `id`, `servico_id` (FK), `valor_anterior`,
   `valor_novo`, `alterado_por` (FK → `usuario`), `criado_em`.
-- **`categoria_produto`** — `id`, `nome` (script com erro de sintaxe).
-- **`produto`** — `id`, `nome`, `valor int`, `categoria_produto_id` (FK).
+- **`categoria_produto`** — `id`, `nome`.
+- **`produto`** — `id`, `nome`, `valor int` (`check >= 0`), `categoria_produto_id` (FK), `estado`.
 - **`cliente`** — `id`, `nome`, `apelido` (opcional), `telefone int` (único),
   `endereco`, `data_nascimento`, `data_registo`, `saldo_pendente`, `estado`.
 - **`atendimento`** — `id`, `cliente_id` (FK), `data_hora timestamp`, `estado`
@@ -97,8 +107,26 @@ aplicacao   (sem uso actual)
   `id_usuario` (FK opcional → `usuario`), `data_criacao`.
 - **`comissao_config`** — `id`, `funcionario_id` (FK), `servico_id` (FK, nulo = taxa geral),
   `taxa_percentual` (`check 0–100`), `vigencia_inicio`, `vigencia_fim`, `estado`.
-- **`despesa`** — `id`, `data date`.
-- **`item_produto`** — `id`, `produto_id`, `despesa_id`, `funcionario_id`, `quantidade` (FKs).
+- **`despesa`** — `id`, `descricao`, `categoria_id` (FK → `categoria_despesa`), `valor_total`
+  (`check > 0`), `data_compra`, `metodo_pagamento`, `caixa_sessao_id` (FK), `comprovativo`,
+  `registado_por` (FK → `usuario`), `estado`, `criado_em`.
+- **`item_produto`** — `id`, `produto_id` (FK), `despesa_id` (FK), `funcionario_id` (FK),
+  `quantidade`, `preco_unitario`, `valor_total`.
+- **`caixa`** — `id`, `designacao` (único), `estado`.
+- **`caixa_sessao`** — `id`, `caixa_id` (FK), `data_abertura`, `saldo_inicial`, `aberto_por`,
+  `data_fecho`, `valor_esperado`, `valor_contado`, `diferenca`, `observacoes`, `fechado_por`,
+  `estado` (`Aberta`/`Fechada`). Índice único parcial: uma só sessão `Aberta` por caixa.
+- **`movimento_caixa`** — `id`, `id_sessao` (FK), `tipo_movimento`
+  (`Entrada`/`Saida`/`Levantamento`), `valor` (`check > 0`), `descricao`, `data_hora`,
+  `origem`, `referencia_id`, `registado_por`, `estado`. Índice único parcial por
+  `(origem, referencia_id)`.
+- **`categoria_despesa`** — `id`, `nome` (único), `tipo` (`Fixa`/`Variavel`/`Produtos`/`Salarios`),
+  `estado`.
+- **`cartao_fidelizacao`** — `id`, `cliente_id` (FK, único), `data_ativacao`, `estado`.
+- **`movimento_fidelizacao`** — `id`, `cartao_id` (FK), `atendimento_servico_id` (FK),
+  `tipo_movimento` (`marca`/`beneficio_ganho`/`beneficio_utilizado`/`correcao`), `data_hora`,
+  `ciclo`, `registado_por`, `observacao`. Índice único parcial por
+  `(atendimento_servico_id, tipo_movimento)`.
 - **`perfil`** — `id` (identity `by default`), `nome`, `descricao`, `estado`.
 - **`usuario`** — `id` (identity), `nome`, `senha varchar(100)`, `telefone int` (único),
   `id_perfil` (FK), `estado`, `alteracao_obrigatoria_senha`, `ultimo_acesso`, `data_criacao`.
@@ -147,6 +175,12 @@ O backend conta com a integridade referencial para proteger integridade de dados
 - Criar **atendimento** com cliente/funcionário inexistente → erro `23503` → resposta `400`.
 - Cada `atendimento_servico` origina no máximo **uma** `comissao` (`unique`) → geração
   idempotente.
+- Abrir **caixa** com uma sessão já aberta → erro `23505` (índice único parcial) → `409`.
+- O mesmo pagamento/despesa gera **um só** movimento de caixa (índice único parcial por
+  `origem`+`referencia_id`) → idempotência.
+- Cada `atendimento_servico` gera no máximo um movimento de fidelização de cada tipo
+  (índice único parcial) → geração idempotente.
+- `despesa.valor_total` ≤ 0 → erro `23514` → resposta `400`.
 
 ## Notas de modelação
 

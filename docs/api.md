@@ -153,7 +153,7 @@ Limpa o cookie `token`.
 - `GET /api/servicos/:id` 🔒 — um serviço (`200`) ou `404`
 - `GET /api/servicos/:id/historico-precos` 🔒 — histórico de alterações de preço
 - `POST /api/servicos` 🔒🛠️ — corpo: `{ nome, valor, categoria_id, descricao?, duracao_min?,
-  tipo_preco? }`. `201`
+  tipo_preco?, elegivel_fidelizacao? }`. `201`
   - `400` se faltar campo ou `valor <= 0`; `409` se já existir um serviço **ativo** com o nome
 - `PUT /api/servicos/:id` 🔒🛠️ — actualização parcial. `200` / `404` / `400`
   - Alterar `valor` grava automaticamente o histórico de preços
@@ -263,6 +263,47 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 
 > A taxa é a específica do serviço (`comissao_config`) ou, na sua ausência, a geral do
 > funcionário; a base é o `valor_final` do serviço. A geração é idempotente.
+
+---
+
+## Caixa — `/api/caixa`
+
+- `POST /api/caixa/abrir` 🔒(`caixa:operar`) — corpo: `{ saldo_inicial }`. `201`
+  - `409` se já existir uma sessão aberta (caixa único)
+- `GET /api/caixa/atual` 🔒(`caixa:operar`) — `{ aberta, sessao, saldo_esperado }`
+- `POST /api/caixa/levantamento` 🔒(`caixa:levantar`) — corpo: `{ valor, descricao? }`
+- `GET /api/caixa/movimentos` 🔒(`caixa:operar`) — movimentos da sessão aberta (`404` se fechada)
+- `POST /api/caixa/fechar` 🔒(`caixa:fechar`) — corpo: `{ valor_contado, observacoes? }`
+- `GET /api/caixa/fechos?de=&ate=` 🔒(`relatorios:ler`) — histórico de fechos
+
+> `saldo_esperado = saldo_inicial + entradas − saídas − levantamentos`.
+> `diferenca = valor_contado − valor_esperado`. Os pagamentos geram **entradas** e as
+> despesas pagas pelo caixa geram **saídas**, ambos idempotentes por `referencia_id`.
+
+## Despesas — `/api/despesas`
+
+- `GET /api/despesas?de=&ate=&categoria=&estado=` 🔒 — lista com filtros
+- `GET /api/despesas/:id` 🔒 — detalhe + `itens`
+- `POST /api/despesas` 🔒(`despesas:escrever`) — corpo:
+  `{ descricao, valor_total?, categoria_id?, data_compra?, metodo_pagamento?, caixa_sessao_id?, comprovativo?, itens? }`
+  - `itens: [{ produto_id, funcionario_id?, quantidade, preco_unitario }]`; se existirem,
+    `valor_total` é calculado a partir deles
+  - `caixa_sessao_id` gera o movimento de saída no caixa
+  - `400` se `valor_total <= 0`
+- `PUT /api/despesas/:id` 🔒(`despesas:escrever`) — actualização parcial
+- `DELETE /api/despesas/:id` 🔒(`despesas:escrever`) — `204`
+- `GET/POST /api/categorias-despesa` 🔒(`despesas:escrever`) — `{ nome, tipo? }`
+
+## Fidelização — `/api/clientes/:id/fidelizacao`
+
+- `GET /api/clientes/:id/fidelizacao` 🔒 — progresso:
+  `{ ciclo_atual, meta, marcas_no_ciclo, beneficios_disponiveis, beneficios_utilizados, historico }`
+- `POST /api/clientes/:id/fidelizacao/correcao` 🔒(`fidelizacao:corrigir`) — corpo:
+  `{ tipo_movimento?, ciclo?, observacao? }`
+
+> Só serviços com `elegivel_fidelizacao` contam. Uma marca por cliente por dia; ao 5.º
+> corte do ciclo gera-se um benefício (acumulam). Um corte gratuito consome um benefício
+> e conta para o ciclo seguinte. A geração é idempotente por `atendimento_servico_id`.
 
 ---
 

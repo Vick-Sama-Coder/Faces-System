@@ -29,7 +29,9 @@ regras de negócio e critérios de conclusão. Deve ser lido em conjunto com:
 | Fase 5 — Atendimentos e serviços realizados | ✅ Concluída | `atendimento` remodelado, `atendimento_servico` (substitui `execucao_servico`), criação transacional, `services/atendimento.js` |
 | Fase 6 — Pagamentos | ✅ Concluída | `pagamento` remodelado + `pagamento_parcela`; liquidação, anulação e estado do atendimento |
 | Fase 7 — Comissões | ✅ Concluída | `comissao` gerada na liquidação (idempotente), taxa específica sobrepõe-se à geral |
-| Fases 8–15 | ⏳ Pendente | Ver detalhe abaixo |
+| Fase 8 — Caixa e despesas | ✅ Concluída | `caixa`/`caixa_sessao`/`movimento_caixa`, `categoria_despesa`, `despesa` remodelada; abertura, levantamentos, fecho com diferença |
+| Fase 9 — Fidelização | ✅ Concluída | `cartao_fidelizacao`/`movimento_fidelizacao`; marcas por dia, benefício à 5.ª, corte gratuito |
+| Fases 10–15 | ⏳ Pendente | Ver detalhe abaixo |
 
 > **Base de dados:** esquema aplicado do zero com os scripts `001`–`017` (ver
 > [`base-de-dados.md`](./base-de-dados.md)). Não foram usadas migrações `ALTER TABLE`
@@ -54,12 +56,15 @@ O que **já existe e funciona** no backend:
 | Atendimentos + serviços realizados | ✅ | `controller` + `repository` + `services/atendimento.js` + `routes/atendimento.js` |
 | Pagamentos + parcelas | ✅ | `controller` + `repository` + `services/pagamento.js` + `routes/pagamento.js` |
 | Comissões | ✅ | `controller` + `repository` + `routes/comissao.js` |
+| Caixa (sessões, movimentos, fecho) | ✅ | `controller` + `repository` + `services/caixa.js` + `routes/caixa.js` |
+| Despesas + categorias de despesa | ✅ | `controller` + `repository` + `services/despesa.js` + `routes/despesa.js` |
+| Fidelização | ✅ | `controller` + `repository` + `services/fidelizacao.js` + `routes/fidelizacao.js` |
 | Validações (nome, telefone, senha) | ✅ | `utils/validacoes.js` |
 | Token JWT | ✅ | `utils/token.js` |
-| Esquema SQL (23 scripts, `001`–`023`) | ✅ | `Database/schema/` |
+| Esquema SQL (30 scripts, `001`–`030`) | ✅ | `Database/schema/` |
 
-O que **falta** (objeto deste plano): caixa, despesas, produtos, fidelização, horários,
-assiduidade, salários, relatórios, catálogo público, auditoria e sincronização offline.
+O que **falta** (objeto deste plano): horários, assiduidade, salários, relatórios,
+catálogo público, auditoria e sincronização offline.
 
 ### Estrutura de pastas alvo
 
@@ -565,21 +570,25 @@ com o seu funcionário e preço efetivo (RF05, RF06, RN01–RN03, HU-01).
 **Objetivo:** caixa operacional único, movimentos, levantamentos, despesas com produtos,
 saldo esperado, contagem física e fecho diário (RF10–RF13, RN09–RN13, HU-17/18).
 
-**Migrações**
+**Migrações** (esquema editado diretamente, sem `ALTER TABLE` exceto as FKs diferidas)
 
-- `029_create_caixa.sql` — `caixa (id, designacao, estado default 'Ativo')`; semear
+- `024_create_caixa.sql` — `caixa (id, designacao unique, estado default 'Ativo')`; semeia
   "Caixa Principal".
-- `030_create_caixa_sessao.sql` — `caixa_sessao (id, caixa_id FK, data_abertura,
+- `025_create_caixa_sessao.sql` — `caixa_sessao (id, caixa_id FK, data_abertura,
   saldo_inicial int, aberto_por, data_fecho, valor_esperado int, valor_contado int,
-  diferenca int, observacoes text, fechado_por, estado default 'Aberta')`.
-- `031_create_movimento_caixa.sql` — `movimento_caixa (id, id_sessao FK,
-  tipo_movimento, valor int, descricao, data_hora, origem, referencia_id, registado_por, estado)`.
-- `032_create_categoria_despesa.sql` — categoria de despesa (fixa, variável, produtos, salários).
-- `033_evolucao_despesa.sql` — `despesa`: `descricao`, `categoria_id`, `valor_total`,
+  diferenca int, observacoes text, fechado_por, estado default 'Aberta')`; índice único
+  parcial garante uma só sessão aberta.
+- `026_create_movimento_caixa.sql` — `movimento_caixa (id, id_sessao FK,
+  tipo_movimento, valor int, descricao, data_hora, origem, referencia_id, registado_por, estado)`;
+  índice único parcial `(origem, referencia_id)` para idempotência.
+- `027_create_categoria_despesa.sql` — categoria de despesa (fixa, variável, produtos, salários).
+- `008_create_despesa.sql` (editado) — `despesa`: `descricao`, `categoria_id`, `valor_total`,
   `data_compra`, `metodo_pagamento`, `caixa_sessao_id`, `comprovativo`,
   `registado_por`, `estado`.
-- `034_evolucao_produto.sql` — ajustar `produto`/`item_produto` ao uso de despesas
-  (quantidade, preço unitário, total). O stock detalhado fica fora de âmbito (RN25).
+- `010`/`011` (editados) — `produto` com `estado`; `item_produto` com `preco_unitario` e
+  `valor_total`. O stock detalhado fica fora de âmbito (RN25).
+- `030_ligacoes_despesa.sql` — FKs diferidas de `despesa` → `categoria_despesa`,
+  `caixa_sessao`, `usuario`.
 
 **Endpoints**
 
@@ -619,12 +628,14 @@ saldo esperado, contagem física e fecho diário (RF10–RF13, RN09–RN13, HU-1
 
 **Migrações**
 
-- `035_create_cartao_fidelizacao.sql` — `cartao_fidelizacao (id, cliente_id FK unique,
+- `028_create_cartao_fidelizacao.sql` — `cartao_fidelizacao (id, cliente_id FK unique,
   data_ativacao, estado)`.
-- `036_create_movimento_fidelizacao.sql` — `movimento_fidelizacao (id, cartao_id FK,
+- `029_create_movimento_fidelizacao.sql` — `movimento_fidelizacao (id, cartao_id FK,
   atendimento_servico_id null, tipo_movimento
   ('marca'|'beneficio_ganho'|'beneficio_utilizado'|'correcao'), data_hora, ciclo int,
-  registado_por, observacao)`.
+  registado_por, observacao)`; índice único parcial `(atendimento_servico_id, tipo_movimento)`.
+- `002_create_servico.sql` (editado) — `elegivel_fidelizacao boolean` marca os serviços
+  que contam (cortes).
 
 **Endpoints**
 
