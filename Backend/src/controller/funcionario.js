@@ -1,4 +1,8 @@
 import Funcionario from "../repository/funcionario.js";
+import Comissao from "../repository/comissao.js";
+
+//arredonda valores monetarios a 2 casas
+const arredondar = (valor) => Math.round(valor * 100) / 100;
 
 const getFuncionarios = async (req, res, next) => {
     try {
@@ -24,27 +28,62 @@ const getFuncionarioById = async (req, res, next) => {
 
 const createFuncionario = async (req, res, next) => {
     try {
-        const { nome, salario, comissao } = req.body;
+        const { nome, salario } = req.body;
 
         if (!nome || salario === undefined) {
             return res.status(400).json({ message: "Os campos nome e salario sao obrigatorios" });
         }
 
-        res.status(201).json(await Funcionario.create({ nome, salario, comissao }));
+        const { telefone, documento, cargo, data_admissao, comissao_percentual, id_usuario } = req.body;
+
+        res.status(201).json(await Funcionario.create({
+            nome, telefone, documento, cargo, data_admissao, salario, comissao_percentual, id_usuario
+        }));
     } catch (error) {
+        //23503 = a conta associada nao existe
+        if (error.code === "23503") {
+            return res.status(400).json({ field: "id_usuario", message: "Conta associada nao encontrada" });
+        }
         next(error);
     }
 };
 
 const updateFuncionario = async (req, res, next) => {
     try {
-        const { nome, salario, comissao } = req.body;
+        const { nome, telefone, documento, cargo, data_admissao, salario, comissao_percentual, id_usuario } = req.body;
 
-        if (nome === undefined && salario === undefined && comissao === undefined) {
+        if (nome === undefined && telefone === undefined && documento === undefined &&
+            cargo === undefined && data_admissao === undefined && salario === undefined &&
+            comissao_percentual === undefined && id_usuario === undefined) {
             return res.status(400).json({ message: "Nenhum campo para atualizar foi enviado" });
         }
 
-        const funcionario = await Funcionario.update(req.params.id, { nome, salario, comissao });
+        const funcionario = await Funcionario.update(req.params.id, {
+            nome, telefone, documento, cargo, data_admissao, salario, comissao_percentual, id_usuario
+        });
+
+        if (!funcionario) {
+            return res.status(404).json({ message: "Funcionario nao encontrado" });
+        }
+
+        res.status(200).json(funcionario);
+    } catch (error) {
+        if (error.code === "23503") {
+            return res.status(400).json({ field: "id_usuario", message: "Conta associada nao encontrada" });
+        }
+        next(error);
+    }
+};
+
+const updateEstadoFuncionario = async (req, res, next) => {
+    try {
+        const { estado } = req.body;
+
+        if (!estado) {
+            return res.status(400).json({ message: "O campo estado e obrigatorio" });
+        }
+
+        const funcionario = await Funcionario.updateEstado(req.params.id, estado);
 
         if (!funcionario) {
             return res.status(404).json({ message: "Funcionario nao encontrado" });
@@ -74,12 +113,111 @@ const deleteFuncionario = async (req, res, next) => {
     }
 };
 
+const getComissao = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const funcionario = await Funcionario.findById(id);
+
+        if (!funcionario) {
+            return res.status(404).json({ message: "Funcionario nao encontrado" });
+        }
+
+        res.status(200).json({
+            comissao_percentual: funcionario.comissao_percentual,
+            configuracoes: await Comissao.findByFuncionario(id)
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+//substitui a configuracao de comissao do funcionario (geral e/ou por servico)
+const updateComissao = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const funcionario = await Funcionario.findById(id);
+
+        if (!funcionario) {
+            return res.status(404).json({ message: "Funcionario nao encontrado" });
+        }
+
+        const { configuracoes } = req.body;
+        if (!Array.isArray(configuracoes)) {
+            return res.status(400).json({ message: "O campo configuracoes deve ser uma lista" });
+        }
+
+        await Comissao.substituir(id, configuracoes);
+
+        res.status(200).json({
+            message: "Configuracao de comissao atualizada",
+            configuracoes: await Comissao.findByFuncionario(id)
+        });
+    } catch (error) {
+        if (error.code === "23503") {
+            return res.status(400).json({ field: "servico_id", message: "Servico nao encontrado" });
+        }
+        next(error);
+    }
+};
+
+//servicos realizados e comissao no periodo (RN26)
+const getDesempenho = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const funcionario = await Funcionario.findById(id);
+
+        if (!funcionario) {
+            return res.status(404).json({ message: "Funcionario nao encontrado" });
+        }
+
+        const { de, ate } = req.query;
+        const linhas = await Funcionario.findDesempenho(id, { de, ate });
+
+        //a taxa especifica por servico sobrepoe-se a geral do funcionario (RN27)
+        const taxas = new Map(
+            (await Comissao.findByFuncionario(id))
+                .filter((c) => c.servico_id !== null)
+                .map((c) => [c.servico_id, Number(c.taxa_percentual)])
+        );
+
+        const geral = Number(funcionario.comissao_percentual);
+        let totalServicos = 0;
+        let totalValor = 0;
+        let totalComissao = 0;
+
+        const servicos = linhas.map((linha) => {
+            const taxa = taxas.get(linha.servico_id) ?? geral;
+            const comissao = linha.total * taxa / 100;
+
+            totalServicos += linha.quantidade;
+            totalValor += linha.total;
+            totalComissao += comissao;
+
+            return { ...linha, taxa_percentual: taxa, comissao: arredondar(comissao) };
+        });
+
+        res.status(200).json({
+            periodo: { de: de || null, ate: ate || null },
+            total_servicos: totalServicos,
+            total_valor: totalValor,
+            total_comissao: arredondar(totalComissao),
+            servicos
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 const FuncionarioController = {
     getFuncionarios,
     getFuncionarioById,
     createFuncionario,
     updateFuncionario,
-    deleteFuncionario
+    updateEstadoFuncionario,
+    deleteFuncionario,
+    getComissao,
+    updateComissao,
+    getDesempenho
 };
 
 export default FuncionarioController;
