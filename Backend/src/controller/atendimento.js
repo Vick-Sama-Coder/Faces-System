@@ -1,5 +1,6 @@
 import Atendimento from "../repository/atendimento.js";
 import AtendimentoService from "../services/atendimento.js";
+import AuditoriaService from "../services/auditoria.js";
 
 const getAtendimentos = async (req, res, next) => {
     try {
@@ -137,6 +138,15 @@ const anularAtendimento = async (req, res, next) => {
         if (!atendimento) {
             return res.status(404).json({ message: "Atendimento nao encontrado" });
         }
+
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "atendimento",
+            id_registo: atendimento.id,
+            operacao: "anular",
+            depois: { estado: "Anulado" },
+            motivo
+        });
 
         res.status(200).json(atendimento);
     } catch (error) {

@@ -1,9 +1,10 @@
 import pool from '../config/database.js';
 import Despesa from '../repository/despesa.js';
 import Caixa from '../repository/caixa.js';
+import AuditoriaService from './auditoria.js';
 import { criarErro } from '../utils/erro.js';
 
-//calcula o total a partir dos itens (quantidade x preco unitario)
+//derivar o total dos itens evita divergencia entre o detalhe e o valor guardado
 function totalDosItens(itens) {
     return itens.reduce((total, item) => total + Number(item.quantidade) * Number(item.preco_unitario), 0);
 }
@@ -59,6 +60,14 @@ const criar = async (dados, registado_por) => {
                 registado_por
             });
         }
+
+        await AuditoriaService.registar({
+            id_utilizador: registado_por,
+            entidade: "despesa",
+            id_registo: despesa_id,
+            operacao: "criar",
+            depois: { descricao: dados.descricao, categoria_id: dados.categoria_id, valor_total, itens: temItens ? itens.length : 0 }
+        }, client);
 
         await client.query('commit');
         return despesa_id;

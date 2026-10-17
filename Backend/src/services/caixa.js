@@ -1,5 +1,6 @@
 import pool from '../config/database.js';
 import Caixa from '../repository/caixa.js';
+import AuditoriaService from './auditoria.js';
 import { criarErro } from '../utils/erro.js';
 
 //abre uma nova sessao; bloqueia se ja existir uma aberta (RN09/RN10)
@@ -14,10 +15,20 @@ const abrir = async ({ saldo_inicial, aberto_por }) => {
         throw criarErro(409, "Nao existe caixa ativo");
     }
 
-    return Caixa.abrir({ caixa_id: caixa.id, saldo_inicial: Number(saldo_inicial) || 0, aberto_por });
+    const sessao = await Caixa.abrir({ caixa_id: caixa.id, saldo_inicial: Number(saldo_inicial) || 0, aberto_por });
+
+    await AuditoriaService.registar({
+        id_utilizador: aberto_por,
+        entidade: "caixa_sessao",
+        id_registo: sessao.id,
+        operacao: "criar",
+        depois: { caixa_id: caixa.id, saldo_inicial: Number(saldo_inicial) || 0 }
+    });
+
+    return sessao;
 };
 
-//estado atual: sessao aberta (se houver) + saldo esperado
+//devolver o saldo esperado aqui evita que a UI tenha de recalcular os movimentos
 const atual = async () => {
     const sessao = await Caixa.findSessaoAberta();
 
@@ -40,7 +51,7 @@ const levantamento = async ({ valor, descricao, registado_por }) => {
 
     try {
         await client.query('begin');
-        await Caixa.inserirMovimento(client, {
+        const movimento_id = await Caixa.inserirMovimento(client, {
             id_sessao: sessao.id,
             tipo_movimento: "Levantamento",
             valor,
@@ -48,6 +59,15 @@ const levantamento = async ({ valor, descricao, registado_por }) => {
             origem: "Levantamento",
             registado_por
         });
+
+        await AuditoriaService.registar({
+            id_utilizador: registado_por,
+            entidade: "movimento_caixa",
+            id_registo: movimento_id,
+            operacao: "criar",
+            depois: { id_sessao: sessao.id, tipo_movimento: "Levantamento", valor, descricao }
+        }, client);
+
         await client.query('commit');
     } catch (error) {
         await client.query('rollback');
@@ -77,6 +97,14 @@ const fechar = async ({ valor_contado, observacoes, fechado_por }) => {
             observacoes,
             fechado_por
         });
+
+        await AuditoriaService.registar({
+            id_utilizador: fechado_por,
+            entidade: "caixa_sessao",
+            id_registo: sessao.id,
+            operacao: "fechar",
+            depois: { valor_esperado, valor_contado, diferenca: Number(valor_contado) - valor_esperado, observacoes }
+        }, client);
 
         await client.query('commit');
         return Caixa.findById(sessao.id);

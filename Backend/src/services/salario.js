@@ -1,8 +1,9 @@
 import pool from '../config/database.js';
 import Salario from '../repository/salario.js';
+import AuditoriaService from './auditoria.js';
 import { criarErro } from '../utils/erro.js';
 
-//converte 'AAAA-MM' no primeiro e ultimo dia do mes
+//derivar o intervalo aqui evita que cada cliente envie datas de inicio/fim inconsistentes
 function periodoMensal(periodo) {
     const match = /^(\d{4})-(\d{2})$/.exec(periodo || "");
 
@@ -22,8 +23,8 @@ function periodoMensal(periodo) {
     };
 }
 
-//gera o processamento do periodo para todos os funcionarios ativos (RF17)
-const processar = async (periodo) => {
+//so funcionarios ativos entram: um administrador sem vinculo nao recebe salario nem comissao (RF17)
+const processar = async (periodo, registado_por) => {
     const { inicio, fim } = periodoMensal(periodo);
     const client = await pool.connect();
 
@@ -49,6 +50,13 @@ const processar = async (periodo) => {
 
             if (id) {
                 criados.push(id);
+                await AuditoriaService.registar({
+                    id_utilizador: registado_por,
+                    entidade: "processamento_salarial",
+                    id_registo: id,
+                    operacao: "criar",
+                    depois: { funcionario_id: funcionario.id, periodo_inicio: inicio, periodo_fim: fim, salario_base: base, total_comissoes: comissoes, total_a_pagar: base + comissoes }
+                }, client);
             }
         }
 
@@ -62,7 +70,7 @@ const processar = async (periodo) => {
     }
 };
 
-//substitui as deducoes e recalcula o total (so em Preparado)
+//so em Preparado: depois de aprovado o salario deixa de poder mudar (RF19)
 const atualizarDeducoes = async (processamento_id, deducoes, registado_por) => {
     const processamento = await Salario.findProcessamentoById(processamento_id);
 
@@ -79,6 +87,15 @@ const atualizarDeducoes = async (processamento_id, deducoes, registado_por) => {
         await client.query('begin');
         await Salario.substituirDeducoes(client, processamento_id, deducoes, registado_por);
         await Salario.recalcular(client, processamento_id);
+
+        await AuditoriaService.registar({
+            id_utilizador: registado_por,
+            entidade: "processamento_salarial",
+            id_registo: processamento_id,
+            operacao: "atualizar_deducoes",
+            depois: { deducoes: deducoes.length, total: deducoes.reduce((s, d) => s + Number(d.valor), 0) }
+        }, client);
+
         await client.query('commit');
 
         return Salario.findProcessamentoById(processamento_id);
@@ -102,11 +119,21 @@ const aprovar = async (processamento_id, aprovado_por) => {
     }
 
     await Salario.aprovar(processamento_id, aprovado_por);
+
+    await AuditoriaService.registar({
+        id_utilizador: aprovado_por,
+        entidade: "processamento_salarial",
+        id_registo: processamento_id,
+        operacao: "aprovar",
+        antes: { estado: processamento.estado },
+        depois: { estado: "Aprovado" }
+    });
+
     return Salario.findProcessamentoById(processamento_id);
 };
 
-//Aprovado -> Pago (marca as comissoes do periodo como pagas)
-const pagar = async (processamento_id) => {
+//ao pagar, as comissoes do periodo passam a pagas para nao voltarem a ser contadas
+const pagar = async (processamento_id, registado_por) => {
     const processamento = await Salario.findProcessamentoById(processamento_id);
 
     if (!processamento) {
@@ -122,6 +149,16 @@ const pagar = async (processamento_id) => {
         await client.query('begin');
         await Salario.pagar(processamento_id, client);
         await Salario.marcarComissoesPagas(client, processamento.funcionario_id, processamento.periodo_inicio, processamento.periodo_fim);
+
+        await AuditoriaService.registar({
+            id_utilizador: registado_por,
+            entidade: "processamento_salarial",
+            id_registo: processamento_id,
+            operacao: "pagar",
+            antes: { estado: processamento.estado },
+            depois: { estado: "Pago", total_a_pagar: processamento.total_a_pagar }
+        }, client);
+
         await client.query('commit');
 
         return Salario.findProcessamentoById(processamento_id);

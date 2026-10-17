@@ -1,5 +1,6 @@
 import Despesa from "../repository/despesa.js";
 import DespesaService from "../services/despesa.js";
+import AuditoriaService from "../services/auditoria.js";
 
 const getDespesas = async (req, res, next) => {
     try {
@@ -57,15 +58,26 @@ const updateDespesa = async (req, res, next) => {
             return res.status(400).json({ message: "Nenhum campo para atualizar foi enviado" });
         }
 
-        const despesa = await Despesa.update(req.params.id, {
-            descricao, categoria_id, valor_total, data_compra, metodo_pagamento, comprovativo
-        });
-
-        if (!despesa) {
+        const antes = await Despesa.findById(req.params.id);
+        if (!antes) {
             return res.status(404).json({ message: "Despesa nao encontrada" });
         }
 
-        res.status(200).json(await Despesa.findById(req.params.id));
+        await Despesa.update(req.params.id, {
+            descricao, categoria_id, valor_total, data_compra, metodo_pagamento, comprovativo
+        });
+
+        const depois = await Despesa.findById(req.params.id);
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "despesa",
+            id_registo: antes.id,
+            operacao: "atualizar",
+            antes,
+            depois
+        });
+
+        res.status(200).json(depois);
     } catch (error) {
         if (error.code === "23503") {
             return res.status(400).json({ message: "Categoria nao encontrada" });
@@ -76,11 +88,21 @@ const updateDespesa = async (req, res, next) => {
 
 const deleteDespesa = async (req, res, next) => {
     try {
-        const despesa = await Despesa.delete(req.params.id);
+        const antes = await Despesa.findById(req.params.id);
 
-        if (!despesa) {
+        if (!antes) {
             return res.status(404).json({ message: "Despesa nao encontrada" });
         }
+
+        await Despesa.delete(req.params.id);
+
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "despesa",
+            id_registo: antes.id,
+            operacao: "remover",
+            antes
+        });
 
         res.status(204).send();
     } catch (error) {

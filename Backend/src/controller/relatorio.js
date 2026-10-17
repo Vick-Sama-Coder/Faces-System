@@ -1,6 +1,6 @@
 import Relatorio from "../repository/relatorio.js";
 
-//todos os relatorios partilham o mesmo contrato: filtro opcional de periodo
+//partilhar o mesmo contrato de periodo evita repetir o tratamento do filtro em cada relatorio
 const responder = (consultar) => async (req, res, next) => {
     try {
         const { de, ate } = req.query;

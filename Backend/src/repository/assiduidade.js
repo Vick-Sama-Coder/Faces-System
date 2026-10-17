@@ -4,7 +4,7 @@ const campos = `a.id, a.funcionario_id, f.nome as funcionario_nome, a.data,
     a.hora_entrada_real, a.hora_saida_real, a.tipo_ocorrencia, a.justificacao,
     a.estado, a.registado_por, a.criado_em`;
 
-//listagem com filtros opcionais (funcionario, periodo, tipo de ocorrencia)
+//filtros opcionais porque a assiduidade e consultada por funcionario, periodo ou ocorrencia
 const findAll = async ({ funcionario, de, ate, tipo } = {}) => {
     const result = await pool.query(
         `select ${campos}
@@ -45,7 +45,7 @@ const create = async ({ funcionario_id, data, hora_entrada_real, hora_saida_real
     return result.rows[0].id;
 };
 
-//correcao parcial: campos a null sao ignorados
+//coalesce mantem o valor atual, para corrigir apenas o campo errado sem reenviar os restantes
 const update = async (id, { hora_entrada_real, hora_saida_real, tipo_ocorrencia, justificacao, estado }) => {
     const result = await pool.query(
         `update assiduidade

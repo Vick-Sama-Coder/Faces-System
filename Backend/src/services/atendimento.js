@@ -2,9 +2,10 @@ import pool from '../config/database.js';
 import Atendimento from '../repository/atendimento.js';
 import Servico from '../repository/servico.js';
 import FidelizacaoService from './fidelizacao.js';
+import AuditoriaService from './auditoria.js';
 import { criarErro } from '../utils/erro.js';
 
-//calcula os totais do cabecalho a partir das linhas (valor_final = preco - desconto)
+//os totais derivam das linhas para o cabecalho nunca divergir dos servicos
 function somar(servicos) {
     return servicos.reduce(
         (totais, s) => {
@@ -35,7 +36,7 @@ async function validarServicoAtivo(servico_id) {
     return servico;
 }
 
-//registar as marcas de fidelizacao dos servicos elegiveis (cortes)
+//so os cortes marcados como elegiveis contam para o cartao de fidelizacao
 async function registarFidelizacao(client, servico, { cliente_id, atendimento_servico_id, valor_final, registado_por }) {
     if (servico.elegivel_fidelizacao) {
         await FidelizacaoService.registarCorte(client, {
@@ -90,6 +91,14 @@ const criar = async ({ cliente_id, servicos, registado_por }) => {
                 registado_por
             });
         }
+
+        await AuditoriaService.registar({
+            id_utilizador: registado_por,
+            entidade: "atendimento",
+            id_registo: atendimento_id,
+            operacao: "criar",
+            depois: { cliente_id, valor_bruto: totais.bruto, valor_desconto: totais.desconto, valor_total: totais.total, servicos: servicos.length }
+        }, client);
 
         await client.query('commit');
         return atendimento_id;

@@ -82,7 +82,7 @@ const anularPagamento = async (req, res, next) => {
             return res.status(400).json({ message: "O motivo da anulacao e obrigatorio" });
         }
 
-        await PagamentoService.anular(req.params.id, { motivo });
+        await PagamentoService.anular(req.params.id, { motivo, registado_por: req.user.id });
         res.status(200).json({ message: "Pagamento anulado" });
     } catch (error) {
         next(error);

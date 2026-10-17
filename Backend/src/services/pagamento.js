@@ -3,9 +3,10 @@ import Pagamento from '../repository/pagamento.js';
 import Atendimento from '../repository/atendimento.js';
 import Comissao from '../repository/comissao.js';
 import Caixa from '../repository/caixa.js';
+import AuditoriaService from './auditoria.js';
 import { criarErro } from '../utils/erro.js';
 
-//regista um pagamento (uma ou mais parcelas) e atualiza a liquidacao do atendimento
+//so quando a soma das parcelas cobre o devido o atendimento passa a liquidado (RN08)
 const registrar = async (atendimento_id, { parcelas, registado_por }) => {
     const atendimento = await Atendimento.findById(atendimento_id);
 
@@ -69,6 +70,14 @@ const registrar = async (atendimento_id, { parcelas, registado_por }) => {
             await Comissao.gerarParaAtendimento(client, atendimento_id);
         }
 
+        await AuditoriaService.registar({
+            id_utilizador: registado_por,
+            entidade: "pagamento",
+            id_registo: pagamento_id,
+            operacao: "criar",
+            depois: { atendimento_id, valor_total: somaNovas, estado, parcelas: parcelas.length }
+        }, client);
+
         await client.query('commit');
         return pagamento_id;
     } catch (error) {
@@ -79,8 +88,8 @@ const registrar = async (atendimento_id, { parcelas, registado_por }) => {
     }
 };
 
-//anula um pagamento (preserva historico) e recalcula o estado do atendimento
-const anular = async (pagamento_id, { motivo }) => {
+//anular preserva o registo e recalcula o estado, para o historico nao se perder
+const anular = async (pagamento_id, { motivo, registado_por }) => {
     const pagamento = await Pagamento.findById(pagamento_id);
 
     if (!pagamento) {
@@ -108,6 +117,16 @@ const anular = async (pagamento_id, { motivo }) => {
             "update atendimento set estado = $2 where id = $1",
             [pagamento.atendimento_id, estadoAtendimento]
         );
+
+        await AuditoriaService.registar({
+            id_utilizador: registado_por,
+            entidade: "pagamento",
+            id_registo: pagamento_id,
+            operacao: "anular",
+            antes: { estado: pagamento.estado },
+            depois: { estado: "Anulado" },
+            motivo
+        }, client);
 
         await client.query('commit');
     } catch (error) {

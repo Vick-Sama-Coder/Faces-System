@@ -1,5 +1,6 @@
 import Perfil from "../repository/perfil.js";
 import Permissao from "../repository/permissao.js";
+import AuditoriaService from "../services/auditoria.js";
 
 const getPerfis = async (req, res, next) => {
     try {
@@ -84,6 +85,14 @@ const updatePermissoesPerfil = async (req, res, next) => {
         }
 
         await Permissao.substituirPerfil(id, permissoes);
+
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "perfil_permissao",
+            id_registo: Number(id),
+            operacao: "atualizar",
+            depois: { permissoes }
+        });
 
         res.status(200).json({
             message: "Permissoes do perfil atualizadas",

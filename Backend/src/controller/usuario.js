@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import bcrypt from 'bcrypt';
 import Usuario from '../repository/usuario.js';
 import Permissao from '../repository/permissao.js';
+import AuditoriaService from '../services/auditoria.js';
 import { limparTelefone } from '../utils/validacoes.js';
 
 //gera uma credencial temporaria legivel (letra + numero, minimo 8 caracteres)
@@ -178,6 +179,14 @@ const updatePermissoesUsuario = async (req, res, next) => {
         const { conceder = [], revogar = [] } = req.body;
 
         await Permissao.substituirUsuario(usuario.id, conceder, revogar);
+
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "usuario_permissao",
+            id_registo: usuario.id,
+            operacao: "atualizar",
+            depois: { conceder, revogar }
+        });
 
         res.status(200).json({
             message: "Permissoes individuais atualizadas",

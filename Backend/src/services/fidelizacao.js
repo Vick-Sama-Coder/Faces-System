@@ -1,5 +1,6 @@
 import pool from '../config/database.js';
 import Fidelizacao from '../repository/fidelizacao.js';
+import AuditoriaService from './auditoria.js';
 import { criarErro } from '../utils/erro.js';
 
 //numero de marcas que gera um beneficio
@@ -106,6 +107,14 @@ const corrigir = async (cliente_id, { tipo_movimento, ciclo, observacao }, regis
         ciclo: ciclo ?? 1,
         registado_por,
         observacao
+    });
+
+    await AuditoriaService.registar({
+        id_utilizador: registado_por,
+        entidade: "fidelizacao",
+        id_registo: cartao.id,
+        operacao: "corrigir",
+        depois: { cliente_id, tipo_movimento: tipo_movimento || "correcao", ciclo: ciclo ?? 1, observacao }
     });
 };
 

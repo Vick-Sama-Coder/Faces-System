@@ -1,10 +1,10 @@
 import pool from '../config/database.js';
 
-//campos devolvidos pela API (com o nome da categoria ja resolvido por join)
+//resolver a categoria na propria consulta evita uma segunda chamada por cada servico
 const campos = `s.id, s.nome, s.descricao, s.valor, s.duracao_min, s.tipo_preco,
     s.elegivel_fidelizacao, s.categoria_id, c.nome as categoria_nome, s.estado, s.data_criacao`;
 
-//listagem: por omissao apenas servicos ativos; estado = 'todos' mostra tudo (administracao)
+//por omissao so os ativos; a administracao precisa de ver tambem os inativos ('todos')
 const findAll = async ({ estado } = {}) => {
     const todos = estado === 'todos';
 
@@ -43,7 +43,7 @@ const create = async ({ nome, descricao, valor, duracao_min, tipo_preco, elegive
     return result.rows[0];
 };
 
-//atualizacao parcial: campos a null sao ignorados e mantem o valor atual
+//coalesce mantem o valor atual, para a atualizacao poder enviar so o campo alterado
 const update = async (id, { nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id }) => {
     const result = await pool.query(
         `update servico
@@ -74,8 +74,7 @@ const updateEstado = async (id, estado) => {
     return result.rows[0] || null;
 };
 
-//remocao: devolve o id apagado ou null se nao existir
-//(o postgres bloqueia se houver atendimentos com este servico)
+//devolve null se nao existir; a integridade referencial do postgres bloqueia se houver atendimentos
 const deleteServico = async (id) => {
     const result = await pool.query(
         "delete from servico where id = $1 returning id",
@@ -85,13 +84,42 @@ const deleteServico = async (id) => {
     return result.rows[0] || null;
 };
 
-//historico de precos
+//guardar o preco anterior preserva o valor ja cobrado nos atendimentos passados (RN03)
 const registrarHistoricoPreco = async ({ servico_id, valor_anterior, valor_novo, alterado_por }) => {
     await pool.query(
         `insert into historico_preco_servico (servico_id, valor_anterior, valor_novo, alterado_por)
          values ($1, $2, $3, $4)`,
         [servico_id, valor_anterior, valor_novo, alterado_por]
     );
+};
+
+//---- o publico so ve ativos e sem dados internos, para nao expor a operacao (RN22/RNF11) ----
+
+const camposPublicos = `s.id, s.nome, s.descricao, s.valor, s.duracao_min, s.tipo_preco,
+    c.nome as categoria_nome`;
+
+const findPublicos = async () => {
+    const result = await pool.query(
+        `select ${camposPublicos}
+           from servico s
+           join categoria_salao c on c.id = s.categoria_id
+          where s.estado = 'Ativo'
+          order by c.nome, s.nome`
+    );
+
+    return result.rows;
+};
+
+const findPublicoById = async (id) => {
+    const result = await pool.query(
+        `select ${camposPublicos}
+           from servico s
+           join categoria_salao c on c.id = s.categoria_id
+          where s.id = $1 and s.estado = 'Ativo'`,
+        [id]
+    );
+
+    return result.rows[0] || null;
 };
 
 const findHistoricoPrecos = async (servico_id) => {
@@ -116,7 +144,9 @@ const Servico = {
     updateEstado,
     delete: deleteServico,
     registrarHistoricoPreco,
-    findHistoricoPrecos
+    findHistoricoPrecos,
+    findPublicos,
+    findPublicoById
 };
 
 export default Servico;

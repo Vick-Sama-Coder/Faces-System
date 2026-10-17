@@ -1,10 +1,10 @@
 import pool from '../config/database.js';
 
-//filtro de periodo reutilizavel (coluna, params $1=de $2=ate)
+//partilhar a condicao de periodo evita que os relatorios contem intervalos diferentes
 const PERIODO = (coluna) => `($1::date is null or ${coluna} >= $1)
                           and ($2::date is null or ${coluna} <= $2)`;
 
-//Receita (parcelas de pagamentos nao anulados), despesas e resultado do periodo
+//so parcelas de pagamentos nao anulados contam como receita, para nao contar dinheiro devolvido
 const resumo = async ({ de, ate } = {}) => {
     const result = await pool.query(
         `select
@@ -24,7 +24,7 @@ const resumo = async ({ de, ate } = {}) => {
     return { receita, despesas, resultado: receita - despesas };
 };
 
-//Entradas/saidas/levantamentos do caixa e sessoes fechadas com diferencas
+//separar por tipo permite conferir entradas, saidas e diferencas do fecho em separado
 const caixa = async ({ de, ate } = {}) => {
     const totais = await pool.query(
         `select
@@ -50,7 +50,7 @@ const caixa = async ({ de, ate } = {}) => {
     return { entradas, saidas, levantamentos, sessoes: sessoes.rows };
 };
 
-//Servicos mais realizados (quantidade e receita gerada)
+//excluir atendimentos anulados evita inflacionar os servicos mais realizados
 const servicos = async ({ de, ate } = {}) => {
     const result = await pool.query(
         `select s.id as servico_id, s.nome as servico_nome,
@@ -70,7 +70,7 @@ const servicos = async ({ de, ate } = {}) => {
     return result.rows;
 };
 
-//Servicos realizados e comissoes por funcionario
+//as comissoes vem de subquery para o total nao multiplicar as linhas dos servicos
 const funcionarios = async ({ de, ate } = {}) => {
     const result = await pool.query(
         `select f.id as funcionario_id, f.nome as funcionario_nome,
@@ -97,7 +97,7 @@ const funcionarios = async ({ de, ate } = {}) => {
     return result.rows;
 };
 
-//Assiduidade: registos e ocorrencias por funcionario
+//left join mantem os funcionarios sem registos, para se ver tambem quem nao tem assiduidade
 const assiduidade = async ({ de, ate } = {}) => {
     const result = await pool.query(
         `select f.id as funcionario_id, f.nome as funcionario_nome,
@@ -116,7 +116,7 @@ const assiduidade = async ({ de, ate } = {}) => {
     return result.rows;
 };
 
-//Clientes mais frequentes (numero de atendimentos e total gasto)
+//contar apenas o que nao foi anulado e o criterio correto para a frequencia real do cliente
 const clientes = async ({ de, ate } = {}) => {
     const result = await pool.query(
         `select c.id as cliente_id, c.nome as cliente_nome, c.telefone,
@@ -133,7 +133,7 @@ const clientes = async ({ de, ate } = {}) => {
     return result.rows;
 };
 
-//Fidelizacao: marcas, beneficios ganhos e utilizados no periodo
+//contagens por tipo dao o estado do ciclo de fidelizacao no periodo
 const fidelizacao = async ({ de, ate } = {}) => {
     const result = await pool.query(
         `select
@@ -148,7 +148,7 @@ const fidelizacao = async ({ de, ate } = {}) => {
     return result.rows[0];
 };
 
-//Historico de anulacoes (atendimentos e pagamentos)
+//unir atendimentos e pagamentos numa lista evita a UI juntar duas consultas
 const anulacoes = async ({ de, ate } = {}) => {
     const result = await pool.query(
         `select 'atendimento' as tipo, a.id, a.cliente_id, c.nome as cliente_nome,
@@ -170,7 +170,7 @@ const anulacoes = async ({ de, ate } = {}) => {
     return result.rows;
 };
 
-//Movimentos financeiros do caixa no periodo
+//inclui o estado para o historico mostrar tambem os movimentos anulados
 const movimentos = async ({ de, ate } = {}) => {
     const result = await pool.query(
         `select m.id, m.id_sessao, m.tipo_movimento, m.valor, m.descricao,

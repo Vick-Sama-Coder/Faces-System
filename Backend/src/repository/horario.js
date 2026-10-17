@@ -28,7 +28,7 @@ const create = async (funcionario_id, { dia_semana, hora_entrada, hora_saida, da
     return result.rows[0];
 };
 
-//substitui toda a programacao do funcionario (transacao)
+//substituir numa transacao evita deixar a programacao pela metade se um horario falhar
 const substituir = async (funcionario_id, horarios) => {
     const client = await pool.connect();
 

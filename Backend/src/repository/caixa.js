@@ -75,13 +75,16 @@ const movimentos = async (sessao_id, db = pool) => {
 
 //idempotente por (origem, referencia_id): repeticoes nao duplicam o movimento (RNF05)
 const inserirMovimento = async (db, { id_sessao, tipo_movimento, valor, descricao, origem, referencia_id, registado_por }) => {
-    await db.query(
+    const result = await db.query(
         `insert into movimento_caixa
             (id_sessao, tipo_movimento, valor, descricao, origem, referencia_id, registado_por)
          values ($1, $2, $3, $4, $5, $6, $7)
-         on conflict do nothing`,
+         on conflict do nothing
+         returning id`,
         [id_sessao, tipo_movimento, valor, descricao, origem, referencia_id ?? null, registado_por]
     );
+
+    return result.rows[0]?.id || null;
 };
 
 const fechar = async (db, sessao_id, { valor_esperado, valor_contado, diferenca, observacoes, fechado_por }) => {

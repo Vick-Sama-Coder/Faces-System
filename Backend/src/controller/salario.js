@@ -33,7 +33,7 @@ const processar = async (req, res, next) => {
             return res.status(400).json({ message: "periodo e obrigatorio (formato AAAA-MM)" });
         }
 
-        const ids = await SalarioService.processar(periodo);
+        const ids = await SalarioService.processar(periodo, req.user.id);
 
         const lista = [];
         for (const id of ids) {
@@ -77,7 +77,7 @@ const aprovar = async (req, res, next) => {
 
 const pagar = async (req, res, next) => {
     try {
-        res.status(200).json(await SalarioService.pagar(req.params.id));
+        res.status(200).json(await SalarioService.pagar(req.params.id, req.user.id));
     } catch (error) {
         next(error);
     }

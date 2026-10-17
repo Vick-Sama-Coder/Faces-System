@@ -4,7 +4,7 @@ const campos = `p.id, p.funcionario_id, f.nome as funcionario_nome, p.periodo_in
     p.periodo_fim, p.salario_base, p.total_comissoes, p.total_deducoes, p.total_a_pagar,
     p.estado, p.aprovado_por, p.data_aprovacao, p.data_pagamento, p.criado_em`;
 
-//listagem com filtros opcionais (periodo AAAA-MM, funcionario, estado)
+//filtros opcionais porque o processamento e procurado por mes, funcionario ou estado
 const findProcessamentos = async ({ periodo, funcionario, estado } = {}) => {
     const result = await pool.query(
         `select ${campos}
@@ -44,7 +44,7 @@ const findDeducoes = async (processamento_id) => {
     return result.rows;
 };
 
-//---- operacoes usadas dentro de transacoes (recebem o client) ----
+//---- recebem o client para participarem na transacao do servico ----
 
 const findFuncionariosAtivos = async (db) => {
     const result = await db.query(
@@ -54,7 +54,7 @@ const findFuncionariosAtivos = async (db) => {
     return result.rows;
 };
 
-//comissoes elegiveis do periodo (ainda nao pagas)
+//excluir as ja pagas evita que a mesma comissao entre em dois processamentos (RN05)
 const somaComissoes = async (db, funcionario_id, periodo_inicio, periodo_fim) => {
     const result = await db.query(
         `select coalesce(sum(valor_comissao), 0)::int as total
@@ -68,7 +68,7 @@ const somaComissoes = async (db, funcionario_id, periodo_inicio, periodo_fim) =>
     return result.rows[0].total;
 };
 
-//on conflict do nothing: nao duplica processamento do mesmo periodo
+//ignorar o conflito torna o processamento repetivel sem duplicar o mesmo periodo (indice unico)
 const inserirProcessamento = async (client, { funcionario_id, periodo_inicio, periodo_fim, salario_base, total_comissoes, total_deducoes, total_a_pagar }) => {
     const result = await client.query(
         `insert into processamento_salarial
@@ -94,7 +94,7 @@ const substituirDeducoes = async (client, processamento_id, deducoes, aprovado_p
     }
 };
 
-//recalcula deducoes e total a pagar a partir das linhas
+//recalcular a partir das linhas evita guardar totais que divergem das deducoes
 const recalcular = async (client, processamento_id) => {
     await client.query(
         `update processamento_salarial p
@@ -112,7 +112,7 @@ const recalcular = async (client, processamento_id) => {
     );
 };
 
-//---- transicoes de estado (pool) ----
+//---- mudancas de estado simples, fora de transacao (pool) ----
 
 const aprovar = async (id, aprovado_por) => {
     const result = await pool.query(
@@ -138,7 +138,7 @@ const pagar = async (id, db = pool) => {
     return result.rows[0] || null;
 };
 
-//marca como pagas as comissoes elegiveis incluidas no processamento
+//marcar como pagas ao liquidar o salario impede que voltem a entrar num proximo processamento
 const marcarComissoesPagas = async (db, funcionario_id, periodo_inicio, periodo_fim) => {
     await db.query(
         `update comissao

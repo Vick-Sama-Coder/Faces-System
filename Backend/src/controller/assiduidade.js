@@ -1,4 +1,5 @@
 import Assiduidade from "../repository/assiduidade.js";
+import AuditoriaService from "../services/auditoria.js";
 
 const getAssiduidade = async (req, res, next) => {
     try {
@@ -18,7 +19,17 @@ const createAssiduidade = async (req, res, next) => {
         }
 
         const id = await Assiduidade.create({ ...req.body, registado_por: req.user.id });
-        res.status(201).json(await Assiduidade.findById(id));
+        const registo = await Assiduidade.findById(id);
+
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "assiduidade",
+            id_registo: id,
+            operacao: "criar",
+            depois: registo
+        });
+
+        res.status(201).json(registo);
     } catch (error) {
         //23503 = funcionario inexistente
         if (error.code === "23503") {
@@ -37,15 +48,26 @@ const updateAssiduidade = async (req, res, next) => {
             return res.status(400).json({ message: "Nenhum campo para atualizar foi enviado" });
         }
 
-        const registo = await Assiduidade.update(req.params.id, {
-            hora_entrada_real, hora_saida_real, tipo_ocorrencia, justificacao, estado
-        });
-
-        if (!registo) {
+        const antes = await Assiduidade.findById(req.params.id);
+        if (!antes) {
             return res.status(404).json({ message: "Registo de assiduidade nao encontrado" });
         }
 
-        res.status(200).json(await Assiduidade.findById(req.params.id));
+        await Assiduidade.update(req.params.id, {
+            hora_entrada_real, hora_saida_real, tipo_ocorrencia, justificacao, estado
+        });
+
+        const depois = await Assiduidade.findById(req.params.id);
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "assiduidade",
+            id_registo: antes.id,
+            operacao: "atualizar",
+            antes,
+            depois
+        });
+
+        res.status(200).json(depois);
     } catch (error) {
         next(error);
     }
