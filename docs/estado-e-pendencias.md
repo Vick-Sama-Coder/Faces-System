@@ -21,6 +21,11 @@ e os **problemas conhecidos** a corrigir.
 - ✅ **Caixa** (abertura, movimentos, levantamentos, fecho com diferença).
 - ✅ **Despesas** e categorias de despesa (com produtos, ligação ao caixa).
 - ✅ **Fidelização** (marcas por dia, benefício à 5.ª, corte gratuito).
+- ✅ **Horários** de funcionários (programação semanal, substituição transacional).
+- ✅ **Assiduidade** (registos diários e ocorrências, correção).
+- ✅ **Salários** (processamento mensal base + comissões − deduções, aprovação e pagamento).
+- ✅ **Relatórios** agregados (resumo financeiro, caixa, serviços, funcionários, assiduidade,
+  clientes, fidelização, anulações e movimentos).
 
 ## O que é mock / placeholder
 
@@ -32,7 +37,8 @@ e os **problemas conhecidos** a corrigir.
 | Serviços | Placeholder (backend pronto, UI por ligar) |
 | Clientes | Placeholder (backend pronto, UI por ligar) |
 | Despesas | Placeholder (backend pronto, UI por ligar) |
-| Relatório | Placeholder (sem API) |
+| Relatório | Placeholder (backend pronto, UI por ligar) |
+| Horários / Assiduidade / Salários | Sem UI (backend pronto) |
 | Esqueci a senha | Ecrã sem fluxo de recuperação |
 
 ## Pendências técnicas
@@ -73,9 +79,9 @@ _Nenhum ponto crítico em aberto._
 
 9. **Duração da sessão inconsistente.** JWT expira em 30 dias, cookie em 10 dias.
 
-10. **Sem controladores para produtos e relatórios.** As tabelas de produto existem na base
-    de dados; falta a camada de API. (Atendimentos, pagamentos, comissões, caixa, despesas
-    e fidelização já têm API.)
+10. **Sem controladores para produtos.** As tabelas de produto existem na base de dados;
+    falta a camada de API. (Atendimentos, pagamentos, comissões, caixa, despesas,
+    fidelização, horários, assiduidade, salários e relatórios já têm API.)
 
 11. **`Backend` tem `.env` comitável?** Confirme que o `.env` real nunca é comitado;
     só o `.env.example` deve estar no repositório.
@@ -96,5 +102,6 @@ _Nenhum ponto crítico em aberto._
 1. Ligar as páginas **Serviços** e **Funcionários** aos endpoints já existentes.
 2. Ligar a página **Novo Atendimento** aos endpoints de atendimentos/pagamentos.
 3. Ligar as páginas **Despesas** e **Caixa** aos endpoints já existentes.
-4. Popular o **Dashboard** com dados reais.
-5. Implementar **Relatórios**.
+4. Popular o **Dashboard** com dados reais (usar `/api/relatorios/resumo`).
+5. Ligar a página **Relatório** aos endpoints de `/api/relatorios/*` e às páginas de
+   horários/assiduidade/salários.

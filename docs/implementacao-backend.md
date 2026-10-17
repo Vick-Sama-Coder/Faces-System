@@ -31,9 +31,11 @@ regras de negócio e critérios de conclusão. Deve ser lido em conjunto com:
 | Fase 7 — Comissões | ✅ Concluída | `comissao` gerada na liquidação (idempotente), taxa específica sobrepõe-se à geral |
 | Fase 8 — Caixa e despesas | ✅ Concluída | `caixa`/`caixa_sessao`/`movimento_caixa`, `categoria_despesa`, `despesa` remodelada; abertura, levantamentos, fecho com diferença |
 | Fase 9 — Fidelização | ✅ Concluída | `cartao_fidelizacao`/`movimento_fidelizacao`; marcas por dia, benefício à 5.ª, corte gratuito |
-| Fases 10–15 | ⏳ Pendente | Ver detalhe abaixo |
+| Fase 10 — Horários, assiduidade e salários | ✅ Concluída | `horario_funcionario`, `assiduidade`, `processamento_salarial`/`deducao_salarial`; fluxo Preparado→Aprovado→Pago; comissões elegíveis do período |
+| Fase 11 — Relatórios | ✅ Concluída | 9 relatórios agregados (`repository/relatorio.js`), filtro opcional `de`/`ate`, permissão `relatorios:ler` |
+| Fases 12–15 | ⏳ Pendente | Ver detalhe abaixo |
 
-> **Base de dados:** esquema aplicado do zero com os scripts `001`–`017` (ver
+> **Base de dados:** esquema aplicado do zero com os scripts `001`–`034` (ver
 > [`base-de-dados.md`](./base-de-dados.md)). Não foram usadas migrações `ALTER TABLE`
 > porque o esquema foi recriado a partir das definições.
 
@@ -59,12 +61,15 @@ O que **já existe e funciona** no backend:
 | Caixa (sessões, movimentos, fecho) | ✅ | `controller` + `repository` + `services/caixa.js` + `routes/caixa.js` |
 | Despesas + categorias de despesa | ✅ | `controller` + `repository` + `services/despesa.js` + `routes/despesa.js` |
 | Fidelização | ✅ | `controller` + `repository` + `services/fidelizacao.js` + `routes/fidelizacao.js` |
+| Horários de funcionários | ✅ | `controller` + `repository` + `routes/horario.js` |
+| Assiduidade | ✅ | `controller` + `repository` + `routes/assiduidade.js` |
+| Salários (processamento/deduções/aprovação) | ✅ | `controller` + `repository` + `services/salario.js` + `routes/salario.js` |
+| Relatórios agregados | ✅ | `controller` + `repository` + `routes/relatorio.js` |
 | Validações (nome, telefone, senha) | ✅ | `utils/validacoes.js` |
 | Token JWT | ✅ | `utils/token.js` |
-| Esquema SQL (30 scripts, `001`–`030`) | ✅ | `Database/schema/` |
+| Esquema SQL (34 scripts, `001`–`034`) | ✅ | `Database/schema/` |
 
-O que **falta** (objeto deste plano): horários, assiduidade, salários, relatórios,
-catálogo público, auditoria e sincronização offline.
+O que **falta** (objeto deste plano): catálogo público, auditoria e sincronização offline.
 
 ### Estrutura de pastas alvo
 
@@ -667,30 +672,31 @@ e aprovação (RF15–RF19, RN14–RN15, HU relacionadas).
 
 **Migrações**
 
-- `037_create_horario_funcionario.sql` — `horario_funcionario (id, funcionario_id FK,
+- `031_create_horario_funcionario.sql` — `horario_funcionario (id, funcionario_id FK,
   dia_semana int, hora_entrada time, hora_saida time, data_inicio_vigencia,
   data_fim_vigencia, estado)`.
-- `038_create_assiduidade.sql` — `assiduidade (id, funcionario_id FK, data,
+- `032_create_assiduidade.sql` — `assiduidade (id, funcionario_id FK, data,
   hora_entrada_real, hora_saida_real, tipo_ocorrencia
   ('atraso'|'falta_justificada'|'falta_injustificada'|'saida_antecipada'|'ausencia'|'sem_registo'),
-  justificacao, estado, registado_por)`.
-- `039_create_processamento_salarial.sql` — `processamento_salarial (id, funcionario_id FK,
+  justificacao, estado, registado_por)`; índice único `(funcionario_id, data)`.
+- `033_create_processamento_salarial.sql` — `processamento_salarial (id, funcionario_id FK,
   periodo_inicio, periodo_fim, salario_base int, total_comissoes int, total_deducoes int,
   total_a_pagar int, estado ('Preparado'|'Aprovado'|'Pago'), aprovado_por, data_aprovacao,
-  data_pagamento)`.
-- `040_create_deducao_salarial.sql` — `deducao_salarial (id, processamento_id FK, tipo,
-  descricao, valor int, motivo, aprovado_por)`.
+  data_pagamento)`; índice único `(funcionario_id, periodo_inicio, periodo_fim)`.
+- `034_create_deducao_salarial.sql` — `deducao_salarial (id, processamento_id FK on delete
+  cascade, tipo, descricao, valor int, motivo, aprovado_por)`.
 
 **Endpoints**
 
 | Método | Rota | Permissão | Descrição |
 | --- | --- | --- | --- |
-| GET/POST/PUT | `/api/funcionarios/:id/horarios` | `horarios:gerir` | Programação |
+| GET/POST/PUT | `/api/funcionarios/:id/horarios` | `horarios:gerir` | Programação (PUT substitui a lista) |
 | GET/POST | `/api/assiduidade` | `assiduidade:gerir` | Registos e ocorrências |
 | PUT | `/api/assiduidade/:id` | `assiduidade:gerir` | Correção (com auditoria) |
 | GET | `/api/salarios/processamentos?periodo=` | `salarios:gerir` | Lista |
-| POST | `/api/salarios/processar` | `salarios:gerir` | Gera processamento do período |
-| PUT | `/api/salarios/processamentos/:id/deducoes` | `salarios:gerir` | Deduções |
+| GET | `/api/salarios/processamentos/:id` | `salarios:gerir` | Detalhe + deduções |
+| POST | `/api/salarios/processar` | `salarios:gerir` | Gera processamento do período (`{ periodo: 'AAAA-MM' }`) |
+| PUT | `/api/salarios/processamentos/:id/deducoes` | `salarios:gerir` | Deduções (substitui a lista) |
 | PATCH | `/api/salarios/processamentos/:id/aprovar` | `salarios:aprovar` | Aprovação |
 | PATCH | `/api/salarios/processamentos/:id/pagar` | `salarios:gerir` | Registo do pagamento |
 
@@ -698,9 +704,10 @@ e aprovação (RF15–RF19, RN14–RN15, HU relacionadas).
 
 - Salário base + comissões elegíveis − deduções = total a pagar (RF17).
 - Distinguir ocorrência de assiduidade **do** efeito salarial (RN15).
-- Fluxo Preparado → Aprovado → Pago (RF19); só admin autorizado aprova.
-- Administrador que não é funcionário não recebe salário/comissão (RF17).
-- Alterações de assiduidade e salário são auditadas.
+- Fluxo Preparado → Aprovado → Pago (RF19); só admin autorizado aprova; deduções só em Preparado.
+- Administrador que não é funcionário não recebe salário/comissão (RF17) — só funcionários ativos entram no processamento.
+- Comissões `Elegivel` do período passam a `Paga` quando o processamento é pago (evita duplo pagamento).
+- Alterações de assiduidade e salário são auditadas (auditoria completa na Fase 13).
 
 **Critério de conclusão**
 
@@ -725,6 +732,11 @@ e aprovação (RF15–RF19, RN14–RN15, HU relacionadas).
 | GET | `/api/relatorios/fidelizacao?de=&ate=` | Benefícios ganhos/utilizados |
 | GET | `/api/relatorios/anulacoes?de=&ate=` | Histórico de anulações |
 | GET | `/api/relatorios/movimentos?de=&ate=` | Movimentos financeiros |
+
+> Implementado em `repository/relatorio.js` (SQL agregado) + `controller/relatorio.js`.
+> `de`/`ate` são **opcionais**; sem filtro devolve todo o histórico. `resumo` devolve
+> `{ receita, despesas, resultado }`; `caixa`/`fidelizacao` devolvem um objeto; os restantes
+> devolvem arrays.
 
 **Regras de negócio**
 

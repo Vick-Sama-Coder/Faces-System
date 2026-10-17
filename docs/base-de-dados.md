@@ -41,6 +41,10 @@ Os scripts estão em `Backend/Database/schema/` e devem ser aplicados **por orde
 | `028_create_cartao_fidelizacao.sql` | `cartao_fidelizacao` | Um cartão por cliente (FK → `cliente`) |
 | `029_create_movimento_fidelizacao.sql` | `movimento_fidelizacao` | Marcas/benefícios; índice único parcial por `(atendimento_servico_id, tipo_movimento)` |
 | `030_ligacoes_despesa.sql` | — | FKs diferidas: `despesa` → `categoria_despesa`, `caixa_sessao`, `usuario` |
+| `031_create_horario_funcionario.sql` | `horario_funcionario` | Programação semanal (FK → `funcionario`); `dia_semana` 0–6, horas, vigência, `estado` |
+| `032_create_assiduidade.sql` | `assiduidade` | Registo diário (FK → `funcionario`, `usuario`); índice único `(funcionario_id, data)` |
+| `033_create_processamento_salarial.sql` | `processamento_salarial` | Base + comissões − deduções; FK → `funcionario`, `usuario`; índice único `(funcionario_id, periodo_inicio, periodo_fim)` |
+| `034_create_deducao_salarial.sql` | `deducao_salarial` | Deduções do processamento (FK → `processamento_salarial` `on delete cascade`, `usuario`) |
 
 > ⚠️ **Script 000:** o PostgreSQL não aceita `create database if not exists` nem permite
 > executar `CREATE DATABASE` dentro de uma transacção. Execute este script **isoladamente**
@@ -67,6 +71,10 @@ categoria_despesa 1───n despesa 1───n item_produto n──1 produto
                         └── n──1 caixa_sessao
 
 cliente 1───1 cartao_fidelizacao 1───n movimento_fidelizacao
+
+funcionario 1───n horario_funcionario
+funcionario 1───n assiduidade
+funcionario 1───n processamento_salarial 1───n deducao_salarial
 ```
 
 ### Tabelas do domínio (ainda sem API)
@@ -127,6 +135,22 @@ aplicacao   (sem uso actual)
   `tipo_movimento` (`marca`/`beneficio_ganho`/`beneficio_utilizado`/`correcao`), `data_hora`,
   `ciclo`, `registado_por`, `observacao`. Índice único parcial por
   `(atendimento_servico_id, tipo_movimento)`.
+- **`horario_funcionario`** — `id`, `funcionario_id` (FK), `dia_semana int` (`check 0–6`,
+  0 = Domingo), `hora_entrada time`, `hora_saida time`, `data_inicio_vigencia date`,
+  `data_fim_vigencia date`, `estado`.
+- **`assiduidade`** — `id`, `funcionario_id` (FK), `data date`, `hora_entrada_real time`,
+  `hora_saida_real time`, `tipo_ocorrencia`
+  (`atraso`/`falta_justificada`/`falta_injustificada`/`saida_antecipada`/`ausencia`/`sem_registo`),
+  `justificacao`, `estado`, `registado_por` (FK → `usuario`), `criado_em`. Índice único
+  `(funcionario_id, data)`.
+- **`processamento_salarial`** — `id`, `funcionario_id` (FK), `periodo_inicio date`,
+  `periodo_fim date`, `salario_base`, `total_comissoes`, `total_deducoes`, `total_a_pagar`,
+  `estado` (`Preparado`/`Aprovado`/`Pago`), `aprovado_por` (FK → `usuario`),
+  `data_aprovacao`, `data_pagamento`, `criado_em`. Índice único
+  `(funcionario_id, periodo_inicio, periodo_fim)`.
+- **`deducao_salarial`** — `id`, `processamento_id` (FK, `on delete cascade`), `tipo`,
+  `descricao`, `valor int` (`check > 0`), `motivo`, `aprovado_por` (FK → `usuario`),
+  `criado_em`.
 - **`perfil`** — `id` (identity `by default`), `nome`, `descricao`, `estado`.
 - **`usuario`** — `id` (identity), `nome`, `senha varchar(100)`, `telefone int` (único),
   `id_perfil` (FK), `estado`, `alteracao_obrigatoria_senha`, `ultimo_acesso`, `data_criacao`.
@@ -180,7 +204,11 @@ O backend conta com a integridade referencial para proteger integridade de dados
   `origem`+`referencia_id`) → idempotência.
 - Cada `atendimento_servico` gera no máximo um movimento de fidelização de cada tipo
   (índice único parcial) → geração idempotente.
+- Um registo de **assiduidade** por funcionário e por dia (índice único) → `23505` → `409`.
+- Um **processamento salarial** por funcionário e período (índice único) → não duplica;
+  a geração usa `on conflict do nothing`.
 - `despesa.valor_total` ≤ 0 → erro `23514` → resposta `400`.
+- `deducao_salarial.valor` ≤ 0 → erro `23514` → resposta `400`.
 
 ## Notas de modelação
 

@@ -307,6 +307,66 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 
 ---
 
+## Horários — `/api/funcionarios/:id/horarios`
+
+- `GET /api/funcionarios/:id/horarios` 🔒 — programação do funcionário (`404` se o
+  funcionário não existir)
+- `POST /api/funcionarios/:id/horarios` 🔒(`horarios:gerir`) — corpo:
+  `{ dia_semana, hora_entrada, hora_saida, data_inicio_vigencia?, data_fim_vigencia? }`. `201`
+  - `dia_semana`: `0` = Domingo … `6` = Sábado
+- `PUT /api/funcionarios/:id/horarios` 🔒(`horarios:gerir`) — corpo:
+  `{ horarios: [{ dia_semana, hora_entrada, hora_saida, ... }] }` — **substitui** toda a
+  programação (transação)
+
+## Assiduidade — `/api/assiduidade`
+
+- `GET /api/assiduidade?funcionario=&de=&ate=&tipo=` 🔒(`assiduidade:gerir`) — registos
+- `POST /api/assiduidade` 🔒(`assiduidade:gerir`) — corpo:
+  `{ funcionario_id, data?, hora_entrada_real?, hora_saida_real?, tipo_ocorrencia?, justificacao? }`. `201`
+  - `tipo_ocorrencia`: `atraso` | `falta_justificada` | `falta_injustificada` |
+    `saida_antecipada` | `ausencia` | `sem_registo`
+  - `409` se já existir registo do funcionário nesse dia; `400` se o funcionário não existir
+- `PUT /api/assiduidade/:id` 🔒(`assiduidade:gerir`) — correção parcial
+  (`hora_entrada_real`, `hora_saida_real`, `tipo_ocorrencia`, `justificacao`, `estado`)
+
+> A ocorrência é registada separadamente do efeito salarial (RN15).
+
+## Salários — `/api/salarios`
+
+- `GET /api/salarios/processamentos?periodo=&funcionario=&estado=` 🔒(`salarios:gerir`) —
+  lista; `periodo` no formato `AAAA-MM`
+- `GET /api/salarios/processamentos/:id` 🔒(`salarios:gerir`) — detalhe + `deducoes`
+- `POST /api/salarios/processar` 🔒(`salarios:gerir`) — corpo: `{ periodo: "AAAA-MM" }`.
+  Gera o processamento de todos os funcionários **ativos** para o mês. `201` com a lista
+  criada (vazia se já processado). `400` se o período for inválido
+- `PUT /api/salarios/processamentos/:id/deducoes` 🔒(`salarios:gerir`) — corpo:
+  `{ deducoes: [{ tipo, descricao?, valor, motivo? }] }` — substitui as deduções e
+  recalcula `total_a_pagar`. `409` se o processamento já não estiver em `Preparado`
+- `PATCH /api/salarios/processamentos/:id/aprovar` 🔒(`salarios:aprovar`) — `Preparado` →
+  `Aprovado`. `409` se o estado não permitir
+- `PATCH /api/salarios/processamentos/:id/pagar` 🔒(`salarios:gerir`) — `Aprovado` → `Pago`;
+  marca as comissões do período como `Paga`. `409` se não estiver aprovado
+
+> `total_a_pagar = salario_base + total_comissoes − total_deducoes`. Só funcionários
+> recebem salário/comissão (RF17).
+
+## Relatórios — `/api/relatorios`
+
+Todas as rotas exigem `relatorios:ler`. `de`/`ate` são **opcionais** (`AAAA-MM-DD`); sem
+filtro devolve todo o histórico.
+
+- `GET /api/relatorios/resumo?de=&ate=` — `{ receita, despesas, resultado }`
+- `GET /api/relatorios/caixa?de=&ate=` — `{ entradas, saidas, levantamentos, sessoes }`
+- `GET /api/relatorios/servicos?de=&ate=` — serviços mais realizados
+- `GET /api/relatorios/funcionarios?de=&ate=` — serviços e comissões por funcionário
+- `GET /api/relatorios/assiduidade?de=&ate=` — registos e ocorrências por funcionário
+- `GET /api/relatorios/clientes?de=&ate=` — clientes mais frequentes
+- `GET /api/relatorios/fidelizacao?de=&ate=` — `{ marcas, beneficios_ganhos, beneficios_utilizados }`
+- `GET /api/relatorios/anulacoes?de=&ate=` — histórico de anulações (atendimentos + pagamentos)
+- `GET /api/relatorios/movimentos?de=&ate=` — movimentos do caixa
+
+---
+
 ## Exemplos com `curl`
 
 ```bash
