@@ -1,5 +1,5 @@
 import Funcionario from "../repository/funcionario.js";
-import Comissao from "../repository/comissao.js";
+import ComissaoConfig from "../repository/comissao_config.js";
 
 //arredonda valores monetarios a 2 casas
 const arredondar = (valor) => Math.round(valor * 100) / 100;
@@ -124,7 +124,7 @@ const getComissao = async (req, res, next) => {
 
         res.status(200).json({
             comissao_percentual: funcionario.comissao_percentual,
-            configuracoes: await Comissao.findByFuncionario(id)
+            configuracoes: await ComissaoConfig.findByFuncionario(id)
         });
     } catch (error) {
         next(error);
@@ -146,11 +146,11 @@ const updateComissao = async (req, res, next) => {
             return res.status(400).json({ message: "O campo configuracoes deve ser uma lista" });
         }
 
-        await Comissao.substituir(id, configuracoes);
+        await ComissaoConfig.substituir(id, configuracoes);
 
         res.status(200).json({
             message: "Configuracao de comissao atualizada",
-            configuracoes: await Comissao.findByFuncionario(id)
+            configuracoes: await ComissaoConfig.findByFuncionario(id)
         });
     } catch (error) {
         if (error.code === "23503") {
@@ -175,7 +175,7 @@ const getDesempenho = async (req, res, next) => {
 
         //a taxa especifica por servico sobrepoe-se a geral do funcionario (RN27)
         const taxas = new Map(
-            (await Comissao.findByFuncionario(id))
+            (await ComissaoConfig.findByFuncionario(id))
                 .filter((c) => c.servico_id !== null)
                 .map((c) => [c.servico_id, Number(c.taxa_percentual)])
         );

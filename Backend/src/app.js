@@ -11,6 +11,9 @@ import categoriaRoutes from './routes/categoria.js'
 import usuarioRoutes from './routes/usuario.js'
 import perfilRoutes from './routes/perfil.js'
 import clienteRoutes from './routes/cliente.js'
+import atendimentoRoutes from './routes/atendimento.js'
+import pagamentoRoutes from './routes/pagamento.js'
+import comissaoRoutes from './routes/comissao.js'
 
 
 
@@ -40,6 +43,9 @@ app.use("/api", categoriaRoutes);
 app.use("/api", usuarioRoutes);
 app.use("/api", perfilRoutes);
 app.use("/api", clienteRoutes);
+app.use("/api", atendimentoRoutes);
+app.use("/api", pagamentoRoutes);
+app.use("/api", comissaoRoutes);
 
 //404 em JSON (rotas de API inexistentes)
 app.use((req, res) => {
@@ -57,7 +63,9 @@ const ERROS_CONHECIDOS = {
 
 //handler de erros em JSON (sem stack em producao)
 app.use((err, req, res, next) => {
-  const [status, message] = ERROS_CONHECIDOS[err.code] || [500, "Erro interno do servidor"];
+  const conhecido = ERROS_CONHECIDOS[err.code];
+  const status = err.status || (conhecido ? conhecido[0] : 500);
+  const message = err.status ? err.message : (conhecido ? conhecido[1] : "Erro interno do servidor");
 
   if (status === 500) {
     console.error("Erro no servidor:", err.message);

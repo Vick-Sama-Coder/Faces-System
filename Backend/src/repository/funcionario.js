@@ -81,13 +81,15 @@ const findDesempenho = async (funcionario_id, { de, ate }) => {
     const result = await pool.query(
         `select s.id as servico_id, s.nome as servico_nome,
                 count(*)::int as quantidade,
-                sum(s.valor)::int as total
-           from execucao_servico es
+                sum(es.valor_final)::int as total
+           from atendimento_servico es
            join atendimento a on a.id = es.atendimento_id
            join servico s on s.id = es.servico_id
           where es.funcionario_id = $1
-            and ($2::date is null or a.data >= $2)
-            and ($3::date is null or a.data <= $3)
+            and es.estado = 'Ativo'
+            and a.estado <> 'Anulado'
+            and ($2::date is null or a.data_hora::date >= $2)
+            and ($3::date is null or a.data_hora::date <= $3)
           group by s.id, s.nome
           order by s.nome`,
         [funcionario_id, de || null, ate || null]
