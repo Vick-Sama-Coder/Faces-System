@@ -24,7 +24,9 @@ regras de negócio e critérios de conclusão. Deve ser lido em conjunto com:
 | Fase 0 — Fundação técnica | ✅ Concluída | mapeamento central de erros PostgreSQL→HTTP em `app.js`; validação reduzida a "campo obrigatório" (o frontend valida formatos) |
 | Fase 1 — Contas, perfis e permissões | ✅ Concluída | Tabelas `permissao`/`perfil_permissao`/`usuario_permissao`, 22 permissões, 4 perfis, CRUD de contas/perfis, `authorizePermission`, alteração de senha |
 | Fase 2 — Clientes | ✅ Concluída | CRUD + pesquisa por nome/apelido/telefone + estado; telefone único |
-| Fases 3–15 | ⏳ Pendente | Ver detalhe abaixo |
+| Fase 3 — Serviços (evolução) | ✅ Concluída | `descricao`, `duracao_min`, `tipo_preco`, `estado`; histórico de preços; `PATCH /estado`; nome único entre ativos |
+| Fase 4 — Funcionários (evolução) | ✅ Concluída | contacto/documento/admissão/cargo/estado, ligação a conta, `comissao_percentual`, `comissao_config`, desempenho |
+| Fases 5–15 | ⏳ Pendente | Ver detalhe abaixo |
 
 > **Base de dados:** esquema aplicado do zero com os scripts `001`–`017` (ver
 > [`base-de-dados.md`](./base-de-dados.md)). Não foram usadas migrações `ALTER TABLE`
@@ -47,7 +49,7 @@ O que **já existe e funciona** no backend:
 | CRUD funcionários | ✅ | `controller` + `repository` + `routes/funcionario.js` |
 | Validações (nome, telefone, senha) | ✅ | `utils/validacoes.js` |
 | Token JWT | ✅ | `utils/token.js` |
-| Esquema SQL (16 scripts, `001`–`015`) | ✅ | `Database/schema/` |
+| Esquema SQL (20 scripts, `001`–`020`) | ✅ | `Database/schema/` |
 
 O que **falta** (objeto deste plano): cliente, atendimentos, serviços realizados,
 pagamentos, comissões, caixa, despesas, produtos, fidelização, horários, assiduidade,
@@ -341,12 +343,13 @@ permissões (documentacao.md §4, §7.1).
 **Objetivo:** aproximar o recurso existente do modelo (RF04, HU-04–07): descrição,
 duração, tipo de preço, estado e histórico de preços.
 
-**Migrações**
+**Migrações** (esquema editado diretamente, sem `ALTER TABLE`)
 
-- `020_evolucao_servico.sql`
-  - `servico`: `descricao text`, `duracao_min int`, `tipo_preco varchar(20) default 'fixo'`
-    (`fixo`/`variavel`), `estado varchar(20) default 'Ativo'`, `data_criacao timestamp default now()`.
-- `021_create_historico_preco_servico.sql`
+- `002_create_servico.sql` — `servico`: `descricao text`, `duracao_min int`,
+  `tipo_preco varchar(20) default 'fixo'` (`fixo`/`variavel`),
+  `estado varchar(20) default 'Ativo'`, `data_criacao timestamp default now()`,
+  `check (valor > 0)` e índice único de `lower(nome)` entre serviços ativos.
+- `018_create_historico_preco_servico.sql`
   - `historico_preco_servico (id, servico_id, valor_anterior, valor_novo, alterado_por, criado_em)`.
 
 **Endpoints**
@@ -374,14 +377,13 @@ duração, tipo de preço, estado e histórico de preços.
 **Objetivo:** completar cadastro (RF14, HU-08–12): contacto, documento, admissão, cargo,
 estado, ligação a conta e configuração de comissão.
 
-**Migrações**
+**Migrações** (esquema editado diretamente, sem `ALTER TABLE`)
 
-- `022_evolucao_funcionario.sql`
-  - `funcionario`: `telefone varchar(20)`, `documento varchar(50) unique`,
-    `cargo varchar(100)`, `data_admissao date`, `estado varchar(20) default 'Ativo'`,
-    `id_usuario int unique null references usuario(id)` (associação opcional),
-    `comissao_percentual numeric(5,2) default 30.00`.
-- `023_create_comissao_config.sql`
+- `007_create_funcionario.sql` — `funcionario`: `telefone varchar(20)`, `documento varchar(50) unique`,
+  `cargo varchar(100)`, `data_admissao date`, `estado varchar(20) default 'Ativo'`,
+  `id_usuario int unique`, `comissao_percentual numeric(5,2) default 30.00`.
+- `019_funcionario_conta.sql` — FK `funcionario.id_usuario` → `usuario` (adicionada após `014`).
+- `020_create_comissao_config.sql`
   - `comissao_config (id, funcionario_id, servico_id null, taxa_percentual, vigencia_inicio, vigencia_fim, estado)`
     — regra geral por funcionário ou específica por serviço (RN27).
 

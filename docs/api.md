@@ -129,25 +129,39 @@ Limpa o cookie `token`.
 
 ---
 
-## Funcionários — `/api`
+## Funcionários — `/api/funcionarios`
 
-- `GET /api/funcionarios` 🔒 — lista (ordenada por nome). `200` → `[{ id, nome, salario, comissao }]`
-- `POST /api/funcionario` 🔒👑 — cria. Corpo: `{ nome, salario, comissao }`. `201` → objecto criado
-- `PUT /api/funcionario/:id` 🔒👑 — actualiza (parcial). `200` → objecto actualizado
-- `DELETE /api/funcionario/:id` 🔒👑 — remove. `204`
+- `GET /api/funcionarios` 🔒 — lista (ordenada por nome)
+- `GET /api/funcionarios/:id` 🔒 — um funcionário (`200`/`404`)
+- `GET /api/funcionarios/:id/desempenho?de=&ate=` 🔒 — serviços e comissões do período
+  (`{ periodo, total_servicos, total_valor, total_comissao, servicos }`)
+- `GET /api/funcionarios/:id/comissao` 🔒 — `{ comissao_percentual, configuracoes }`
+- `POST /api/funcionarios` 🔒🛠️ — corpo: `{ nome, salario, telefone?, documento?, cargo?,
+  data_admissao?, comissao_percentual?, id_usuario? }`. `201`
+- `PUT /api/funcionarios/:id` 🔒🛠️ — actualização parcial. `200` / `404`
+- `PUT /api/funcionarios/:id/comissao` 🔒🛠️ — corpo: `{ configuracoes: [{ servico_id?, taxa_percentual,
+  vigencia_inicio?, vigencia_fim? }] }` (substitui a configuração)
+- `PATCH /api/funcionarios/:id/estado` 🔒🛠️ — `{ "estado": "Ativo" | "Inativo" }`
+- `DELETE /api/funcionarios/:id` 🔒🛠️ — `204`; `409` se existirem atendimentos
 
-> O corpo enviado/retornado usa os nomes `nome`, `salario`, `comissao`.
+> Escrita requer a permissão `funcionarios:escrever`. `documento` é único (`409`).
 
-## Serviços — `/api`
+## Serviços — `/api/servicos`
 
-- `GET /api/servicos` 🔒 — lista com o nome da categoria:
-  `[{ id, nome, valor, categoria_id, categoria_nome }]`
+- `GET /api/servicos?estado=todos` 🔒 — lista com o nome da categoria. Por omissão só
+  **ativos**; `?estado=todos` inclui inativos.
 - `GET /api/servicos/:id` 🔒 — um serviço (`200`) ou `404`
-- `POST /api/servicos` 🔒👑 — corpo: `{ nome, valor, categoria_id }`. `201`
-  - `400` se faltar campo; `400` `{ "message": "Categoria nao encontrada" }` se FK inválida
-- `PUT /api/servicos/:id` 🔒👑 — actualização parcial. `200` / `404` / `400`
-- `DELETE /api/servicos/:id` 🔒👑 — `204` / `404`
+- `GET /api/servicos/:id/historico-precos` 🔒 — histórico de alterações de preço
+- `POST /api/servicos` 🔒🛠️ — corpo: `{ nome, valor, categoria_id, descricao?, duracao_min?,
+  tipo_preco? }`. `201`
+  - `400` se faltar campo ou `valor <= 0`; `409` se já existir um serviço **ativo** com o nome
+- `PUT /api/servicos/:id` 🔒🛠️ — actualização parcial. `200` / `404` / `400`
+  - Alterar `valor` grava automaticamente o histórico de preços
+- `PATCH /api/servicos/:id/estado` 🔒🛠️ — `{ "estado": "Ativo" | "Inativo" }`
+- `DELETE /api/servicos/:id` 🔒🛠️ — `204` / `404`
   - `409` se existirem atendimentos que usam o serviço
+
+> Escrita requer a permissão `servicos:escrever`.
 
 ## Categorias de serviço — `/api`
 
@@ -158,7 +172,7 @@ Limpa o cookie `token`.
 - `DELETE /api/categorias/:id` 🔒👑 — `204` / `404`
   - `409` se existirem serviços nesta categoria
 
-Legenda: 🔒 requer sessão · 👑 só `Administrador`.
+Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a permissão indicada.
 
 ---
 

@@ -12,12 +12,12 @@ Os scripts estão em `Backend/Database/schema/` e devem ser aplicados **por orde
 | --- | --- | --- |
 | `000_create_database_SalaoFaces.sql` | (base de dados) | Cria a base; executar isoladamente (ver nota) |
 | `001_create_categoria_salao.sql` | `categoria_salao` | Categorias de serviços |
-| `002_create_servico.sql` | `servico` | FK → `categoria_salao` |
+| `002_create_servico.sql` | `servico` | FK → `categoria_salao`; `descricao`, `duracao_min`, `tipo_preco`, `estado`, `data_criacao`; índice único de nome entre ativos |
 | `003_create_aplicacao.sql` | `aplicacao` | Sem uso actual |
 | `004_create_cliente.sql` | `cliente` | CRUD na API implementado (nome, apelido, telefone único, endereço, nascimento, estado) |
 | `005_create_pagamento.sql` | `pagamento` | Sem CRUD na API ainda |
 | `006_create_atendimento.sql` | `atendimento` | FK → `pagamento` |
-| `007_create_funcionario.sql` | `funcionario` | CRUD implementado |
+| `007_create_funcionario.sql` | `funcionario` | CRUD implementado; `telefone`, `documento` (único), `cargo`, `data_admissao`, `comissao_percentual`, `estado`, `id_usuario` |
 | `008_create_despesa.sql` | `despesa` | Sem CRUD na API ainda |
 | `009_create_categoria_produto.sql` | `categoria_produto` | Categoria de produtos |
 | `010_create_produto.sql` | `produto` | FK → `categoria_produto` |
@@ -28,6 +28,9 @@ Os scripts estão em `Backend/Database/schema/` e devem ser aplicados **por orde
 | `015_atualiza_perfis.sql` | — | Semeia/actualiza os perfis 1–4 |
 | `016_create_permissao.sql` | `permissao`, `perfil_permissao`, `usuario_permissao` | Autorização por permissões (RBAC) |
 | `017_seed_permissoes.sql` | — | Catálogo de permissões + atribuição aos perfis |
+| `018_create_historico_preco_servico.sql` | `historico_preco_servico` | Histórico de alterações de preço (FK → `servico`, `usuario`) |
+| `019_funcionario_conta.sql` | — | FK `funcionario.id_usuario` → `usuario` (adicionada após `014`) |
+| `020_create_comissao_config.sql` | `comissao_config` | Comissão por funcionário/serviço (FKs → `funcionario`, `servico`) |
 
 > ⚠️ **Script 000:** o PostgreSQL não aceita `create database if not exists` nem permite
 > executar `CREATE DATABASE` dentro de uma transacção. Execute este script **isoladamente**
@@ -38,30 +41,10 @@ Os scripts estão em `Backend/Database/schema/` e devem ser aplicados **por orde
 ### Tabelas com API implementada
 
 ```
-┌───────────────────┐        ┌──────────────────┐
-│  categoria_salao  │ 1    n │     servico      │
-│  id (PK)          │───────▶│  id (PK)         │
-│  nome             │        │  nome            │
-└───────────────────┘        │  valor (int)     │
-                             │  categoria_id(FK)│
-                             └──────────────────┘
-
-┌───────────────────┐        ┌──────────────────┐
-│      perfil       │ 1    n │     usuario      │
-│  id (PK)          │───────▶│  id (PK)         │
-│  nome             │        │  nome            │
-└───────────────────┘        │  senha (hash)    │
-                             │  telefone (int)  │
-                             │  id_perfil (FK)  │
-                             └──────────────────┘
-
-┌───────────────────┐
-│    funcionario    │   (sem chaves estrangeiras próprias)
-│  id (PK)          │
-│  nome             │
-│  salario (int)    │
-│  comissao (int)   │
-└───────────────────┘
+categoria_salao 1───n servico 1───n historico_preco_servico
+perfil 1───n usuario
+funcionario 1───n comissao_config
+funcionario n───1 usuario   (opcional, via id_usuario)
 ```
 
 ### Tabelas do domínio (ainda sem API)
@@ -79,14 +62,23 @@ categoria_produto ──▶ produto ──▶ item_produto ◀── despesa
 #### Definições resumidas
 
 - **`categoria_salao`** — `id` (identity), `nome varchar(100) not null`.
-- **`servico`** — `id`, `nome`, `valor int not null`, `categoria_id int not null` (FK).
+- **`servico`** — `id`, `nome`, `descricao text`, `valor int not null` (`check > 0`),
+  `duracao_min int`, `tipo_preco` (`fixo`/`variavel`), `categoria_id` (FK), `estado`,
+  `data_criacao`. Índice único de `lower(nome)` entre serviços **ativos**.
+- **`historico_preco_servico`** — `id`, `servico_id` (FK), `valor_anterior`,
+  `valor_novo`, `alterado_por` (FK → `usuario`), `criado_em`.
 - **`categoria_produto`** — `id`, `nome` (script com erro de sintaxe).
 - **`produto`** — `id`, `nome`, `valor int`, `categoria_produto_id` (FK).
 - **`cliente`** — `id`, `nome`, `apelido` (opcional), `telefone int` (único),
   `endereco`, `data_nascimento`, `data_registo`, `saldo_pendente`, `estado`.
 - **`pagamento`** — `id`, `valor int`, `metodo varchar(100)`.
 - **`atendimento`** — `id`, `data date`, `pagamento_id` (FK).
-- **`funcionario`** — `id`, `nome`, `salario int`, `comissao int`.
+- **`funcionario`** — `id`, `nome`, `telefone varchar(20)`, `documento varchar(50)` (único),
+  `cargo`, `data_admissao date`, `salario int not null`,
+  `comissao_percentual numeric(5,2)` (`check 0–100`, default `30.00`), `estado`,
+  `id_usuario` (FK opcional → `usuario`), `data_criacao`.
+- **`comissao_config`** — `id`, `funcionario_id` (FK), `servico_id` (FK, nulo = taxa geral),
+  `taxa_percentual` (`check 0–100`), `vigencia_inicio`, `vigencia_fim`, `estado`.
 - **`despesa`** — `id`, `data date`.
 - **`item_produto`** — `id`, `produto_id`, `despesa_id`, `funcionario_id`, `quantidade` (FKs).
 - **`execucao_servico`** — `id`, `atendimento_id`, `cliente_id`, `servico_id`, `funcionario_id` (FKs).
@@ -130,6 +122,11 @@ O backend conta com a integridade referencial para proteger integridade de dados
 - Apagar uma **categoria** com serviços associados → erro `23503` → resposta `409`.
 - Apagar um **serviço** com execuções associadas → erro `23503` → resposta `409`.
 - Criar/atualizar um **serviço** com categoria inexistente → erro `23503` → resposta `400`.
+- Dois **serviços ativos** com o mesmo nome → erro `23505` → resposta `409`.
+- `servico.valor`/`comissao_percentual`/`taxa_percentual` fora do intervalo → erro `23514`
+  → resposta `400`.
+- Apagar um **funcionário** com histórico → erro `23503` → resposta `409`.
+- `funcionario.documento` duplicado → erro `23505` → resposta `409`.
 
 ## Notas de modelação
 
