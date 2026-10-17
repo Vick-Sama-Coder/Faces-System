@@ -17,6 +17,10 @@ import comissaoRoutes from './routes/comissao.js'
 import caixaRoutes from './routes/caixa.js'
 import despesaRoutes from './routes/despesa.js'
 import fidelizacaoRoutes from './routes/fidelizacao.js'
+import horarioRoutes from './routes/horario.js'
+import assiduidadeRoutes from './routes/assiduidade.js'
+import salarioRoutes from './routes/salario.js'
+import relatorioRoutes from './routes/relatorio.js'
 
 
 
@@ -52,6 +56,10 @@ app.use("/api", comissaoRoutes);
 app.use("/api", caixaRoutes);
 app.use("/api", despesaRoutes);
 app.use("/api", fidelizacaoRoutes);
+app.use("/api", horarioRoutes);
+app.use("/api", assiduidadeRoutes);
+app.use("/api", salarioRoutes);
+app.use("/api", relatorioRoutes);
 
 //404 em JSON (rotas de API inexistentes)
 app.use((req, res) => {
