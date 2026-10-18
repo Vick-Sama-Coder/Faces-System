@@ -10,7 +10,7 @@ import {
     ShieldCheck,
     LogOut,
     X } from "lucide-react"
-import { Link, NavLink, useNavigate } from "react-router"
+import { NavLink, useNavigate } from "react-router"
 import Photo from '../../assets/logo/faces-logo.png'
 import { useAuthStore } from '../../store/authStore.js';
 import './sidebar.css'
@@ -56,7 +56,7 @@ function SideBar({ isOpen, setIsOpen }){
         .map((g) => ({
             ...g,
             itens: g.itens.filter(
-                (s) => s.perfis.length === 0 || (user && s.perfis.includes(user.perfil))
+                (s) => s.perfis.length === 0 || s.perfis.includes(user?.perfil)
             )
         }))
         .filter((g) => g.itens.length > 0)
@@ -84,75 +84,13 @@ function SideBar({ isOpen, setIsOpen }){
             </button>
             <header className="sidebar-brand">
                     <h1 className="sidebar-title">
-                        <span className="img"><img  className="logo" src={Photo} alt='Faces-logo' /></span>
+                        <span className="img"><img className="logo" src={Photo} alt="Faces-logo" loading="lazy" /></span>
                     </h1>
                 </header>
 
-                <Link to="/dashboard" className="side-link">
-                    <p title="Dashboard" className= "p">
-                        <span className="block"></span>
-                        <span className="icon"><LayoutDashboardIcon/></span>
-                        <span className="info">DashBoard</span>
-                    </p >
-                </Link>
-                <Link className="side-link" to='/novoAtendimento'>
-                    <p title="Novo Atendimento" className= "p">
-                        <span className="icon"><CalendarPlus/></span>
-                        <span className="info">Novo Atendimento</span>
-                    </p>
-                </Link>
-                <Link className="side-link" to='/funcionarios'>
-                    <p title="Funcionarios" className= "p">
-                        <span className="icon"><Users/></span>
-                        <span className="info">Funcionarios</span>
-                    </p >
-                </Link>
-                <Link className="side-link" to='/clientes'>
-                    <p title="Clientes" className= "p">
-                        <span className="icon"><UserRound/></span>
-                        <span className="info">Clientes</span>
-                    </p>
-                </Link>
-                <Link className="side-link" to='/servicos'>
-                    <p title="Servicos" className= "p">
-                        <span className="icon"><ScissorsIcon/></span>
-                        <span className="info">Servicos</span>
-                    </p>
-                </Link>
-                <Link className="side-link" to="/relatorio">
-                    <p title="Relatorios" className= "p">
-                        <span className="icon"><ChartNoAxesCombinedIcon/></span>
-                        <span className="info">Relatorio</span>
-                    </p>
-                </Link>
-                <Link className="side-link" to="/despesas">
-                    <p title="Despesas" className= "p">
-                        <span className="icon"><Receipt/></span>
-                        <span className="info">Despesas</span>
-                    </p>
-                </Link>
-                <Link className="side-link" to="/despesas">
-                    <p className= "p">
-                        <span className="icon"><Receipt/></span>
-                        <span className="info">Despesas</span>
-                    </p>
-                </Link>
-                                <Link className="side-link" to="/despesas">
-                    <p className= "p">
-                        <span className="icon"><Receipt/></span>
-                        <span className="info">Despesas</span>
-                    </p>
-                </Link>
-                                <Link className="side-link" to="/despesas">
-                    <p className= "p">
-                        <span className="icon"><Receipt/></span>
-                        <span className="info">Despesas</span>
-                    </p>
-                </Link>
-
                 {grupos.map((grupo) => (
                     <nav key={grupo.titulo} className="sidebar-group" aria-label={grupo.titulo}>
-                        <p className="sidebar-group-title">{grupo.titulo}</p>
+                        <span className="sidebar-group-title">{grupo.titulo}</span>
                         {grupo.itens.map(({ nome, path, Icone }) => (
                             <NavLink
                                 key={path}
@@ -160,20 +98,20 @@ function SideBar({ isOpen, setIsOpen }){
                                 onClick={fechar}
                                 className={({ isActive }) => `side-link${isActive ? " active" : ""}`}
                             >
-                                <p className="p">
+                                <span className="p">
                                     <span className="icon"><Icone/></span>
                                     <span className="info">{nome}</span>
-                                </p>
+                                </span>
                             </NavLink>
                         ))}
                     </nav>
                 ))}
 
                 <button className="side-link logout-btn" onClick={handleLogout} aria-label="Sair da conta">
-                    <p className="p">
+                    <span className="p">
                         <span className="icon"><LogOut/></span>
                         <span className="info">Sair</span>
-                    </p>
+                    </span>
                 </button>
 
             </aside>
