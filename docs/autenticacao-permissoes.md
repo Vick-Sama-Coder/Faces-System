@@ -4,7 +4,13 @@
 
 ## Como funciona a sessão
 
-1. O utilizador faz `POST /api/auth/login` com **telefone** e **senha**.
+1. O utilizador faz `POST /api/auth/login` com **nome de utilizador** e **senha**.
+   O `nome` é único (comparação case-insensitive) e serve de identificador de acesso.
+
+> **Recuperação de senha:** em caso de esquecimento, `POST /api/auth/recuperar-senha`
+> gera um código de 6 dígitos válido por 10 minutos e envia-o por SMS ao **telefone**
+> registado; `POST /api/auth/redefinir-senha` valida o código (uso único, máx. 5
+> tentativas) e define a nova senha.
 2. O backend confirma a senha com `bcrypt.compare` e gera um **JWT** que contém apenas o `id`:
    ```js
    jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' })

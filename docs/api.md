@@ -53,17 +53,19 @@ Cria um utilizador com perfil `Usuario`. **Não** inicia sessão.
   }
   ```
 - `400` — `{ "message": "nome ou telefone ou senha nao forma providenciadas" }`
-- `400` — erro de campo: `{ "field": "telefone", "message": "O usuario ja existe" }`
-  (campos possíveis: `nome`, `telefone`, `senha`)
+- `400`/`409` — erro de campo: `{ "field": "telefone", "message": "O usuario ja existe" }`
+  ou `{ "field": "nome", "message": "O nome de utilizador ja existe" }`
+  (campos possíveis: `nome`, `telefone`, `senha`). O **nome de utilizador é único**
+  (comparação case-insensitive), por ser o identificador de acesso.
 
 ### `POST /api/auth/login`
 
-Autentica por telefone + senha e emite o cookie `token`.
+Autentica por **nome de utilizador** + senha e emite o cookie `token`.
 
 **Corpo:**
 
 ```json
-{ "telefone": "841234567", "senha": "senha123" }
+{ "nome": "Ana Silva", "senha": "senha123" }
 ```
 
 **Respostas:**
@@ -76,9 +78,51 @@ Autentica por telefone + senha e emite o cookie `token`.
   }
   ```
   > `deve_alterar_senha: true` sinaliza que a conta usa uma credencial temporária.
-- `400` — telefone/senha ausentes ou telefone inválido (`{field,message}`)
-- `401` — `{ "message": "Telefone ou senha invalidos" }`
+- `400` — `{ "message": "nome ou senha nao foram providenciados" }`
+- `401` — `{ "message": "Nome ou senha invalidos" }`
 - `403` — `{ "message": "Conta inativa: contacte o administrador" }`
+
+### `POST /api/auth/recuperar-senha`
+
+Passo 1 da recuperação: gera um código de 6 dígitos, válido por **10 minutos**, e
+envia-o por **SMS ao telefone** do utilizador (ver `Backend/src/utils/sms.js`).
+
+**Corpo:**
+
+```json
+{ "telefone": "841234567" }
+```
+
+**Resposta `200`** (mensagem genérica, não revela se o número existe):
+
+```json
+{ "message": "Se o numero estiver registado, enviaremos um codigo de redefinicao." }
+```
+
+> Fora de produção (`NODE_ENV !== 'production'`) a resposta inclui também
+> `"codigo": "123456"`, para permitir testar o fluxo sem um provedor de SMS real.
+
+- `400` — telefone inválido (`{field:"telefone", message}`)
+
+### `POST /api/auth/redefinir-senha`
+
+Passo 2 da recuperação: valida o código e define a nova senha. O código é de
+**uso único** e aceita no máximo **5 tentativas**.
+
+**Corpo:**
+
+```json
+{ "telefone": "841234567", "codigo": "123456", "senha_nova": "novasenha1" }
+```
+
+**Respostas:**
+
+- `200` — `{ "message": "Senha redefinida com sucesso" }`
+- `400` — erro de campo (`{field,message}`): `telefone` inválido, `codigo` inválido
+  (não tem 6 dígitos) ou `senha_nova` fora das regras de senha
+- `400` — `{ "field": "codigo", "message": "Codigo invalido ou expirado" }`
+  (código errado, expirado, já usado ou inexistente)
+- `400` — `{ "field": "codigo", "message": "Demasiadas tentativas: peca um novo codigo" }`
 
 ### `GET /api/auth/me` 🔒
 
@@ -186,6 +230,7 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 - `GET /api/usuarios` — lista `[{ ... }]`
 - `GET /api/usuarios/:id` — um utilizador (`200`/`404`)
 - `POST /api/usuarios` — cria conta. Corpo: `{ nome, telefone, id_perfil, senha? }`
+  - `nome` e `telefone` são únicos (`409` com `{field,message}`).
   - Sem `senha`, o sistema gera uma **credencial temporária** e devolve-a uma única vez
     em `senha_temporaria` (obriga a troca no próximo acesso).
 - `PUT /api/usuarios/:id` — atualização parcial (`nome`, `telefone`, `id_perfil`)
@@ -413,10 +458,20 @@ curl -X POST http://localhost:5000/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"nome":"Ana Silva","telefone":"841234567","senha":"senha123"}'
 
-# login (guarda o cookie em cookies.txt)
+# login por nome de utilizador (guarda o cookie em cookies.txt)
 curl -c cookies.txt -X POST http://localhost:5000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"telefone":"841234567","senha":"senha123"}'
+  -d '{"nome":"Ana Silva","senha":"senha123"}'
+
+# recuperacao de senha: pedir o codigo por SMS
+curl -X POST http://localhost:5000/api/auth/recuperar-senha \
+  -H "Content-Type: application/json" \
+  -d '{"telefone":"841234567"}'
+
+# recuperacao de senha: validar o codigo e definir a nova senha
+curl -X POST http://localhost:5000/api/auth/redefinir-senha \
+  -H "Content-Type: application/json" \
+  -d '{"telefone":"841234567","codigo":"123456","senha_nova":"novasenha1"}'
 
 # sessão actual (usa o cookie)
 curl -b cookies.txt http://localhost:5000/api/auth/me

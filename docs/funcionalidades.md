@@ -12,10 +12,11 @@ Legenda de estado: ✅ pronto · 🟡 parcial · 🚧 placeholder/mock
 
 - **Registo** (`/register`): nome, telefone e senha (com confirmação). Cria sempre com perfil
   `Usuario` e não inicia sessão; redireciona para o login com mensagem de sucesso.
-- **Login** (`/login`): telefone + senha. Em caso de sucesso, emite o cookie de sessão.
+- **Login** (`/login`): nome de utilizador + senha. Em caso de sucesso, emite o cookie de sessão.
 - **Sessão** (`/`): a app verifica `/api/auth/me` no arranque.
 - **Logout**: disponível na sidebar e no cabeçalho; limpa o cookie.
-- **Esqueci a senha** (`/forgotpass`): 🚧 ecrã criado, sem fluxo de recuperação no backend.
+- **Esqueci a senha** (`/forgotpass`): ✅ recuperação por código de 6 dígitos enviado
+  por SMS ao telefone registado; o utilizador valida o código e define a nova senha.
 
 ## Dashboard (`/`) 🚧
 

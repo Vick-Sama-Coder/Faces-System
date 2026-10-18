@@ -8,6 +8,8 @@ e os **problemas conhecidos** a corrigir.
 ## O que já funciona de ponta a ponta
 
 - ✅ Registo, login, sessão (`/me`) e logout, com JWT em cookie `httpOnly`.
+- ✅ Login por **nome de utilizador** (único) e recuperação de senha por **código enviado
+  por SMS ao telefone** registado (`/api/auth/recuperar-senha` e `/api/auth/redefinir-senha`).
 - ✅ Autorização por perfil (`Administrador` / `Usuario`) no backend e no frontend.
 - ✅ Gestão de utilizadores (listagem) restrita a Administrador.
 - ✅ CRUD completo (API) de **categorias de serviço**.
@@ -46,7 +48,6 @@ e os **problemas conhecidos** a corrigir.
 | Horários / Assiduidade / Salários | Sem UI (backend pronto) |
 | Catálogo público | Sem UI (backend pronto) |
 | Auditoria | Sem UI (backend pronto) |
-| Esqueci a senha | Ecrã sem fluxo de recuperação |
 
 ## Pendências técnicas
 
@@ -97,7 +98,10 @@ _Nenhum ponto crítico em aberto._
 
 12. Adicionar um CRUD de categorias/serviços/funcionários no **frontend**.
 13. Substituir dados mock do Dashboard por indicadores reais.
-14. Implementar recuperação de senha (`/forgotpass`).
+14. ✅ **Recuperação de senha implementada** (`/forgotpass`): código de 6 dígitos por SMS
+    ao telefone, com validade (10 min), uso único e limite de tentativas. O envio é feito
+    por `Backend/src/utils/sms.js` — sem provedor configurado (`SMS_API_URL`), o código é
+    escrito no console e devolvido na resposta fora de produção, para testes.
 15. Adicionar um `README.md` na raiz do repositório (ou apontar para `docs/README.md`).
 16. Uniformizar logs (`console.error` vs `console.log`) e mensagens em português.
 17. Paginação nas listagens maiores (atendimentos, pagamentos) quando o volume o justificar.

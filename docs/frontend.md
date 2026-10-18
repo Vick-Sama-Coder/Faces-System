@@ -94,9 +94,9 @@ Grupos sem itens visíveis são escondidos automaticamente.
 
 | Página | Caminho | Estado |
 | --- | --- | --- |
-| `home` (login) | `pages/home.jsx` | ✅ Ligada ao `authStore` |
+| `home` (login) | `pages/home.jsx` | ✅ Ligada ao `authStore` (nome de utilizador + senha) |
 | `SignUp` (registo) | `pages/auth/Resgister/SignUp.jsx` | ✅ Ligada ao `authStore` |
-| `ForgotPassword` | `pages/auth/ForgotPassword/forgotPass.jsx` | 🚧 Ecrã, sem backend |
+| `ForgotPassword` | `pages/auth/ForgotPassword/forgotPass.jsx` | ✅ Recuperação por código SMS ao telefone |
 | `dashboard` | `pages/dashboard/dashboard.jsx` | 🚧 Dados mock |
 | `novoAtendimento` | `pages/novoAtendimento/novoAtendimento.jsx` | 🚧 AG Grid com mock |
 | `funcionarios` | `pages/funcionarios/funcionarios.jsx` | 🚧 AG Grid com mock |
@@ -107,8 +107,8 @@ Grupos sem itens visíveis são escondidos automaticamente.
 ## Validações no cliente
 
 `Frontend/src/utils/validacoes.js` **espelha** `Backend/src/utils/validacoes.js`
-(`validarNome`, `validarTelefone`, `validarSenha`, `limparTelefone`) e acrescenta
-`validarConfirmacao`, `validarRegisto` e `validarLogin`.
+(`validarNome`, `validarTelefone`, `validarSenha`, `validarCodigo`, `limparTelefone`) e
+acrescenta `validarConfirmacao`, `validarRegisto` e `validarLogin`.
 
 Ver [validacoes.md](./validacoes.md).
 

@@ -24,7 +24,7 @@ Os scripts estão em `Backend/Database/schema/` e devem ser aplicados **por orde
 | `011_create_item_produto.sql` | `item_produto` | Produtos de uma despesa (quantidade, preço unitário, total); FKs → produto, despesa, funcionario |
 | `012_create_atendimento_servico.sql` | `atendimento_servico` | Serviços realizados no atendimento (substitui `execucao_servico`); FKs → atendimento, servico, funcionario |
 | `013_create_perfil.sql` | `perfil` | Perfis de acesso (`nome`, `descricao`, `estado`) |
-| `014_create_usuario.sql` | `usuario` | FK → `perfil`; `telefone` único, `estado`, `alteracao_obrigatoria_senha`, `ultimo_acesso`, `data_criacao` |
+| `014_create_usuario.sql` | `usuario` | FK → `perfil`; `nome` único (via `036`), `telefone` único, `estado`, `alteracao_obrigatoria_senha`, `ultimo_acesso`, `data_criacao` |
 | `015_atualiza_perfis.sql` | — | Semeia/actualiza os perfis 1–4 |
 | `016_create_permissao.sql` | `permissao`, `perfil_permissao`, `usuario_permissao` | Autorização por permissões (RBAC) |
 | `017_seed_permissoes.sql` | — | Catálogo de permissões + atribuição aos perfis |
@@ -46,6 +46,8 @@ Os scripts estão em `Backend/Database/schema/` e devem ser aplicados **por orde
 | `033_create_processamento_salarial.sql` | `processamento_salarial` | Base + comissões − deduções; FK → `funcionario`, `usuario`; índice único `(funcionario_id, periodo_inicio, periodo_fim)` |
 | `034_create_deducao_salarial.sql` | `deducao_salarial` | Deduções do processamento (FK → `processamento_salarial` `on delete cascade`, `usuario`) |
 | `035_create_log_auditoria.sql` | `log_auditoria` | Registo auditável (append-only); FK → `usuario`; trigger bloqueia `UPDATE`/`DELETE` |
+| `036_usuario_nome_unico.sql` | — | Índice único em `usuario (lower(nome))`: o nome de utilizador passa a ser único (identificador de acesso) |
+| `037_create_recuperacao_senha.sql` | `recuperacao_senha` | Códigos de recuperação (hash, validade, uso único, tentativas); FK → `usuario` |
 
 > ⚠️ **Script 000:** o PostgreSQL não aceita `create database if not exists` nem permite
 > executar `CREATE DATABASE` dentro de uma transacção. Execute este script **isoladamente**
