@@ -52,6 +52,11 @@ const createUsuario = async (req, res, next) => {
             return res.status(409).json({ field: "telefone", message: "Ja existe um utilizador com este telefone" });
         }
 
+        //o nome de utilizador e o identificador de acesso: tem de ser unico
+        if (await Usuario.existeNome(nome)) {
+            return res.status(409).json({ field: "nome", message: "Ja existe um utilizador com este nome" });
+        }
+
         const senhaTemporaria = senha || gerarSenhaTemporaria();
         const senhaHash = await bcrypt.hash(senhaTemporaria, 10);
 
@@ -92,6 +97,10 @@ const updateUsuario = async (req, res, next) => {
             if (await Usuario.existeTelefone(telefoneLimpo, id)) {
                 return res.status(409).json({ field: "telefone", message: "Ja existe um utilizador com este telefone" });
             }
+        }
+
+        if (nome !== undefined && await Usuario.existeNome(nome, id)) {
+            return res.status(409).json({ field: "nome", message: "Ja existe um utilizador com este nome" });
         }
 
         const usuario = await Usuario.update(id, { nome, telefone: telefoneLimpo, id_perfil });

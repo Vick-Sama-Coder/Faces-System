@@ -28,13 +28,25 @@ const findById = async (id) => {
     return result.rows[0] || null;
 };
 
-//uso interno (login): inclui o hash da senha
-const findByTelefoneComSenha = async (telefone) => {
+//uso interno (login): inclui o hash da senha; pesquisa case-insensitive pelo nome
+const findByNomeComSenha = async (nome) => {
     const result = await pool.query(
         `select u.id, u.nome, u.telefone, u.senha, u.id_perfil, u.estado,
                 u.alteracao_obrigatoria_senha, p.nome as perfil
            from usuario u
            join perfil p on p.id = u.id_perfil
+          where lower(u.nome) = lower($1)`,
+        [nome]
+    );
+
+    return result.rows[0] || null;
+};
+
+//uso interno (recuperacao de senha): utilizador pelo telefone (sem a senha)
+const findByTelefone = async (telefone) => {
+    const result = await pool.query(
+        `select u.id, u.nome, u.telefone, u.id_perfil, u.estado
+           from usuario u
           where u.telefone = $1`,
         [telefone]
     );
@@ -59,6 +71,18 @@ const existeTelefone = async (telefone, exceptoId = null) => {
           where telefone = $1 and ($2::int is null or id <> $2)
           limit 1`,
         [telefone, exceptoId]
+    );
+
+    return result.rows.length > 0;
+};
+
+//verifica duplicacao do nome de utilizador (case-insensitive)
+const existeNome = async (nome, exceptoId = null) => {
+    const result = await pool.query(
+        `select 1 from usuario
+          where lower(nome) = lower($1) and ($2::int is null or id <> $2)
+          limit 1`,
+        [nome, exceptoId]
     );
 
     return result.rows.length > 0;
@@ -120,9 +144,11 @@ const registarAcesso = async (id) => {
 const Usuario = {
     findAll,
     findById,
-    findByTelefoneComSenha,
+    findByNomeComSenha,
+    findByTelefone,
     findByIdComSenha,
     existeTelefone,
+    existeNome,
     create,
     update,
     updateEstado,
