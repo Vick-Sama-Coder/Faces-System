@@ -43,6 +43,7 @@ export default function AppRoutes(){
             <Route path="/permissoes" element={
                 <RequireRole perfis={["Administrador"]}><Permissoes/></RequireRole>
             }/>
+            <Route path="*" element={<h1>Not Found</h1>}/>
         </Routes>
     )
 }

@@ -1,8 +1,11 @@
+<<<<<<< HEAD
 body{
     position: relative;
     height: 100%;
 }
 
+=======
+>>>>>>> 7514584382a3f1329ff3517c0329a37899ce0113
 .sidebar{
     font-size: var(--text-sm);
     z-index: 10;
@@ -12,9 +15,13 @@ body{
     justify-content: flex-start;
     width: 215px;
     padding: 15px;
+<<<<<<< HEAD
     grid-column: 1;
     border: 5px;
     height: 1000px;
+=======
+    border-right: 5px solid var(--Primary-faces);
+>>>>>>> 7514584382a3f1329ff3517c0329a37899ce0113
     
     background-color: var(--card);
 }
@@ -31,15 +38,37 @@ body{
     width: 100px;
     height: 100px;
 }
-header{
+.sidebar-brand{
     width: 100%;
 }
-h1{
+.sidebar-title{
     padding: 10px;
     display: flex;
     justify-content: center;
     align-items: center;
     
+}
+
+/* grupos de navegacao (titulo + itens) */
+.sidebar-group{
+    width: 100%;
+    margin-bottom: 10px;
+}
+.sidebar-group-title{
+    display: block;
+    padding: 0 10px;
+    margin: 0 0 5px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6b6b6b;
+}
+
+/* item activo: sublinhado a esquerda + fundo suave */
+.side-link.active{
+    background-color: rgba(109, 53, 200, 0.1);
+    border-left: 3px solid var(--Primary-faces);
 }
 
 .p:active, .p:hover, .p::after{
@@ -54,10 +83,12 @@ h1{
 }
 /* botao de logout (e um <button>, precisa reset de estilo) */
 .logout-btn{
+    display: block;
     background: transparent;
     border: none;
     font-family: inherit;
     font-size: inherit;
+    font-weight: bold;
     cursor: pointer;
     padding: 0;
     margin-top: auto;
@@ -87,6 +118,11 @@ h1{
 }
 
 .close-mobile {
+    display: none;
+}
+
+/* backdrop so existe no mobile; em desktop fica explicitamente escondido */
+.sidebar-backdrop {
     display: none;
 }
 

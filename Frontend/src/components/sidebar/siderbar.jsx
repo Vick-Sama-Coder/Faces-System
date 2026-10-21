@@ -56,7 +56,7 @@ function SideBar({ isOpen, setIsOpen }){
         .map((g) => ({
             ...g,
             itens: g.itens.filter(
-                (s) => s.perfis.length === 0 || (user && s.perfis.includes(user.perfil))
+                (s) => s.perfis.length === 0 || s.perfis.includes(user?.perfil)
             )
         }))
         .filter((g) => g.itens.length > 0)
@@ -84,10 +84,11 @@ function SideBar({ isOpen, setIsOpen }){
             </button>
             <header className="sidebar-brand">
                     <h1 className="sidebar-title">
-                        <span className="img"><img  className="logo" src={Photo} alt='Faces-logo' /></span>
+                        <span className="img"><img className="logo" src={Photo} alt="Faces-logo" loading="lazy" /></span>
                     </h1>
                 </header>
 
+<<<<<<< HEAD
                 {/* <Link to="/dashboard" className="side-link">
                     <p title="Dashboard" className= "p">
                         <span className="block"></span>
@@ -154,26 +155,36 @@ function SideBar({ isOpen, setIsOpen }){
                     <nav key={grupo.titulo} className="sidebar-group" aria-label={grupo.titulo}>
                         <p className="sidebar-group-title">{grupo.titulo}</p>
                         {grupo.itens.map(({ nome, path, Icone, title }) => (
+=======
+                {grupos.map((grupo) => (
+                    <nav key={grupo.titulo} className="sidebar-group" aria-label={grupo.titulo}>
+                        <span className="sidebar-group-title">{grupo.titulo}</span>
+                        {grupo.itens.map(({ nome, path, Icone }) => (
+>>>>>>> 7514584382a3f1329ff3517c0329a37899ce0113
                             <NavLink
                                 key={path}
                                 to={path}
                                 onClick={fechar}
                                 className={({ isActive }) => `side-link${isActive ? " active" : ""}`}
                             >
+<<<<<<< HEAD
                                 <p className="p" title={title}>
+=======
+                                <span className="p">
+>>>>>>> 7514584382a3f1329ff3517c0329a37899ce0113
                                     <span className="icon"><Icone/></span>
                                     <span className="info">{nome}</span>
-                                </p>
+                                </span>
                             </NavLink>
                         ))}
                     </nav>
                 ))}
 
                 <button className="side-link logout-btn" onClick={handleLogout} aria-label="Sair da conta">
-                    <p className="p">
+                    <span className="p">
                         <span className="icon"><LogOut/></span>
                         <span className="info">Sair</span>
-                    </p>
+                    </span>
                 </button>
 
             </aside>
