@@ -39,7 +39,7 @@ export default function Home(){
         const ok = await login({ telefone: telefone.trim(), senha })
         if(ok){
             //dashboard e o index ("/") protegido
-            navigate("/", { replace: true })
+            await navigate("/", { replace: true })
         }
     }
 

@@ -1,5 +1,6 @@
 body{
     position: relative;
+    height: 100%;
 }
 
 .sidebar{
@@ -13,8 +14,13 @@ body{
     padding: 15px;
     grid-column: 1;
     border: 5px;
+    height: 1000px;
     
     background-color: var(--card);
+}
+.sidebar-group{
+    width: 100%;
+    padding: 5px 0;
 }
 .img{
     display: block;
@@ -57,6 +63,7 @@ h1{
     margin-top: auto;
     text-align: left;
     color: var(--Error);
+    justify-self: flex-end;
 }
 .logout-btn .p:hover{
     background-color: var(--Error);
@@ -93,7 +100,7 @@ h1{
 
         width: 80%;
         max-width: 300px;
-        height: 100vh;
+        
 
         transform: translateX(-100%);
         transition: transform 0.3s ease;
@@ -101,7 +108,7 @@ h1{
         z-index: 30;
     }
     .sidebar-backdrop {
-        display: block;
+        
 
         position: fixed;
         inset: 0;
@@ -113,7 +120,13 @@ h1{
     }
     .sidebar.open {
         transform: translateX(0);
+        height: 100vh;
+        overflow-y: auto;
+        scroll-behavior: smooth;
+        scrollbar-width: none;
+
     }
+    
 
     .close-mobile {
         display: flex;
@@ -136,8 +149,11 @@ h1{
     .sidebar{
         width: 70px;
         padding: 10px;
-        height: 100vh;
+        height: 10px;
         
+    }
+    .sidebar-group-title{
+        display: none;
     }
     .p{
         padding: 10px 16px 10px 13px;    }

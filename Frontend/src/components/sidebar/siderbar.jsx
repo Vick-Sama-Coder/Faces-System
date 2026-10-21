@@ -10,7 +10,7 @@ import {
     ShieldCheck,
     LogOut,
     X } from "lucide-react"
-import { Link, NavLink, useNavigate } from "react-router"
+import { NavLink, useNavigate } from "react-router"
 import Photo from '../../assets/logo/faces-logo.png'
 import { useAuthStore } from '../../store/authStore.js';
 import './sidebar.css'
@@ -20,25 +20,25 @@ const GRUPOS = [
     {
         titulo: "Operacao",
         itens: [
-            { nome: "DashBoard",        path: "/",                    Icone: LayoutDashboardIcon, perfis: [] },
-            { nome: "Novo Atendimento", path: "/novoAtendimento",     Icone: CalendarPlus,       perfis: [] },
-            { nome: "Clientes",         path: "/clientes",            Icone: UserRound,          perfis: [] },
-            { nome: "Servicos",         path: "/servicos",            Icone: ScissorsIcon,       perfis: [] },
+            { nome: "DashBoard",        path: "/",                    Icone: LayoutDashboardIcon, perfis: [], title: "DashBoard" },
+            { nome: "Novo Atendimento", path: "/novoAtendimento",     Icone: CalendarPlus,       perfis: [], title: "Novo Atendimento" },
+            { nome: "Clientes",         path: "/clientes",            Icone: UserRound,          perfis: [], title: "Clientes" },
+            { nome: "Servicos",         path: "/servicos",            Icone: ScissorsIcon,       perfis: [], title: "Servicos" },
         ]
     },
     {
         titulo: "Financeiro",
         itens: [
-            { nome: "Relatorio",        path: "/relatorio",           Icone: ChartNoAxesCombinedIcon, perfis: [] },
-            { nome: "Despesas",         path: "/despesas",            Icone: Receipt,             perfis: [] },
+            { nome: "Relatorio",        path: "/relatorio",           Icone: ChartNoAxesCombinedIcon, perfis: [], title: "Relatorio" },
+            { nome: "Despesas",         path: "/despesas",            Icone: Receipt,             perfis: [], title: "Despesas" },
         ]
     },
     {
         titulo: "Administracao",
         itens: [
-            { nome: "Funcionarios",           path: "/funcionarios",        Icone: Users,         perfis: ["Administrador"] },
-            { nome: "Gestao de Utilizadores", path: "/gestao-utilizadores", Icone: UserCog,       perfis: ["Administrador"] },
-            { nome: "Permissoes",             path: "/permissoes",          Icone: ShieldCheck,   perfis: ["Administrador"] },
+            { nome: "Funcionarios",           path: "/funcionarios",        Icone: Users,  perfis: [], title: "Funcionarios"        },
+            { nome: "Gestao de Utilizadores", path: "/gestao-utilizadores", Icone: UserCog,       perfis: [], title: "Gestao de Utilizadores" },
+            { nome: "Permissoes",             path: "/permissoes",          Icone: ShieldCheck,   perfis: [], title: "Permissoes" },
         ]
     },
 ];
@@ -69,9 +69,9 @@ function SideBar({ isOpen, setIsOpen }){
     return(
             <>
             {isOpen && (
-                <div
+                <div 
                     className="sidebar-backdrop"
-                    onClick={fechar}
+                    
                 />
             )}
             <aside className={`sidebar ${isOpen ? "open" : ""}`}>
@@ -88,7 +88,7 @@ function SideBar({ isOpen, setIsOpen }){
                     </h1>
                 </header>
 
-                <Link to="/dashboard" className="side-link">
+                {/* <Link to="/dashboard" className="side-link">
                     <p title="Dashboard" className= "p">
                         <span className="block"></span>
                         <span className="icon"><LayoutDashboardIcon/></span>
@@ -148,19 +148,19 @@ function SideBar({ isOpen, setIsOpen }){
                         <span className="icon"><Receipt/></span>
                         <span className="info">Despesas</span>
                     </p>
-                </Link>
+                </Link> */}
 
                 {grupos.map((grupo) => (
                     <nav key={grupo.titulo} className="sidebar-group" aria-label={grupo.titulo}>
                         <p className="sidebar-group-title">{grupo.titulo}</p>
-                        {grupo.itens.map(({ nome, path, Icone }) => (
+                        {grupo.itens.map(({ nome, path, Icone, title }) => (
                             <NavLink
                                 key={path}
                                 to={path}
                                 onClick={fechar}
                                 className={({ isActive }) => `side-link${isActive ? " active" : ""}`}
                             >
-                                <p className="p">
+                                <p className="p" title={title}>
                                     <span className="icon"><Icone/></span>
                                     <span className="info">{nome}</span>
                                 </p>

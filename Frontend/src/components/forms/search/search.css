@@ -10,9 +10,9 @@
 .search-icon{
     color: var(--Secundary-text);
     position: relative;
-    left: 33px;
-    top: 11px;
-    z-index: 29;
+    left: 43px;
+    top: 1px;
+    z-index: 10;
 
 }
 

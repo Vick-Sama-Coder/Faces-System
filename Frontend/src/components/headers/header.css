@@ -6,3 +6,7 @@
 .logout-icon:hover{
     color: var(--Error);
 }
+.txt-span{
+    padding-right:10px ;
+}
+

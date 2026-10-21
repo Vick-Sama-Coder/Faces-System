@@ -1,0 +1,254 @@
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(23, 21, 37, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(2px);
+    padding: 24px;
+    box-sizing: border-box;
+}
+
+.servico-modal {
+    background: #ffffff;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(30, 15, 50, 0.15);
+    display: flex;
+    flex-flow: column nowrap;
+    animation: modalSlide 0.25s ease-out;
+}
+
+@keyframes modalSlide {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.header-modal {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--Border);
+    gap: 16px;
+}
+
+.Modal-Icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: rgba(109, 53, 200, 0.1);
+    color: var(--Primary-faces);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.Modal-Icon svg {
+    width: 22px;
+    height: 22px;
+}
+
+.header-text-modal {
+    flex: 1;
+}
+
+.headerer {
+    margin: 0;
+    font-size: var(--text-lg);
+    font-weight: 700;
+    color: var(--Principal-text);
+    font-family: "Manrope", sans-serif;
+}
+
+.headerer strong {
+    display: block;
+}
+
+.headerer span {
+    display: block;
+    font-size: var(--text-sm);
+    color: var(--Secundary-text);
+    font-weight: 400;
+    margin-top: 4px;
+}
+
+.plusIcon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--Secundary-Background);
+    color: var(--Secundary-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.plusIcon:hover {
+    background: rgba(109, 53, 200, 0.15);
+    color: var(--Primary-faces);
+}
+
+.plusIcon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.error-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 24px;
+    background: #fdecec;
+    color: var(--Error);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.main-content {
+    padding: 24px;
+    display: flex;
+    flex-flow: column nowrap;
+    gap: 20px;
+}
+
+.main-content form {
+    display: flex;
+    flex-flow: column nowrap;
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-flow: column nowrap;
+    gap: 8px;
+}
+
+.form-group p {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--Principal-text);
+}
+
+.form-group p svg {
+    width: 16px;
+    height: 16px;
+    color: var(--Primary-faces);
+}
+
+.currency {
+    font-size: var(--text-xs);
+    background: var(--Secundary-Background);
+    padding: 2px 8px;
+    border-radius: 6px;
+    color: var(--Primary-faces);
+    font-weight: 600;
+}
+
+.form-group input {
+    padding: 10px 14px;
+    border: 1px solid var(--Border);
+    border-radius: 10px;
+    font-size: var(--text-md);
+    color: var(--Principal-text);
+    background: #ffffff;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    font-family: inherit;
+}
+
+.form-group input:focus {
+    border-color: var(--Primary-faces);
+    box-shadow: 0 0 0 3px rgba(109, 53, 200, 0.1);
+}
+
+.form-group input.input-invalido {
+    border-color: var(--Error);
+}
+
+.field-error {
+    font-size: var(--text-xs);
+    color: var(--Error);
+    margin-top: 2px;
+    font-weight: 500;
+}
+
+.submit-btn {
+    margin-top: 8px;
+    padding: 12px 20px;
+    background: var(--Primary-faces);
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    font-size: var(--text-md);
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.submit-btn:hover:not(:disabled) {
+    background: var(--Primary-Hover);
+    transform: translateY(-1px);
+}
+
+.submit-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Responsive */
+@media screen and (max-width: 576px) {
+    .modal-backdrop {
+        padding: 16px;
+    }
+
+    .servico-modal {
+        max-height: 95vh;
+    }
+
+    .header-modal {
+        padding: 16px 20px;
+    }
+
+    .main-content {
+        padding: 20px;
+        gap: 16px;
+    }
+
+    .main-content form {
+        gap: 16px;
+    }
+}

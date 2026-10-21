@@ -87,3 +87,51 @@ export function validarLogin({telefone, senha}){
     }
     return erros;
 }
+
+//valida campos do cliente (nome, apelido, telefone); devolve {campo: mensagem}
+export function validarCliente({nome, apelido, telefone}) {
+    const erros = {};
+
+    const erroNome = validarNome(nome);
+    if (erroNome) erros.nome = erroNome;
+
+    const erroApelido = validarNome(apelido);
+    if (erroApelido) erros.apelido = erroApelido;
+
+    const erroTel = validarTelefone(telefone);
+    if (erroTel) erros.telefone = erroTel;
+
+    return erros;
+}
+
+//valida campos do agendamento de atendimento; devolve {campo: mensagem}
+export function validarAtendimento({cliente, servico, valor, data, funcionario}) {
+    const erros = {};
+
+    if(!cliente || !String(cliente).trim()){
+        erros.cliente = "Cliente e obrigatorio";
+    }
+
+    if(!servico || !String(servico).trim()){
+        erros.servico = "Servico e obrigatorio";
+    }
+
+    if(!valor || String(valor).trim() === ""){
+        erros.valor = "Valor e obrigatorio";
+    } else {
+        const valorNum = parseFloat(String(valor).replace(",", "."));
+        if(isNaN(valorNum) || valorNum <= 0){
+            erros.valor = "Valor deve ser um numero maior que zero";
+        }
+    }
+
+    if(!data){
+        erros.data = "Data e obrigatoria";
+    }
+
+    if(!funcionario || !String(funcionario).trim()){
+        erros.funcionario = "Funcionario e obrigatorio";
+    }
+
+    return erros;
+}

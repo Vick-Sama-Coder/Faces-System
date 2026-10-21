@@ -16,7 +16,7 @@ function Headers({heady, title, h1Class, menuClass, userClass, bellClass, pClass
 
             <header className={heady}>
                 
-                <aside className={h1Class}>
+                <aside className={h1Class} id="asided">
                     <MenuIcon className={menuClass}
                     onClick={onMenuClick}
                     />
@@ -25,7 +25,7 @@ function Headers({heady, title, h1Class, menuClass, userClass, bellClass, pClass
                 <aside className={userClass}>
                     <Bell className={bellClass}/>
                     <p className={pClass}>
-                        <span>Ola, {user ? user.nome : "Visitante"}{user ? ` (${user.perfil})` : ""}</span>
+                        <span className="txt-span">Ola, {user ? user.nome : "Visitante"}{user ? ` (${user.perfil})` : ""}</span>
                         <UserCircle/>
                         <LogOut className="logout-icon" onClick={handleLogout}/>
                     </p>

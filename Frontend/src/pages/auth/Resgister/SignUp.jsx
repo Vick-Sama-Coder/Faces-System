@@ -76,7 +76,7 @@ function Register(){
                     onBlur={() => validarCampo("nome", nome)}
                     error={erroDe("nome")}
                     autoComplete="name"
-                    maxLength={100}
+                    maxLength={10}
                     required
                 />
             </div>
@@ -92,7 +92,7 @@ function Register(){
                     onBlur={() => validarCampo("telefone", telefone)}
                     error={erroDe("telefone")}
                     autoComplete="tel"
-                    maxLength={20}
+                    maxLength={9}
                     required
                 />
             </div>
@@ -108,7 +108,7 @@ function Register(){
                     onBlur={() => validarCampo("senha", senha)}
                     error={erroDe("senha")}
                     autoComplete="new-password"
-                    maxLength={72}
+                    maxLength={16}
                     required
                     />
             </div>
