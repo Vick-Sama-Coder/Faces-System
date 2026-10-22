@@ -2,13 +2,21 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon --watch src src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node src/db/migrate.js",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "db:pull": "drizzle-kit pull",
+    "db:check": "drizzle-kit check",
+    "db:reset": "node src/db/reset.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.4",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.23.0"
@@ -18,6 +26,7 @@
   "description": "",
   "main": "src/server.js",
   "devDependencies": {
+    "drizzle-kit": "^0.31.11",
     "nodemon": "^3.1.14"
   },
   "keywords": [],
