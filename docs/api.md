@@ -2,6 +2,10 @@
 
 [← Voltar ao índice](./README.md)
 
+> Para exemplos de pedido e resposta esperada de cada rota, incluindo cenários
+> ponta-a-ponta e verificação dos requisitos, consulta
+> [`testes-endpoints.md`](./testes-endpoints.md).
+
 ## Convenções gerais
 
 - **Formato:** JSON (`Content-Type: application/json`).

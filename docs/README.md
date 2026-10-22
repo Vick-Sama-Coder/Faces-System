@@ -16,6 +16,7 @@ o sistema.
 | [instalacao.md](./instalacao.md) | Pré-requisitos, configuração do `.env`, base de dados e como executar |
 | [base-de-dados.md](./base-de-dados.md) | Modelo de dados, tabelas, relações e scripts de migração |
 | [api.md](./api.md) | Referência de todos os endpoints HTTP da API |
+| [testes-endpoints.md](./testes-endpoints.md) | **Guia de teste da API**: como testar cada endpoint, resultado esperado e verificação dos requisitos RF01–RF25 |
 | [autenticacao-permissoes.md](./autenticacao-permissoes.md) | Login, JWT/cookie, perfis e controlo de acesso |
 | [frontend.md](./frontend.md) | Rotas, estado global, componentes e páginas do frontend |
 | [funcionalidades.md](./funcionalidades.md) | Descrição funcional de cada módulo do sistema |

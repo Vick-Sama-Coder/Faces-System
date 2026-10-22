@@ -114,6 +114,23 @@ _Nenhum ponto crítico em aberto._
     (descontos, comissões em casos-limite, preço no catálogo, exportação de relatórios)
     ficam implementadas por interpretação.
 
+### 🔴 Funcional (encontrado na verificação dos requisitos)
+
+Levantado em [`testes-endpoints.md`](./testes-endpoints.md) §3; prioridade alta porque
+afeta dinheiro ou segurança:
+
+21. **Anulação de pagamento não reverte caixa nem comissão (RF09).** O pagamento fica
+    `Anulado`, mas o movimento de caixa continua `Ativo` e a comissão continua `Elegivel`.
+    O relatório `resumo` também conta pagamentos de atendimentos anulados.
+22. **Pagamento parcial é aceite (RF08).** O requisito diz que não há crédito nesta fase,
+    mas o backend devolve `estado = "Parcial"` quando a soma é inferior ao devido.
+23. **Troca de senha obrigatória não bloqueia acessos (RF01).** O flag
+    `alteracao_obrigatoria_senha` é devolvido no login, mas as rotas continuam acessíveis.
+24. **Auditoria incompleta (RF02/RF23).** Criar/editar/desativar contas e repor senhas não
+    geram log; não existe “resultado da operação” nem registo de tentativas falhadas.
+25. **Fecho de caixa do dia anterior (RF11).** Não há bloqueio de operações no dia seguinte
+    nem procedimento administrativo documentado para corrigir um fecho errado.
+
 ## Sugestões de próximos passos
 
 1. Ligar as páginas **Serviços** e **Funcionários** aos endpoints já existentes.
