@@ -49,7 +49,7 @@ export const getUsers = () => {
     return server.get("api/auth/users");
 };
 
-<<<<<<< HEAD
+
 //cria um novo atendimento (agendamento de servico)
 export const createAtendimento = (data) => {
     return server.post("api/atendimentos", data);
