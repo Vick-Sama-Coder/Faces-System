@@ -20,25 +20,25 @@ const GRUPOS = [
     {
         titulo: "Operacao",
         itens: [
-            { nome: "DashBoard",        path: "/",                    Icone: LayoutDashboardIcon, perfis: [], title: "DashBoard" },
-            { nome: "Novo Atendimento", path: "/novoAtendimento",     Icone: CalendarPlus,       perfis: [], title: "Novo Atendimento" },
-            { nome: "Clientes",         path: "/clientes",            Icone: UserRound,          perfis: [], title: "Clientes" },
-            { nome: "Servicos",         path: "/servicos",            Icone: ScissorsIcon,       perfis: [], title: "Servicos" },
+            { nome: "DashBoard",        path: "/",                    Icone: LayoutDashboardIcon, perfis: [] },
+            { nome: "Novo Atendimento", path: "/novoAtendimento",     Icone: CalendarPlus,       perfis: [] },
+            { nome: "Clientes",         path: "/clientes",            Icone: UserRound,          perfis: [] },
+            { nome: "Servicos",         path: "/servicos",            Icone: ScissorsIcon,       perfis: [] },
         ]
     },
     {
         titulo: "Financeiro",
         itens: [
-            { nome: "Relatorio",        path: "/relatorio",           Icone: ChartNoAxesCombinedIcon, perfis: [], title: "Relatorio" },
-            { nome: "Despesas",         path: "/despesas",            Icone: Receipt,             perfis: [], title: "Despesas" },
+            { nome: "Relatorio",        path: "/relatorio",           Icone: ChartNoAxesCombinedIcon, perfis: [] },
+            { nome: "Despesas",         path: "/despesas",            Icone: Receipt,             perfis: [] },
         ]
     },
     {
         titulo: "Administracao",
         itens: [
-            { nome: "Funcionarios",           path: "/funcionarios",        Icone: Users,  perfis: [], title: "Funcionarios"        },
-            { nome: "Gestao de Utilizadores", path: "/gestao-utilizadores", Icone: UserCog,       perfis: [], title: "Gestao de Utilizadores" },
-            { nome: "Permissoes",             path: "/permissoes",          Icone: ShieldCheck,   perfis: [], title: "Permissoes" },
+            { nome: "Funcionarios",           path: "/funcionarios",        Icone: Users,         perfis: ["Administrador"] },
+            { nome: "Gestao de Utilizadores", path: "/gestao-utilizadores", Icone: UserCog,       perfis: ["Administrador"] },
+            { nome: "Permissoes",             path: "/permissoes",          Icone: ShieldCheck,   perfis: ["Administrador"] },
         ]
     },
 ];
@@ -69,9 +69,9 @@ function SideBar({ isOpen, setIsOpen }){
     return(
             <>
             {isOpen && (
-                <div 
+                <div
                     className="sidebar-backdrop"
-                    
+                    onClick={fechar}
                 />
             )}
             <aside className={`sidebar ${isOpen ? "open" : ""}`}>
@@ -88,90 +88,17 @@ function SideBar({ isOpen, setIsOpen }){
                     </h1>
                 </header>
 
-<<<<<<< HEAD
-                {/* <Link to="/dashboard" className="side-link">
-                    <p title="Dashboard" className= "p">
-                        <span className="block"></span>
-                        <span className="icon"><LayoutDashboardIcon/></span>
-                        <span className="info">DashBoard</span>
-                    </p >
-                </Link>
-                <Link className="side-link" to='/novoAtendimento'>
-                    <p title="Novo Atendimento" className= "p">
-                        <span className="icon"><CalendarPlus/></span>
-                        <span className="info">Novo Atendimento</span>
-                    </p>
-                </Link>
-                <Link className="side-link" to='/funcionarios'>
-                    <p title="Funcionarios" className= "p">
-                        <span className="icon"><Users/></span>
-                        <span className="info">Funcionarios</span>
-                    </p >
-                </Link>
-                <Link className="side-link" to='/clientes'>
-                    <p title="Clientes" className= "p">
-                        <span className="icon"><UserRound/></span>
-                        <span className="info">Clientes</span>
-                    </p>
-                </Link>
-                <Link className="side-link" to='/servicos'>
-                    <p title="Servicos" className= "p">
-                        <span className="icon"><ScissorsIcon/></span>
-                        <span className="info">Servicos</span>
-                    </p>
-                </Link>
-                <Link className="side-link" to="/relatorio">
-                    <p title="Relatorios" className= "p">
-                        <span className="icon"><ChartNoAxesCombinedIcon/></span>
-                        <span className="info">Relatorio</span>
-                    </p>
-                </Link>
-                <Link className="side-link" to="/despesas">
-                    <p title="Despesas" className= "p">
-                        <span className="icon"><Receipt/></span>
-                        <span className="info">Despesas</span>
-                    </p>
-                </Link>
-                <Link className="side-link" to="/despesas">
-                    <p className= "p">
-                        <span className="icon"><Receipt/></span>
-                        <span className="info">Despesas</span>
-                    </p>
-                </Link>
-                                <Link className="side-link" to="/despesas">
-                    <p className= "p">
-                        <span className="icon"><Receipt/></span>
-                        <span className="info">Despesas</span>
-                    </p>
-                </Link>
-                                <Link className="side-link" to="/despesas">
-                    <p className= "p">
-                        <span className="icon"><Receipt/></span>
-                        <span className="info">Despesas</span>
-                    </p>
-                </Link> */}
-
-                {grupos.map((grupo) => (
-                    <nav key={grupo.titulo} className="sidebar-group" aria-label={grupo.titulo}>
-                        <p className="sidebar-group-title">{grupo.titulo}</p>
-                        {grupo.itens.map(({ nome, path, Icone, title }) => (
-=======
                 {grupos.map((grupo) => (
                     <nav key={grupo.titulo} className="sidebar-group" aria-label={grupo.titulo}>
                         <span className="sidebar-group-title">{grupo.titulo}</span>
                         {grupo.itens.map(({ nome, path, Icone }) => (
->>>>>>> 7514584382a3f1329ff3517c0329a37899ce0113
                             <NavLink
                                 key={path}
                                 to={path}
                                 onClick={fechar}
                                 className={({ isActive }) => `side-link${isActive ? " active" : ""}`}
                             >
-<<<<<<< HEAD
-                                <p className="p" title={title}>
-=======
                                 <span className="p">
->>>>>>> 7514584382a3f1329ff3517c0329a37899ce0113
                                     <span className="icon"><Icone/></span>
                                     <span className="info">{nome}</span>
                                 </span>
