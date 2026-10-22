@@ -78,15 +78,20 @@ export function validarRegisto({nome, telefone, senha, confirmarSenha}){
 }
 
 //valida campos do login; devolve {campo: mensagem}
-export function validarLogin({telefone, senha}){
+export function validarLogin({nome, senha}){
     const erros = {};
-    const erroTel = validarTelefone(telefone);
-    if(erroTel) erros.telefone = erroTel;
+    const nomeLimpo = String(nome || "").trim();
+    if(!nomeLimpo){
+        erros.nome = "Nome de utilizador e obrigatorio";
+    } else if(nomeLimpo.length < 3 || nomeLimpo.length > 100){
+        erros.nome = "Nome de utilizador: use de 3 a 100 caracteres";
+    }
     if(!senha){
         erros.senha = "Senha e obrigatoria";
     }
     return erros;
 }
+
 
 //valida campos do cliente (nome, apelido, telefone); devolve {campo: mensagem}
 export function validarCliente({nome, apelido, telefone}) {
@@ -134,4 +139,18 @@ export function validarAtendimento({cliente, servico, valor, data, funcionario})
     }
 
     return erros;
+
+//codigo de recuperacao de senha: exactamente 6 digitos
 }
+export function validarCodigo(codigo){
+    if(!codigo){
+        return "Codigo e obrigatorio";
+    }
+    if(!/^\d{6}$/.test(String(codigo))){
+        return "Codigo invalido: use os 6 digitos recebidos";
+    }
+    return null;
+
+}
+
+

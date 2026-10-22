@@ -27,6 +27,16 @@ export const registerUser = (data) => {
     return server.post("api/auth/register", data);
 };
 
+//recuperacao de senha: pede o codigo (enviado por SMS ao telefone registado)
+export const requestPasswordReset = (data) => {
+    return server.post("api/auth/recuperar-senha", data);
+};
+
+//recuperacao de senha: valida o codigo e define a nova senha
+export const resetPassword = (data) => {
+    return server.post("api/auth/redefinir-senha", data);
+};
+
 export const getMe = () => {
     return server.get("api/auth/me");
 };

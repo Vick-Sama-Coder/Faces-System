@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { loginUser, registerUser, getMe, logoutUser, getApiError, getApiErrorField } from '../services/api.js';
+import { loginUser, registerUser, requestPasswordReset, resetPassword, getMe, logoutUser, getApiError, getApiErrorField } from '../services/api.js';
 
 export const useAuthStore = create((set) => ({
     user: null,
@@ -49,6 +49,33 @@ export const useAuthStore = create((set) => ({
             await logoutUser();
         }finally{
             set({ user: null, error: null, errorField: null });
+        }
+    },
+
+    //recuperacao de senha (passo 1): pede o codigo por SMS; devolve { ok, codigo }
+    //(o codigo so vem preenchido em desenvolvimento, para testes sem SMS real)
+    recuperarSenha: async (data) => {
+        set({ loading: true, error: null, errorField: null });
+        try{
+            const res = await requestPasswordReset(data);
+            set({ loading: false, error: null, errorField: null });
+            return { ok: true, codigo: res.data?.codigo || null };
+        }catch(err){
+            set({ loading: false, error: getApiError(err), errorField: getApiErrorField(err) });
+            return { ok: false, codigo: null };
+        }
+    },
+
+    //recuperacao de senha (passo 2): valida o codigo e define a nova senha
+    redefinirSenha: async (data) => {
+        set({ loading: true, error: null, errorField: null });
+        try{
+            await resetPassword(data);
+            set({ loading: false, error: null, errorField: null });
+            return true;
+        }catch(err){
+            set({ loading: false, error: getApiError(err), errorField: getApiErrorField(err) });
+            return false;
         }
     },
 

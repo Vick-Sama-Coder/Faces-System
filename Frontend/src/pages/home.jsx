@@ -4,7 +4,7 @@ import { validarLogin } from "../utils/validacoes.js"
 import "./home.css"
 import Logo from "../components/Logo/logo.jsx"
 import Input from "../components/forms/input/input.jsx"
-import { Phone, Lock } from "lucide-react"
+import { User, Lock } from "lucide-react"
 import { useAuthStore } from "../store/authStore.js"
 
 export default function Home(){
@@ -12,7 +12,7 @@ export default function Home(){
     const location = useLocation()
     const { login, loading, error, errorField, clearError } = useAuthStore()
 
-    const [telefone, setTelefone] = useState("")
+    const [nome, setNome] = useState("")
     const [senha, setSenha] = useState("")
     const [erros, setErros] = useState({})
     //mensagem de sucesso vinda do registo (register -> /login)
@@ -20,7 +20,7 @@ export default function Home(){
 
     function validarCampo(campo, valor){
         const validados = validarLogin({
-            telefone: campo === "telefone" ? valor : telefone,
+            nome: campo === "nome" ? valor : nome,
             senha: campo === "senha" ? valor : senha
         })
         setErros((prev) => ({ ...prev, [campo]: validados[campo] || null }))
@@ -30,13 +30,13 @@ export default function Home(){
         e.preventDefault()
         clearError()
 
-        const validados = validarLogin({ telefone: telefone.trim(), senha })
+        const validados = validarLogin({ nome: nome.trim(), senha })
         setErros(validados)
         if(Object.values(validados).some(Boolean)){
             return
         }
 
-        const ok = await login({ telefone: telefone.trim(), senha })
+        const ok = await login({ nome: nome.trim(), senha })
         if(ok){
             //dashboard e o index ("/") protegido
             await navigate("/", { replace: true })
@@ -62,18 +62,18 @@ export default function Home(){
 
             <form onSubmit={handleSubmit} noValidate>
                 <div className="input-section username">
-                    <Input type="tel"
+                    <Input type="text"
                            className="text-input"
-                           labelId="phone"
-                           labelName= "Numero de Celular :"
-                           placeholder="84-123-4567"
-                           icon={<Phone></Phone>}
-                           value={telefone}
-                           onChange={(e) => { setTelefone(e.target.value); validarCampo("telefone", e.target.value) }}
-                           onBlur={() => validarCampo("telefone", telefone)}
-                           error={erroDe("telefone")}
-                           autoComplete="tel"
-                           maxLength={20}
+                           labelId="user"
+                           labelName= "Nome do Utilizador :"
+                           placeholder="O seu nome de utilizador"
+                           icon={<User></User>}
+                           value={nome}
+                           onChange={(e) => { setNome(e.target.value); validarCampo("nome", e.target.value) }}
+                           onBlur={() => validarCampo("nome", nome)}
+                           error={erroDe("nome")}
+                           autoComplete="username"
+                           maxLength={100}
                            required
                     />
                 </div>
