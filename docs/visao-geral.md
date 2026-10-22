@@ -44,7 +44,8 @@ O sistema está dividido em duas aplicações independentes:
 | --- | --- | --- |
 | Node.js | — | Runtime (usa ES Modules, `"type": "module"`) |
 | Express | ^5.2.1 | Servidor HTTP e roteamento |
-| PostgreSQL (`pg`) | ^8.23.0 | Base de dados relacional |
+| PostgreSQL (`pg`) | ^8.23.0 | Driver e pool de conexões da base de dados |
+| `drizzle-orm` + `drizzle-kit` | — | ORM, schema e migrações |
 | `jsonwebtoken` | ^9.0.3 | Geração/verificação do token JWT |
 | `bcrypt` | ^6.0.0 | Hash das palavras-passe |
 | `cookie-parser` | ^1.4.7 | Leitura de cookies (token) |

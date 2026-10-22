@@ -11,10 +11,10 @@ o sistema.
 | Documento | Conteúdo |
 | --- | --- |
 | [visao-geral.md](./visao-geral.md) | Objetivo do sistema, funcionalidades e stack tecnológica |
-| [regras-tecnologia.md](./regras-tecnologia.md) | **Stack obrigatória e regras de implementação** (React, Node/Express, PostgreSQL, CSS puro) |
+| [regras-tecnologia.md](./regras-tecnologia.md) | **Stack obrigatória e regras de implementação** (React, Node/Express, PostgreSQL + Drizzle, CSS puro) |
 | [arquitetura.md](./arquitetura.md) | Arquitetura, camadas do backend e estrutura de pastas |
 | [instalacao.md](./instalacao.md) | Pré-requisitos, configuração do `.env`, base de dados e como executar |
-| [base-de-dados.md](./base-de-dados.md) | Modelo de dados, tabelas, relações e scripts de migração |
+| [base-de-dados.md](./base-de-dados.md) | Modelo de dados, tabelas, relações e migrações Drizzle |
 | [api.md](./api.md) | Referência de todos os endpoints HTTP da API |
 | [testes-endpoints.md](./testes-endpoints.md) | **Guia de teste da API**: como testar cada endpoint, resultado esperado e verificação dos requisitos RF01–RF25 |
 | [autenticacao-permissoes.md](./autenticacao-permissoes.md) | Login, JWT/cookie, perfis e controlo de acesso |
@@ -37,7 +37,7 @@ o sistema.
 
 ## Resumo rápido
 
-- **Backend:** Node.js + Express 5 + PostgreSQL (`pg`), autenticação com JWT em cookie `httpOnly`.
+- **Backend:** Node.js + Express 5 + PostgreSQL com **Drizzle ORM**, autenticação com JWT em cookie `httpOnly`.
 - **Frontend:** React 19 + Vite + React Router 7 + Zustand + Axios + AG Grid.
 - **Perfis:** `Administrador` e `Usuario`.
 - **Idioma do projeto:** Português (código, comentários e interface).

@@ -17,23 +17,37 @@
 
 Ao criar um novo recurso CRUD, siga a estrutura já usada em categorias/serviços:
 
-1. **Repository** (`src/repository/<recurso>.js`) — funções `findAll`, `findById`,
-   `create`, `update`, `delete` com SQL parametrizado.
-2. **Controller** (`src/controller/<recurso>.js`) — validação de entrada, chamadas ao
+1. **Schema** (`src/db/schema/<dominio>.js`) — tabela Drizzle com colunas, FKs,
+   checks e índices. Reexportar em `src/db/schema/index.js` se for um ficheiro novo.
+2. **Repository** (`src/repository/<recurso>.js`) — funções `findAll`, `findById`,
+   `create`, `update`, `delete` com o query builder do Drizzle. Para agregações muito
+   específicas (relatórios, `insert ... select`, `lateral`), usar o operador `sql` do
+   Drizzle em vez de concatenar strings.
+3. **Controller** (`src/controller/<recurso>.js`) — validação de entrada, chamadas ao
    repositório, códigos HTTP e tradução de erros do PostgreSQL.
-3. **Routes** (`src/routes/<recurso>.js`) — ligação rota → controller, com
+4. **Routes** (`src/routes/<recurso>.js`) — ligação rota → controller, com
    `authenticate`/`authorize`.
-4. **Registo da rota** em `src/app.js`:
+5. **Registo da rota** em `src/app.js`:
    ```js
    app.use("/api", recursoRoutes);
    ```
 
 ### Boas práticas observadas
 
-- SQL sempre parametrizado (`$1`, `$2`, …) — nunca concatenar valores.
-- `UPDATE` parcial com `coalesce($n, coluna)` para não apagar campos não enviados.
+- Importar o `db` de `src/db/client.js` (nunca criar uma pool nova).
+- Transações com `db.transaction(async (tx) => { ... })`; passar o `tx` aos
+  repositórios que participam na mesma operação.
+- `UPDATE` parcial: construir o objecto `set` apenas com os campos enviados
+  (`!== undefined && !== null`), mantendo inalterados os restantes.
 - Devolver `null` no repositório quando o registo não existe e traduzir em `404` no controller.
 - Tratar `23503` (violação de chave estrangeira) com mensagens legíveis.
+
+### Migrações
+
+- O schema Drizzle é a fonte de verdade. Não editar migrações já aplicadas.
+- Alterar o schema → `npm run db:generate` → revisar o SQL em `drizzle/` → `npm run db:migrate`.
+- O `npm run dev` aplica as migrações pendentes automaticamente antes de abrir a porta.
+- `npm run db:reset` apaga e recria a base; usar apenas em desenvolvimento.
 
 ## Frontend
 
@@ -62,7 +76,8 @@ Ao criar um novo recurso CRUD, siga a estrutura já usada em categorias/serviço
 ## Checklist antes de abrir um Pull Request
 
 - [ ] O backend arranca sem erros (`npm run dev` em `Backend`).
-- [ ] A base de dados tem o esquema aplicado e os perfis semeados.
+- [ ] As migrações Drizzle estão aplicadas e os perfis/seed estão presentes
+      (`npm run db:migrate` ou arranque do backend).
 - [ ] O frontend compila (`npm run build` em `Frontend`).
 - [ ] As novas rotas estão registadas em `app.js` e protegidas quando necessário.
 - [ ] As validações foram espelhadas entre frontend e backend.

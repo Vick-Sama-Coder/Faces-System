@@ -17,23 +17,16 @@ cd Faces-System
 
 ## 2. Base de dados
 
-Crie a base de dados e aplique os scripts da pasta `Backend/Database/schema/` **por ordem
-numérica** (ver detalhes em [base-de-dados.md](./base-de-dados.md)).
+Basta ter o **PostgreSQL a correr** e um utilizador com permissão para criar bases.
+O backend cria a base `DATABASE_NAME` se ela não existir e aplica as migrações Drizzle
+automaticamente no arranque (ver [base-de-dados.md](./base-de-dados.md)).
+
+Não é necessário aplicar manualmente os SQL de `Backend/Database/schema/` — esses
+ficheiros ficam como referência histórica. Se preferires criar a base antes de arrancar:
 
 ```bash
-# criar a base (ver nota importante sobre o script 000)
 createdb SalaoFaces
-
-# aplicar cada script na ordem
-for f in Backend/Database/schema/*.sql; do
-  psql -d SalaoFaces -f "$f"
-done
 ```
-
-> ⚠️ **Importante:** o script `000_create_database_SalaoFaces.sql` executa
-> `drop database`/`create database`, que o PostgreSQL **não** permite dentro de uma
-> transacção. Execute-o **isoladamente** com `psql`, ou simplesmente crie a base
-> manualmente com `createdb SalaoFaces` e aplique os restantes scripts a partir do `001`.
 
 ## 3. Backend
 
@@ -56,6 +49,7 @@ DATABASE_PORT=5432
 DATABASE_NAME=SalaoFaces
 DATABASE_USER=postgres
 DATABASE_PASSWORD= a_sua_password
+DATABASE_MAINTENANCE_DB=postgres
 PORT=5000
 JWT_SECRET= uma_chave_secreta_longa
 CLIENT_URL=http://localhost:5173/
@@ -68,6 +62,7 @@ CLIENT_URL=http://localhost:5173/
 | `DATABASE_NAME` | Nome da base (`SalaoFaces`) |
 | `DATABASE_USER` | Utilizador da base |
 | `DATABASE_PASSWORD` | Palavra-passe da base |
+| `DATABASE_MAINTENANCE_DB` | Base usada para criar `DATABASE_NAME` se faltar (por omissão `postgres`) |
 | `PORT` | Porta do servidor Express (padrão no `.env.example`: `5000`) |
 | `JWT_SECRET` | Segredo para assinar/verificar os tokens JWT |
 | `CLIENT_URL` | Origem permitida no CORS (o URL do frontend) |
@@ -79,12 +74,31 @@ npm run dev     # desenvolvimento (nodemon, reinicia ao guardar)
 npm start       # produção
 ```
 
-O servidor deverá imprimir algo como:
+No arranque, o backend cria a base (se faltar) e aplica as migrações Drizzle. O output
+deverá ser semelhante a:
 
 ```
+[db] Migracoes aplicadas.
 Servidor esta escutando na porta: 5000
 Database conectada
 ```
+
+### Scripts da base de dados
+
+Executar em `Backend/`:
+
+| Comando | Descrição |
+| --- | --- |
+| `npm run db:generate` | Gera uma migração a partir das alterações ao schema Drizzle |
+| `npm run db:migrate` | Cria a base (se faltar) e aplica migrações pendentes |
+| `npm run db:push` | Sincroniza o schema com a base (só desenvolvimento) |
+| `npm run db:studio` | Abre o Drizzle Studio |
+| `npm run db:pull` | Gera o schema a partir da base existente |
+| `npm run db:check` | Valida o histórico de migrações |
+| `npm run db:reset` | **Apaga e recria** a base com todas as migrações (destrutivo) |
+
+> Em produção, a pasta `Backend/drizzle/` tem de ser incluída no deploy. O arranque
+> aplica as migrações pendentes, mas não gera migrações novas.
 
 ## 4. Frontend
 

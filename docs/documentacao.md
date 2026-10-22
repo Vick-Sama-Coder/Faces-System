@@ -1378,7 +1378,8 @@ A stack identificada para o projeto é:
 - **Estilização:** CSS puro.
 - **Backend:** Node.js com Express.
 - **Base de dados:** PostgreSQL.
-- **Acesso à base de dados:** SQL e biblioteca de acesso compatível, sem ORM.
+- **Acesso à base de dados:** **Drizzle ORM** sobre o driver `pg`, com schema e migrações
+  versionadas (sem SQL concatenado).
 - **Interface:** aplicação web adaptada ao dispositivo utilizado no salão.
 
 A arquitetura deverá separar a interface, a API, a persistência dos dados e os serviços de negócio.

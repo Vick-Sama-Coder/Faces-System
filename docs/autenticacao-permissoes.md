@@ -27,10 +27,18 @@
 4. Em cada pedido, o middleware `authenticate` lê `req.cookies.token`, verifica o JWT e
    carrega o utilizador + perfil da base de dados para `req.user`:
 
-   ```sql
-   select u.id, u.nome, u.telefone, u.id_perfil, p.nome as perfil
-   from usuario u join perfil p on p.id = u.id_perfil
-   where u.id = $1
+   ```js
+   const [user] = await db.select({
+       id: usuario.id,
+       nome: usuario.nome,
+       telefone: usuario.telefone,
+       id_perfil: usuario.id_perfil,
+       perfil: perfil.nome
+   })
+       .from(usuario)
+       .innerJoin(perfil, eq(perfil.id, usuario.id_perfil))
+       .where(eq(usuario.id, payload.id))
+       .limit(1);
    ```
 
 5. No arranque, o frontend chama `GET /api/auth/me` para saber se há sessão

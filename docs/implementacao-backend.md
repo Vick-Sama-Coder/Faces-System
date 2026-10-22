@@ -15,7 +15,7 @@ regras de negócio e critérios de conclusão. Deve ser lido em conjunto com:
 
 > **Objetivo do backend:** expor todos os módulos do produto através de uma API REST
 > consistente, aplicando regras de negócio e autorização **no servidor**, com PostgreSQL
-> e SQL parametrizado (sem ORM), conforme [`regras-tecnologia.md`](./regras-tecnologia.md).
+> e **Drizzle ORM**, conforme [`regras-tecnologia.md`](./regras-tecnologia.md).
 
 ## 0. Estado de execução
 
@@ -38,9 +38,9 @@ regras de negócio e critérios de conclusão. Deve ser lido em conjunto com:
 | Fases 14–15 | ⏳ Pendente | Ver detalhe abaixo |
 | Fase 16 — Fecho das decisões pendentes | 📝 A cargo do utilizador | Lacunas da análise a decidir/documentar (não é código) — ver §16 de [`documentacao.md`](./documentacao.md) |
 
-> **Base de dados:** esquema aplicado do zero com os scripts `001`–`035` (ver
-> [`base-de-dados.md`](./base-de-dados.md)). Não foram usadas migrações `ALTER TABLE`
-> porque o esquema foi recriado a partir das definições.
+> **Base de dados:** o esquema é definido em Drizzle (`src/db/schema/`) e materializado
+> nas migrações de `Backend/drizzle/` (ver [`base-de-dados.md`](./base-de-dados.md)).
+> O arranque do backend aplica as migrações pendentes automaticamente.
 
 ---
 
@@ -72,7 +72,7 @@ O que **já existe e funciona** no backend:
 | Auditoria | ✅ | `controller` + `repository` + `services/auditoria.js` + `routes/auditoria.js` |
 | Validações (nome, telefone, senha) | ✅ | `utils/validacoes.js` |
 | Token JWT | ✅ | `utils/token.js` |
-| Esquema SQL (35 scripts, `001`–`035`) | ✅ | `Database/schema/` |
+| Esquema Drizzle (33 tabelas, `src/db/schema/`) | ✅ | `src/db/schema/` + `drizzle/` |
 
 O que **falta** (objeto deste plano): auditoria transversal consolidada na UI, sincronização
 offline e o fecho das decisões da análise (Fase 16).
@@ -82,12 +82,15 @@ offline e o fecho das decisões da análise (Fase 16).
 ```
 Backend/
 ├── Database/
-│   └── schema/            # scripts SQL numerados (016+ a partir deste plano)
+│   └── schema/            # scripts SQL legados (referência histórica)
+├── drizzle/               # migrações geradas + seed SQL
+├── drizzle.config.js      # configuração do drizzle-kit
 └── src/
     ├── config/            # pool pg
+    ├── db/                # schema Drizzle, cliente e bootstrap
     ├── controller/        # entrada HTTP → validação mínima → repositórios
     ├── services/          # regras de negócio (comissão, caixa, fidelização…) — só quando necessário
-    ├── repository/        # SQL parametrizado (sem regras, sem HTTP)
+    ├── repository/        # acesso a dados via Drizzle (sem regras, sem HTTP)
     ├── middlewares/       # authenticate, authorize, authorizePermission
     ├── routes/            # definição de rotas
     ├── utils/             # token, validações
@@ -111,9 +114,9 @@ Estas decisões devem ser respeitadas em **todo** o código novo para manter con
 2. **`controller/`** — lê a entrada, verifica **campos obrigatórios**, chama o
    `service`/`repository`, define o código HTTP e o corpo. Erros inesperados seguem para
    o handler central com `next(error)`.
-3. **`services/`** — regras de negócio e **transações** (`pool.connect()` + `BEGIN/COMMIT/ROLLBACK`).
-4. **`repository/`** — apenas SQL parametrizado, devolve linhas ou `null`.
-5. **`config/database.js`** — `Pool` partilhado (já existe).
+3. **`services/`** — regras de negócio e **transações** (`db.transaction(async (tx) => …)`).
+4. **`repository/`** — acesso a dados com o query builder do Drizzle; devolve linhas ou `null`.
+5. **`db/client.js`** — instância `db` do Drizzle sobre o `Pool` partilhado do `pg`.
 
 ### 2.2 Respostas HTTP (padrão do backend)
 
@@ -997,8 +1000,8 @@ Copiar para o PR de cada fase:
 
 ```text
 Fase N — <nome>
-[ ] Migrações SQL numeradas criadas e testadas (aplicáveis por ordem)
-[ ] repository/ com SQL parametrizado
+[ ] Migração Drizzle gerada (`npm run db:generate`) e revisada
+[ ] repository/ com query builder do Drizzle (ou `sql` parametrizado)
 [ ] service/ quando há regras/transações
 [ ] controller/ com validação e tradução de erros
 [ ] routes/ registadas em app.js e protegidas

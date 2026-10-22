@@ -4,9 +4,61 @@
 
 Base de dados: **PostgreSQL**, esquema `public`, base `SalaoFaces`.
 
-## Scripts de migração
+## Schema Drizzle (fonte de verdade)
 
-Os scripts estão em `Backend/Database/schema/` e devem ser aplicados **por ordem numérica**.
+O esquema passou a ser definido com **Drizzle ORM** em `Backend/src/db/schema/`,
+organizado por domínio:
+
+| Ficheiro | Tabelas |
+| --- | --- |
+| `acesso.js` | `perfil`, `usuario`, `permissao`, `perfil_permissao`, `usuario_permissao`, `recuperacao_senha` |
+| `catalogo.js` | `categoria_salao`, `servico`, `historico_preco_servico`, `categoria_produto`, `produto` |
+| `clientes.js` | `cliente` |
+| `atendimentos.js` | `atendimento`, `atendimento_servico`, `pagamento`, `pagamento_parcela`, `comissao`, `comissao_config` |
+| `fidelizacao.js` | `cartao_fidelizacao`, `movimento_fidelizacao` |
+| `financeiro.js` | `categoria_despesa`, `caixa`, `caixa_sessao`, `movimento_caixa`, `despesa`, `item_produto` |
+| `rh.js` | `funcionario`, `horario_funcionario`, `assiduidade`, `processamento_salarial`, `deducao_salarial` |
+| `auditoria.js` | `log_auditoria` |
+| `legacy.js` | `aplicacao` (sem uso actual) |
+
+A ligação é feita em `Backend/src/db/client.js`, que reutiliza o mesmo `Pool` do `pg`
+já usado pela aplicação. As migrações geradas ficam em `Backend/drizzle/` e são
+versionadas no repositório.
+
+### Comandos
+
+Executar a partir de `Backend/`:
+
+| Comando | Descrição |
+| --- | --- |
+| `npm run db:generate` | Gera uma nova migração a partir das alterações ao schema |
+| `npm run db:migrate` | Cria a base (se faltar) e aplica as migrações pendentes |
+| `npm run db:push` | Sincroniza o schema directamente com a base (apenas desenvolvimento) |
+| `npm run db:studio` | Abre o Drizzle Studio para inspeccionar os dados |
+| `npm run db:pull` | Introspecciona a base e gera o schema correspondente |
+| `npm run db:check` | Valida o histórico de migrações |
+| `npm run db:reset` | **Apaga e recria** a base, aplicando todas as migrações (destrutivo) |
+
+### Arranque automático
+
+O `npm run dev` (e o `npm start`) executam `bootstrapDatabase()` antes de abrir a porta
+HTTP:
+
+1. Cria a base `DATABASE_NAME` se ela não existir (ligando à base de manutenção,
+   `postgres` por omissão), sem apagar dados.
+2. Se não existir nenhuma migração em `drizzle/`, gera a migração inicial em
+   desenvolvimento. Em produção falha com uma mensagem clara.
+3. Aplica as migrações pendentes com o migrador do Drizzle.
+
+Se a base já tiver as tabelas antigas mas não tiver o histórico
+`drizzle.__drizzle_migrations`, o arranque para com uma mensagem a indicar
+`npm run db:reset` (ou baseline manual). O script `000` antigo não é executado.
+
+## Migrações legadas (001–037)
+
+Os scripts SQL em `Backend/Database/schema/` ficam como **referência histórica** e já
+não são aplicados manualmente. Alterações novas devem ser feitas no schema Drizzle e
+materializadas com `npm run db:generate`.
 
 | Ficheiro | Tabela criada | Observações |
 | --- | --- | --- |
@@ -49,9 +101,9 @@ Os scripts estão em `Backend/Database/schema/` e devem ser aplicados **por orde
 | `036_usuario_nome_unico.sql` | — | Índice único em `usuario (lower(nome))`: o nome de utilizador passa a ser único (identificador de acesso) |
 | `037_create_recuperacao_senha.sql` | `recuperacao_senha` | Códigos de recuperação (hash, validade, uso único, tentativas); FK → `usuario` |
 
-> ⚠️ **Script 000:** o PostgreSQL não aceita `create database if not exists` nem permite
-> executar `CREATE DATABASE` dentro de uma transacção. Execute este script **isoladamente**
-> com `psql` (fora de transacção), ou crie a base manualmente com `createdb SalaoFaces`.
+> ⚠️ **Script 000:** já não é necessário. O arranque cria a base de dados
+> automaticamente (sem a apagar) e aplica as migrações Drizzle. O `db:reset` é o único
+> comando destrutivo e deve ser usado apenas em desenvolvimento.
 
 ## Modelo de dados
 
