@@ -1,89 +1,118 @@
-import pool from '../config/database.js';
+import { and, eq, sql } from 'drizzle-orm';
+import db from '../db/client.js';
+import { cartaoFidelizacao, movimentoFidelizacao } from '../db/schema/index.js';
 
-const findCartao = async (db, cliente_id) => {
-    const result = await db.query(
-        `select c.id, c.cliente_id, c.data_ativacao, c.estado
-           from cartao_fidelizacao c
-          where c.cliente_id = $1`,
-        [cliente_id]
-    );
+const findCartao = async (executor, cliente_id) => {
+    const [linha] = await executor.select({
+        id: cartaoFidelizacao.id,
+        cliente_id: cartaoFidelizacao.cliente_id,
+        data_ativacao: cartaoFidelizacao.data_ativacao,
+        estado: cartaoFidelizacao.estado
+    })
+        .from(cartaoFidelizacao)
+        .where(eq(cartaoFidelizacao.cliente_id, cliente_id))
+        .limit(1);
 
-    return result.rows[0] || null;
+    return linha || null;
 };
 
-const criarCartao = async (db, cliente_id) => {
-    const result = await db.query(
-        `insert into cartao_fidelizacao (cliente_id)
-         values ($1)
-         on conflict (cliente_id) do update set cliente_id = excluded.cliente_id
-         returning id, cliente_id, data_ativacao, estado`,
-        [cliente_id]
-    );
+const criarCartao = async (executor, cliente_id) => {
+    const [linha] = await executor.insert(cartaoFidelizacao)
+        .values({ cliente_id })
+        .onConflictDoUpdate({
+            target: cartaoFidelizacao.cliente_id,
+            set: { cliente_id: sql`excluded.cliente_id` }
+        })
+        .returning({
+            id: cartaoFidelizacao.id,
+            cliente_id: cartaoFidelizacao.cliente_id,
+            data_ativacao: cartaoFidelizacao.data_ativacao,
+            estado: cartaoFidelizacao.estado
+        });
 
-    return result.rows[0];
+    return linha;
 };
 
-const getOrCreateCartao = async (db, cliente_id) => {
-    return (await findCartao(db, cliente_id)) || criarCartao(db, cliente_id);
+const getOrCreateCartao = async (executor, cliente_id) => {
+    return (await findCartao(executor, cliente_id)) || criarCartao(executor, cliente_id);
 };
 
 //idempotente por (atendimento_servico_id, tipo_movimento)
-const insertMovimento = async (db, { cartao_id, atendimento_servico_id, tipo_movimento, ciclo, registado_por, observacao }) => {
-    await db.query(
-        `insert into movimento_fidelizacao
-            (cartao_id, atendimento_servico_id, tipo_movimento, ciclo, registado_por, observacao)
-         values ($1, $2, $3, $4, $5, $6)
-         on conflict do nothing`,
-        [cartao_id, atendimento_servico_id ?? null, tipo_movimento, ciclo ?? 1, registado_por ?? null, observacao ?? null]
-    );
+const insertMovimento = async (executor, {
+    cartao_id,
+    atendimento_servico_id,
+    tipo_movimento,
+    ciclo,
+    registado_por,
+    observacao
+}) => {
+    await executor.insert(movimentoFidelizacao)
+        .values({
+            cartao_id,
+            atendimento_servico_id: atendimento_servico_id ?? null,
+            tipo_movimento,
+            ciclo: ciclo ?? 1,
+            registado_por: registado_por ?? null,
+            observacao: observacao ?? null
+        })
+        .onConflictDoNothing();
 };
 
-const countPorTipo = async (db, cartao_id, tipo_movimento) => {
-    const result = await db.query(
-        `select count(*)::int as total
-           from movimento_fidelizacao
-          where cartao_id = $1 and tipo_movimento = $2`,
-        [cartao_id, tipo_movimento]
-    );
+const countPorTipo = async (executor, cartao_id, tipo_movimento) => {
+    const [linha] = await executor.select({
+        total: sql`count(*)::int`
+    })
+        .from(movimentoFidelizacao)
+        .where(and(
+            eq(movimentoFidelizacao.cartao_id, cartao_id),
+            eq(movimentoFidelizacao.tipo_movimento, tipo_movimento)
+        ));
 
-    return result.rows[0].total;
+    return linha.total;
 };
 
 //marcas visiveis de um ciclo: um corte por dia conta uma vez (RN17)
-const marcasNoCiclo = async (db, cartao_id, ciclo) => {
-    const result = await db.query(
-        `select count(distinct data_hora::date)::int as total
-           from movimento_fidelizacao
-          where cartao_id = $1 and tipo_movimento = 'marca' and ciclo = $2`,
-        [cartao_id, ciclo]
-    );
+const marcasNoCiclo = async (executor, cartao_id, ciclo) => {
+    const [linha] = await executor.select({
+        total: sql`count(distinct ${movimentoFidelizacao.data_hora}::date)::int`
+    })
+        .from(movimentoFidelizacao)
+        .where(and(
+            eq(movimentoFidelizacao.cartao_id, cartao_id),
+            eq(movimentoFidelizacao.tipo_movimento, 'marca'),
+            eq(movimentoFidelizacao.ciclo, ciclo)
+        ));
 
-    return result.rows[0].total;
+    return linha.total;
 };
 
 //ja existe marca hoje para este cartao? (RN17)
-const existeMarcaHoje = async (db, cartao_id) => {
-    const result = await db.query(
-        `select 1 from movimento_fidelizacao
-          where cartao_id = $1 and tipo_movimento = 'marca' and data_hora::date = current_date
-          limit 1`,
-        [cartao_id]
-    );
+const existeMarcaHoje = async (executor, cartao_id) => {
+    const linhas = await executor.select({ id: movimentoFidelizacao.id })
+        .from(movimentoFidelizacao)
+        .where(and(
+            eq(movimentoFidelizacao.cartao_id, cartao_id),
+            eq(movimentoFidelizacao.tipo_movimento, 'marca'),
+            sql`${movimentoFidelizacao.data_hora}::date = current_date`
+        ))
+        .limit(1);
 
-    return result.rowCount > 0;
+    return linhas.length > 0;
 };
 
-const findMovimentos = async (db, cartao_id) => {
-    const result = await db.query(
-        `select m.id, m.atendimento_servico_id, m.tipo_movimento, m.data_hora, m.ciclo,
-                m.registado_por, m.observacao
-           from movimento_fidelizacao m
-          where m.cartao_id = $1
-          order by m.data_hora, m.id`,
-        [cartao_id]
-    );
-
-    return result.rows;
+const findMovimentos = async (executor, cartao_id) => {
+    return executor.select({
+        id: movimentoFidelizacao.id,
+        atendimento_servico_id: movimentoFidelizacao.atendimento_servico_id,
+        tipo_movimento: movimentoFidelizacao.tipo_movimento,
+        data_hora: movimentoFidelizacao.data_hora,
+        ciclo: movimentoFidelizacao.ciclo,
+        registado_por: movimentoFidelizacao.registado_por,
+        observacao: movimentoFidelizacao.observacao
+    })
+        .from(movimentoFidelizacao)
+        .where(eq(movimentoFidelizacao.cartao_id, cartao_id))
+        .orderBy(movimentoFidelizacao.data_hora, movimentoFidelizacao.id);
 };
 
 const Fidelizacao = {

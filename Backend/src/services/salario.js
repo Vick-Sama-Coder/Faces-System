@@ -1,4 +1,4 @@
-import pool from '../config/database.js';
+import db from '../db/client.js';
 import Salario from '../repository/salario.js';
 import AuditoriaService from './auditoria.js';
 import { criarErro } from '../utils/erro.js';
@@ -26,19 +26,16 @@ function periodoMensal(periodo) {
 //so funcionarios ativos entram: um administrador sem vinculo nao recebe salario nem comissao (RF17)
 const processar = async (periodo, registado_por) => {
     const { inicio, fim } = periodoMensal(periodo);
-    const client = await pool.connect();
 
-    try {
-        await client.query('begin');
-
-        const funcionarios = await Salario.findFuncionariosAtivos(client);
+    return db.transaction(async (tx) => {
+        const funcionarios = await Salario.findFuncionariosAtivos(tx);
         const criados = [];
 
         for (const funcionario of funcionarios) {
-            const comissoes = await Salario.somaComissoes(client, funcionario.id, inicio, fim);
+            const comissoes = await Salario.somaComissoes(tx, funcionario.id, inicio, fim);
             const base = funcionario.salario;
 
-            const id = await Salario.inserirProcessamento(client, {
+            const id = await Salario.inserirProcessamento(tx, {
                 funcionario_id: funcionario.id,
                 periodo_inicio: inicio,
                 periodo_fim: fim,
@@ -56,18 +53,12 @@ const processar = async (periodo, registado_por) => {
                     id_registo: id,
                     operacao: "criar",
                     depois: { funcionario_id: funcionario.id, periodo_inicio: inicio, periodo_fim: fim, salario_base: base, total_comissoes: comissoes, total_a_pagar: base + comissoes }
-                }, client);
+                }, tx);
             }
         }
 
-        await client.query('commit');
         return criados;
-    } catch (error) {
-        await client.query('rollback');
-        throw error;
-    } finally {
-        client.release();
-    }
+    });
 };
 
 //so em Preparado: depois de aprovado o salario deixa de poder mudar (RF19)
@@ -81,12 +72,9 @@ const atualizarDeducoes = async (processamento_id, deducoes, registado_por) => {
         throw criarErro(409, "So processamentos em Preparado podem ser alterados");
     }
 
-    const client = await pool.connect();
-
-    try {
-        await client.query('begin');
-        await Salario.substituirDeducoes(client, processamento_id, deducoes, registado_por);
-        await Salario.recalcular(client, processamento_id);
+    await db.transaction(async (tx) => {
+        await Salario.substituirDeducoes(tx, processamento_id, deducoes, registado_por);
+        await Salario.recalcular(tx, processamento_id);
 
         await AuditoriaService.registar({
             id_utilizador: registado_por,
@@ -94,17 +82,10 @@ const atualizarDeducoes = async (processamento_id, deducoes, registado_por) => {
             id_registo: processamento_id,
             operacao: "atualizar_deducoes",
             depois: { deducoes: deducoes.length, total: deducoes.reduce((s, d) => s + Number(d.valor), 0) }
-        }, client);
+        }, tx);
+    });
 
-        await client.query('commit');
-
-        return Salario.findProcessamentoById(processamento_id);
-    } catch (error) {
-        await client.query('rollback');
-        throw error;
-    } finally {
-        client.release();
-    }
+    return Salario.findProcessamentoById(processamento_id);
 };
 
 //Preparado -> Aprovado (RF19; requer salarios:aprovar)
@@ -118,15 +99,17 @@ const aprovar = async (processamento_id, aprovado_por) => {
         throw criarErro(409, "So processamentos em Preparado podem ser aprovados");
     }
 
-    await Salario.aprovar(processamento_id, aprovado_por);
+    await db.transaction(async (tx) => {
+        await Salario.aprovar(processamento_id, aprovado_por, tx);
 
-    await AuditoriaService.registar({
-        id_utilizador: aprovado_por,
-        entidade: "processamento_salarial",
-        id_registo: processamento_id,
-        operacao: "aprovar",
-        antes: { estado: processamento.estado },
-        depois: { estado: "Aprovado" }
+        await AuditoriaService.registar({
+            id_utilizador: aprovado_por,
+            entidade: "processamento_salarial",
+            id_registo: processamento_id,
+            operacao: "aprovar",
+            antes: { estado: processamento.estado },
+            depois: { estado: "Aprovado" }
+        }, tx);
     });
 
     return Salario.findProcessamentoById(processamento_id);
@@ -143,12 +126,14 @@ const pagar = async (processamento_id, registado_por) => {
         throw criarErro(409, "So processamentos aprovados podem ser pagos");
     }
 
-    const client = await pool.connect();
-
-    try {
-        await client.query('begin');
-        await Salario.pagar(processamento_id, client);
-        await Salario.marcarComissoesPagas(client, processamento.funcionario_id, processamento.periodo_inicio, processamento.periodo_fim);
+    await db.transaction(async (tx) => {
+        await Salario.pagar(processamento_id, tx);
+        await Salario.marcarComissoesPagas(
+            tx,
+            processamento.funcionario_id,
+            processamento.periodo_inicio,
+            processamento.periodo_fim
+        );
 
         await AuditoriaService.registar({
             id_utilizador: registado_por,
@@ -157,17 +142,10 @@ const pagar = async (processamento_id, registado_por) => {
             operacao: "pagar",
             antes: { estado: processamento.estado },
             depois: { estado: "Pago", total_a_pagar: processamento.total_a_pagar }
-        }, client);
+        }, tx);
+    });
 
-        await client.query('commit');
-
-        return Salario.findProcessamentoById(processamento_id);
-    } catch (error) {
-        await client.query('rollback');
-        throw error;
-    } finally {
-        client.release();
-    }
+    return Salario.findProcessamentoById(processamento_id);
 };
 
 const SalarioService = {

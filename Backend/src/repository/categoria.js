@@ -1,58 +1,73 @@
-import pool from '../config/database.js';
+import { asc, eq } from 'drizzle-orm';
+import db from '../db/client.js';
+import { categoriaSalao } from '../db/schema/index.js';
 
 //listagem de todas as categorias de salao (ordenada por nome para a grid do frontend)
 const findAll = async () => {
-    const result = await pool.query(
-        "select id, nome from categoria_salao order by nome"
-    );
-
-    return result.rows;
+    return db.select({
+        id: categoriaSalao.id,
+        nome: categoriaSalao.nome
+    })
+        .from(categoriaSalao)
+        .orderBy(asc(categoriaSalao.nome));
 };
 
 //busca de uma unica categoria pelo id (devolve null se nao existir)
 const findById = async (id) => {
-    const result = await pool.query(
-        "select id, nome from categoria_salao where id = $1",
-        [id]
-    );
+    const [categoria] = await db.select({
+        id: categoriaSalao.id,
+        nome: categoriaSalao.nome
+    })
+        .from(categoriaSalao)
+        .where(eq(categoriaSalao.id, id))
+        .limit(1);
 
-    return result.rows[0] || null;
+    return categoria || null;
 };
 
 //criacao: o campo nome chega sempre do controller
 const create = async ({ nome }) => {
-    const result = await pool.query(
-        `insert into categoria_salao (nome)
-         values ($1)
-         returning id, nome`,
-        [nome]
-    );
+    const [categoria] = await db.insert(categoriaSalao)
+        .values({ nome })
+        .returning({
+            id: categoriaSalao.id,
+            nome: categoriaSalao.nome
+        });
 
-    return result.rows[0];
+    return categoria;
 };
 
 //atualizacao parcial: campo a null e ignorado e mantem o valor atual
 const update = async (id, { nome }) => {
-    const result = await pool.query(
-        `update categoria_salao
-         set nome = coalesce($2, nome)
-         where id = $1
-         returning id, nome`,
-        [id, nome]
-    );
+    const valores = {};
 
-    return result.rows[0] || null;
+    if (nome !== undefined && nome !== null) {
+        valores.nome = nome;
+    }
+
+    if (Object.keys(valores).length === 0) {
+        return findById(id);
+    }
+
+    const [categoria] = await db.update(categoriaSalao)
+        .set(valores)
+        .where(eq(categoriaSalao.id, id))
+        .returning({
+            id: categoriaSalao.id,
+            nome: categoriaSalao.nome
+        });
+
+    return categoria || null;
 };
 
 //remocao: devolve o id apagado ou null se a categoria nao existir
-//(o postgres bloqueia a operacao se houver servico a ligado a esta categoria)
+//(o postgres bloqueia a operacao se houver servico ligado a esta categoria)
 const deleteCategoria = async (id) => {
-    const result = await pool.query(
-        "delete from categoria_salao where id = $1 returning id",
-        [id]
-    );
+    const [categoria] = await db.delete(categoriaSalao)
+        .where(eq(categoriaSalao.id, id))
+        .returning({ id: categoriaSalao.id });
 
-    return result.rows[0] || null;
+    return categoria || null;
 };
 
 const Categoria = {

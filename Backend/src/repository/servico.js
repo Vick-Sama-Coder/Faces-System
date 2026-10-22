@@ -1,139 +1,178 @@
-import pool from '../config/database.js';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import db from '../db/client.js';
+import {
+    categoriaSalao,
+    historicoPrecoServico,
+    servico,
+    usuario
+} from '../db/schema/index.js';
 
 //resolver a categoria na propria consulta evita uma segunda chamada por cada servico
-const campos = `s.id, s.nome, s.descricao, s.valor, s.duracao_min, s.tipo_preco,
-    s.elegivel_fidelizacao, s.categoria_id, c.nome as categoria_nome, s.estado, s.data_criacao`;
+const campos = {
+    id: servico.id,
+    nome: servico.nome,
+    descricao: servico.descricao,
+    valor: servico.valor,
+    duracao_min: servico.duracao_min,
+    tipo_preco: servico.tipo_preco,
+    elegivel_fidelizacao: servico.elegivel_fidelizacao,
+    categoria_id: servico.categoria_id,
+    categoria_nome: categoriaSalao.nome,
+    estado: servico.estado,
+    data_criacao: servico.data_criacao
+};
+
+const camposCriacao = {
+    id: servico.id,
+    nome: servico.nome,
+    descricao: servico.descricao,
+    valor: servico.valor,
+    duracao_min: servico.duracao_min,
+    tipo_preco: servico.tipo_preco,
+    elegivel_fidelizacao: servico.elegivel_fidelizacao,
+    categoria_id: servico.categoria_id,
+    estado: servico.estado
+};
 
 //por omissao so os ativos; a administracao precisa de ver tambem os inativos ('todos')
 const findAll = async ({ estado } = {}) => {
-    const todos = estado === 'todos';
+    const query = db.select(campos)
+        .from(servico)
+        .innerJoin(categoriaSalao, eq(categoriaSalao.id, servico.categoria_id));
 
-    const result = await pool.query(
-        `select ${campos}
-           from servico s
-           join categoria_salao c on c.id = s.categoria_id
-          where $1::boolean or s.estado = 'Ativo'
-          order by s.nome`,
-        [todos]
-    );
+    if (estado !== 'todos') {
+        return query.where(eq(servico.estado, 'Ativo')).orderBy(asc(servico.nome));
+    }
 
-    return result.rows;
+    return query.orderBy(asc(servico.nome));
 };
 
 const findById = async (id) => {
-    const result = await pool.query(
-        `select ${campos}
-           from servico s
-           join categoria_salao c on c.id = s.categoria_id
-          where s.id = $1`,
-        [id]
-    );
+    const [linha] = await db.select(campos)
+        .from(servico)
+        .innerJoin(categoriaSalao, eq(categoriaSalao.id, servico.categoria_id))
+        .where(eq(servico.id, id))
+        .limit(1);
 
-    return result.rows[0] || null;
+    return linha || null;
 };
 
 const create = async ({ nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id }) => {
-    const result = await pool.query(
-        `insert into servico (nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id)
-         values ($1, $2, $3, $4, coalesce($5, 'fixo'), coalesce($6, false), $7)
-         returning id, nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id, estado`,
-        [nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id]
-    );
+    const [linha] = await db.insert(servico)
+        .values({
+            nome,
+            descricao: descricao ?? null,
+            valor,
+            duracao_min: duracao_min ?? null,
+            tipo_preco: tipo_preco ?? 'fixo',
+            elegivel_fidelizacao: elegivel_fidelizacao ?? false,
+            categoria_id
+        })
+        .returning(camposCriacao);
 
-    return result.rows[0];
+    return linha;
 };
 
-//coalesce mantem o valor atual, para a atualizacao poder enviar so o campo alterado
+//atualizacao parcial: campos a null sao ignorados e mantem o valor atual
 const update = async (id, { nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id }) => {
-    const result = await pool.query(
-        `update servico
-            set nome = coalesce($2, nome),
-                descricao = coalesce($3, descricao),
-                valor = coalesce($4, valor),
-                duracao_min = coalesce($5, duracao_min),
-                tipo_preco = coalesce($6, tipo_preco),
-                elegivel_fidelizacao = coalesce($7, elegivel_fidelizacao),
-                categoria_id = coalesce($8, categoria_id)
-          where id = $1
-          returning id, nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id, estado`,
-        [id, nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id]
-    );
+    const valores = {};
 
-    return result.rows[0] || null;
+    if (nome !== undefined && nome !== null) valores.nome = nome;
+    if (descricao !== undefined && descricao !== null) valores.descricao = descricao;
+    if (valor !== undefined && valor !== null) valores.valor = valor;
+    if (duracao_min !== undefined && duracao_min !== null) valores.duracao_min = duracao_min;
+    if (tipo_preco !== undefined && tipo_preco !== null) valores.tipo_preco = tipo_preco;
+    if (elegivel_fidelizacao !== undefined && elegivel_fidelizacao !== null) valores.elegivel_fidelizacao = elegivel_fidelizacao;
+    if (categoria_id !== undefined && categoria_id !== null) valores.categoria_id = categoria_id;
+
+    if (Object.keys(valores).length === 0) {
+        return findById(id);
+    }
+
+    const [linha] = await db.update(servico)
+        .set(valores)
+        .where(eq(servico.id, id))
+        .returning(camposCriacao);
+
+    return linha || null;
 };
 
 const updateEstado = async (id, estado) => {
-    const result = await pool.query(
-        `update servico
-            set estado = $2
-          where id = $1
-          returning id, nome, valor, estado`,
-        [id, estado]
-    );
+    const [linha] = await db.update(servico)
+        .set({ estado })
+        .where(eq(servico.id, id))
+        .returning({
+            id: servico.id,
+            nome: servico.nome,
+            valor: servico.valor,
+            estado: servico.estado
+        });
 
-    return result.rows[0] || null;
+    return linha || null;
 };
 
 //devolve null se nao existir; a integridade referencial do postgres bloqueia se houver atendimentos
 const deleteServico = async (id) => {
-    const result = await pool.query(
-        "delete from servico where id = $1 returning id",
-        [id]
-    );
+    const [linha] = await db.delete(servico)
+        .where(eq(servico.id, id))
+        .returning({ id: servico.id });
 
-    return result.rows[0] || null;
+    return linha || null;
 };
 
 //guardar o preco anterior preserva o valor ja cobrado nos atendimentos passados (RN03)
 const registrarHistoricoPreco = async ({ servico_id, valor_anterior, valor_novo, alterado_por }) => {
-    await pool.query(
-        `insert into historico_preco_servico (servico_id, valor_anterior, valor_novo, alterado_por)
-         values ($1, $2, $3, $4)`,
-        [servico_id, valor_anterior, valor_novo, alterado_por]
-    );
+    await db.insert(historicoPrecoServico).values({
+        servico_id,
+        valor_anterior: valor_anterior ?? null,
+        valor_novo,
+        alterado_por: alterado_por ?? null
+    });
 };
 
 //---- o publico so ve ativos e sem dados internos, para nao expor a operacao (RN22/RNF11) ----
 
-const camposPublicos = `s.id, s.nome, s.descricao, s.valor, s.duracao_min, s.tipo_preco,
-    c.nome as categoria_nome`;
+const camposPublicos = {
+    id: servico.id,
+    nome: servico.nome,
+    descricao: servico.descricao,
+    valor: servico.valor,
+    duracao_min: servico.duracao_min,
+    tipo_preco: servico.tipo_preco,
+    categoria_nome: categoriaSalao.nome
+};
 
 const findPublicos = async () => {
-    const result = await pool.query(
-        `select ${camposPublicos}
-           from servico s
-           join categoria_salao c on c.id = s.categoria_id
-          where s.estado = 'Ativo'
-          order by c.nome, s.nome`
-    );
-
-    return result.rows;
+    return db.select(camposPublicos)
+        .from(servico)
+        .innerJoin(categoriaSalao, eq(categoriaSalao.id, servico.categoria_id))
+        .where(eq(servico.estado, 'Ativo'))
+        .orderBy(asc(categoriaSalao.nome), asc(servico.nome));
 };
 
 const findPublicoById = async (id) => {
-    const result = await pool.query(
-        `select ${camposPublicos}
-           from servico s
-           join categoria_salao c on c.id = s.categoria_id
-          where s.id = $1 and s.estado = 'Ativo'`,
-        [id]
-    );
+    const [linha] = await db.select(camposPublicos)
+        .from(servico)
+        .innerJoin(categoriaSalao, eq(categoriaSalao.id, servico.categoria_id))
+        .where(and(eq(servico.id, id), eq(servico.estado, 'Ativo')))
+        .limit(1);
 
-    return result.rows[0] || null;
+    return linha || null;
 };
 
 const findHistoricoPrecos = async (servico_id) => {
-    const result = await pool.query(
-        `select h.id, h.valor_anterior, h.valor_novo, h.alterado_por,
-                u.nome as alterado_por_nome, h.criado_em
-           from historico_preco_servico h
-           left join usuario u on u.id = h.alterado_por
-          where h.servico_id = $1
-          order by h.criado_em desc`,
-        [servico_id]
-    );
-
-    return result.rows;
+    return db.select({
+        id: historicoPrecoServico.id,
+        valor_anterior: historicoPrecoServico.valor_anterior,
+        valor_novo: historicoPrecoServico.valor_novo,
+        alterado_por: historicoPrecoServico.alterado_por,
+        alterado_por_nome: usuario.nome,
+        criado_em: historicoPrecoServico.criado_em
+    })
+        .from(historicoPrecoServico)
+        .leftJoin(usuario, eq(usuario.id, historicoPrecoServico.alterado_por))
+        .where(eq(historicoPrecoServico.servico_id, servico_id))
+        .orderBy(desc(historicoPrecoServico.criado_em));
 };
 
 const Servico = {

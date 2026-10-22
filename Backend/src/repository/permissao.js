@@ -1,119 +1,134 @@
-import pool from '../config/database.js';
+import { and, asc, eq, inArray, notInArray, or } from 'drizzle-orm';
+import db from '../db/client.js';
+import {
+    perfilPermissao,
+    permissao,
+    usuarioPermissao
+} from '../db/schema/index.js';
+
+const campos = {
+    id: permissao.id,
+    codigo: permissao.codigo,
+    descricao: permissao.descricao,
+    modulo: permissao.modulo
+};
 
 //catalogo completo de permissoes
 const findAll = async () => {
-    const result = await pool.query(
-        "select id, codigo, descricao, modulo from permissao order by modulo, codigo"
-    );
-
-    return result.rows;
+    return db.select(campos)
+        .from(permissao)
+        .orderBy(asc(permissao.modulo), asc(permissao.codigo));
 };
 
 //codigos de permissao efetivos de um utilizador:
 //permissoes do perfil MENOS as revogadas individualmente MAIS as concedidas individualmente
 const codigosEfetivos = async (usuarioId, idPerfil) => {
-    const result = await pool.query(
-        `select p.codigo
-           from permissao p
-          where p.id in (
-                select pp.id_permissao from perfil_permissao pp where pp.id_perfil = $2
-                union
-                select up.id_permissao from usuario_permissao up
-                 where up.id_usuario = $1 and up.efeito = 'conceder'
-          )
-            and p.id not in (
-                select up2.id_permissao from usuario_permissao up2
-                 where up2.id_usuario = $1 and up2.efeito = 'revogar'
-          )
-          order by p.codigo`,
-        [usuarioId, idPerfil]
-    );
+    const permissoesDoPerfil = db
+        .select({ id: perfilPermissao.id_permissao })
+        .from(perfilPermissao)
+        .where(eq(perfilPermissao.id_perfil, idPerfil));
 
-    return result.rows.map((linha) => linha.codigo);
+    const concedidas = db
+        .select({ id: usuarioPermissao.id_permissao })
+        .from(usuarioPermissao)
+        .where(and(
+            eq(usuarioPermissao.id_usuario, usuarioId),
+            eq(usuarioPermissao.efeito, 'conceder')
+        ));
+
+    const revogadas = db
+        .select({ id: usuarioPermissao.id_permissao })
+        .from(usuarioPermissao)
+        .where(and(
+            eq(usuarioPermissao.id_usuario, usuarioId),
+            eq(usuarioPermissao.efeito, 'revogar')
+        ));
+
+    const linhas = await db.select({ codigo: permissao.codigo })
+        .from(permissao)
+        .where(and(
+            or(
+                inArray(permissao.id, permissoesDoPerfil),
+                inArray(permissao.id, concedidas)
+            ),
+            notInArray(permissao.id, revogadas)
+        ))
+        .orderBy(asc(permissao.codigo));
+
+    return linhas.map((linha) => linha.codigo);
 };
 
 //permissoes atribuidas a um perfil
 const findByPerfil = async (idPerfil) => {
-    const result = await pool.query(
-        `select p.id, p.codigo, p.descricao, p.modulo
-           from perfil_permissao pp
-           join permissao p on p.id = pp.id_permissao
-          where pp.id_perfil = $1
-          order by p.modulo, p.codigo`,
-        [idPerfil]
-    );
-
-    return result.rows;
+    return db.select(campos)
+        .from(perfilPermissao)
+        .innerJoin(permissao, eq(permissao.id, perfilPermissao.id_permissao))
+        .where(eq(perfilPermissao.id_perfil, idPerfil))
+        .orderBy(asc(permissao.modulo), asc(permissao.codigo));
 };
 
 //excecoes individuais de um utilizador
 const overridesUsuario = async (usuarioId) => {
-    const result = await pool.query(
-        `select p.codigo, up.efeito
-           from usuario_permissao up
-           join permissao p on p.id = up.id_permissao
-          where up.id_usuario = $1
-          order by p.codigo`,
-        [usuarioId]
-    );
-
-    return result.rows;
+    return db.select({
+        codigo: permissao.codigo,
+        efeito: usuarioPermissao.efeito
+    })
+        .from(usuarioPermissao)
+        .innerJoin(permissao, eq(permissao.id, usuarioPermissao.id_permissao))
+        .where(eq(usuarioPermissao.id_usuario, usuarioId))
+        .orderBy(asc(permissao.codigo));
 };
 
 //substitui todas as permissoes de um perfil (transacional)
 const substituirPerfil = async (idPerfil, codigos) => {
-    const client = await pool.connect();
-    try {
-        await client.query("begin");
-        await client.query("delete from perfil_permissao where id_perfil = $1", [idPerfil]);
+    await db.transaction(async (tx) => {
+        await tx.delete(perfilPermissao)
+            .where(eq(perfilPermissao.id_perfil, idPerfil));
 
         if (codigos.length > 0) {
-            await client.query(
-                `insert into perfil_permissao (id_perfil, id_permissao)
-                 select $1, id from permissao where codigo = any($2::text[])`,
-                [idPerfil, codigos]
-            );
-        }
+            const permissoes = await tx.select({ id: permissao.id })
+                .from(permissao)
+                .where(inArray(permissao.codigo, codigos));
 
-        await client.query("commit");
-    } catch (error) {
-        await client.query("rollback");
-        throw error;
-    } finally {
-        client.release();
-    }
+            if (permissoes.length > 0) {
+                await tx.insert(perfilPermissao).values(
+                    permissoes.map((linha) => ({
+                        id_perfil: idPerfil,
+                        id_permissao: linha.id
+                    }))
+                );
+            }
+        }
+    });
 };
 
 //substitui as excecoes individuais de um utilizador (transacional)
 const substituirUsuario = async (usuarioId, conceder, revogar) => {
-    const client = await pool.connect();
-    try {
-        await client.query("begin");
-        await client.query("delete from usuario_permissao where id_usuario = $1", [usuarioId]);
+    await db.transaction(async (tx) => {
+        await tx.delete(usuarioPermissao)
+            .where(eq(usuarioPermissao.id_usuario, usuarioId));
 
-        if (conceder.length > 0) {
-            await client.query(
-                `insert into usuario_permissao (id_usuario, id_permissao, efeito)
-                 select $1, id, 'conceder' from permissao where codigo = any($2::text[])`,
-                [usuarioId, conceder]
-            );
-        }
+        const inserirEfeito = async (codigos, efeito) => {
+            if (codigos.length === 0) return;
 
-        if (revogar.length > 0) {
-            await client.query(
-                `insert into usuario_permissao (id_usuario, id_permissao, efeito)
-                 select $1, id, 'revogar' from permissao where codigo = any($2::text[])`,
-                [usuarioId, revogar]
-            );
-        }
+            const permissoes = await tx.select({ id: permissao.id })
+                .from(permissao)
+                .where(inArray(permissao.codigo, codigos));
 
-        await client.query("commit");
-    } catch (error) {
-        await client.query("rollback");
-        throw error;
-    } finally {
-        client.release();
-    }
+            if (permissoes.length > 0) {
+                await tx.insert(usuarioPermissao).values(
+                    permissoes.map((linha) => ({
+                        id_usuario: usuarioId,
+                        id_permissao: linha.id,
+                        efeito
+                    }))
+                );
+            }
+        };
+
+        await inserirEfeito(conceder, 'conceder');
+        await inserirEfeito(revogar, 'revogar');
+    });
 };
 
 const Permissao = {

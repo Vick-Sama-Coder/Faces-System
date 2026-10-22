@@ -1,4 +1,4 @@
-import pool from '../config/database.js';
+import db from '../db/client.js';
 import Despesa from '../repository/despesa.js';
 import Caixa from '../repository/caixa.js';
 import AuditoriaService from './auditoria.js';
@@ -19,12 +19,8 @@ const criar = async (dados, registado_por) => {
         throw criarErro(400, "O valor da despesa tem de ser positivo");
     }
 
-    const client = await pool.connect();
-
-    try {
-        await client.query('begin');
-
-        const despesa_id = await Despesa.insert(client, {
+    return db.transaction(async (tx) => {
+        const despesa_id = await Despesa.insert(tx, {
             descricao: dados.descricao,
             categoria_id: dados.categoria_id,
             valor_total,
@@ -37,7 +33,7 @@ const criar = async (dados, registado_por) => {
 
         if (temItens) {
             for (const item of itens) {
-                await Despesa.insertItem(client, {
+                await Despesa.insertItem(tx, {
                     despesa_id,
                     produto_id: item.produto_id,
                     funcionario_id: item.funcionario_id,
@@ -50,7 +46,7 @@ const criar = async (dados, registado_por) => {
 
         //despesa paga pelo caixa -> movimento de saida associado (idempotente)
         if (dados.caixa_sessao_id) {
-            await Caixa.inserirMovimento(client, {
+            await Caixa.inserirMovimento(tx, {
                 id_sessao: dados.caixa_sessao_id,
                 tipo_movimento: "Saida",
                 valor: valor_total,
@@ -67,16 +63,10 @@ const criar = async (dados, registado_por) => {
             id_registo: despesa_id,
             operacao: "criar",
             depois: { descricao: dados.descricao, categoria_id: dados.categoria_id, valor_total, itens: temItens ? itens.length : 0 }
-        }, client);
+        }, tx);
 
-        await client.query('commit');
         return despesa_id;
-    } catch (error) {
-        await client.query('rollback');
-        throw error;
-    } finally {
-        client.release();
-    }
+    });
 };
 
 const DespesaService = {

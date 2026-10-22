@@ -1,33 +1,33 @@
-import pool from '../config/database.js';
+import { asc, eq } from 'drizzle-orm';
+import db from '../db/client.js';
+import { categoriaDespesa } from '../db/schema/index.js';
 
-const campos = `cd.id, cd.nome, cd.tipo, cd.estado`;
+const campos = {
+    id: categoriaDespesa.id,
+    nome: categoriaDespesa.nome,
+    tipo: categoriaDespesa.tipo,
+    estado: categoriaDespesa.estado
+};
 
 const findAll = async () => {
-    const result = await pool.query(
-        `select ${campos} from categoria_despesa cd order by cd.nome`
-    );
-
-    return result.rows;
+    return db.select(campos).from(categoriaDespesa).orderBy(asc(categoriaDespesa.nome));
 };
 
 const findById = async (id) => {
-    const result = await pool.query(
-        `select ${campos} from categoria_despesa cd where cd.id = $1`,
-        [id]
-    );
+    const [linha] = await db.select(campos)
+        .from(categoriaDespesa)
+        .where(eq(categoriaDespesa.id, id))
+        .limit(1);
 
-    return result.rows[0] || null;
+    return linha || null;
 };
 
 const create = async ({ nome, tipo }) => {
-    const result = await pool.query(
-        `insert into categoria_despesa (nome, tipo)
-         values ($1, coalesce($2, 'Variavel'))
-         returning id, nome, tipo, estado`,
-        [nome, tipo]
-    );
+    const [linha] = await db.insert(categoriaDespesa)
+        .values({ nome, tipo: tipo ?? 'Variavel' })
+        .returning(campos);
 
-    return result.rows[0];
+    return linha;
 };
 
 const CategoriaDespesa = {

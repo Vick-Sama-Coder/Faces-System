@@ -1,4 +1,4 @@
-import pool from '../config/database.js';
+import db from '../db/client.js';
 import Pagamento from '../repository/pagamento.js';
 import Atendimento from '../repository/atendimento.js';
 import Comissao from '../repository/comissao.js';
@@ -18,12 +18,9 @@ const registrar = async (atendimento_id, { parcelas, registado_por }) => {
     }
 
     const somaNovas = parcelas.reduce((total, p) => total + Number(p.valor), 0);
-    const client = await pool.connect();
 
-    try {
-        await client.query('begin');
-
-        const jaPago = await Pagamento.somaParcelas(client, atendimento_id);
+    return db.transaction(async (tx) => {
+        const jaPago = await Pagamento.somaParcelas(tx, atendimento_id);
         const devido = atendimento.valor_total;
 
         //sem credito nesta fase: a soma das parcelas nao pode exceder o devido (RN07)
@@ -34,7 +31,7 @@ const registrar = async (atendimento_id, { parcelas, registado_por }) => {
         const totalPago = jaPago + somaNovas;
         const estado = devido > 0 && totalPago >= devido ? "Liquidado" : "Parcial";
 
-        const pagamento_id = await Pagamento.insert(client, {
+        const pagamento_id = await Pagamento.insert(tx, {
             atendimento_id,
             valor_total: somaNovas,
             estado,
@@ -42,7 +39,7 @@ const registrar = async (atendimento_id, { parcelas, registado_por }) => {
         });
 
         for (const parcela of parcelas) {
-            await Pagamento.insertParcela(client, {
+            await Pagamento.insertParcela(tx, {
                 pagamento_id,
                 metodo_pagamento: parcela.metodo_pagamento,
                 valor: parcela.valor,
@@ -51,9 +48,9 @@ const registrar = async (atendimento_id, { parcelas, registado_por }) => {
         }
 
         //entrada no caixa, se houver sessao aberta (RF13/RF10); idempotente por referencia
-        const sessao = await Caixa.findSessaoAberta(client);
+        const sessao = await Caixa.findSessaoAberta(tx);
         if (sessao) {
-            await Caixa.inserirMovimento(client, {
+            await Caixa.inserirMovimento(tx, {
                 id_sessao: sessao.id,
                 tipo_movimento: "Entrada",
                 valor: somaNovas,
@@ -66,8 +63,8 @@ const registrar = async (atendimento_id, { parcelas, registado_por }) => {
 
         //liquidacao total -> atendimento fica "Pago" e gera as comissoes (RN08/RN10)
         if (estado === "Liquidado") {
-            await client.query("update atendimento set estado = 'Pago' where id = $1", [atendimento_id]);
-            await Comissao.gerarParaAtendimento(client, atendimento_id);
+            await Atendimento.updateEstado(atendimento_id, { estado: "Pago" }, tx);
+            await Comissao.gerarParaAtendimento(tx, atendimento_id);
         }
 
         await AuditoriaService.registar({
@@ -76,16 +73,10 @@ const registrar = async (atendimento_id, { parcelas, registado_por }) => {
             id_registo: pagamento_id,
             operacao: "criar",
             depois: { atendimento_id, valor_total: somaNovas, estado, parcelas: parcelas.length }
-        }, client);
+        }, tx);
 
-        await client.query('commit');
         return pagamento_id;
-    } catch (error) {
-        await client.query('rollback');
-        throw error;
-    } finally {
-        client.release();
-    }
+    });
 };
 
 //anular preserva o registo e recalcula o estado, para o historico nao se perder
@@ -99,24 +90,17 @@ const anular = async (pagamento_id, { motivo, registado_por }) => {
         throw criarErro(409, "Este pagamento ja esta anulado");
     }
 
-    const client = await pool.connect();
+    await db.transaction(async (tx) => {
+        await Pagamento.updateEstado(tx, pagamento_id, { estado: "Anulado", motivo_anulacao: motivo });
 
-    try {
-        await client.query('begin');
-
-        await Pagamento.updateEstado(client, pagamento_id, { estado: "Anulado", motivo_anulacao: motivo });
-
-        const atendimento = await Atendimento.findById(pagamento.atendimento_id);
-        const pago = await Pagamento.somaParcelas(client, pagamento.atendimento_id);
+        const atendimento = await Atendimento.findById(pagamento.atendimento_id, tx);
+        const pago = await Pagamento.somaParcelas(tx, pagamento.atendimento_id);
 
         const estadoAtendimento = atendimento.valor_total > 0 && pago >= atendimento.valor_total
             ? "Pago"
             : (pago > 0 ? "Concluido" : "Em andamento");
 
-        await client.query(
-            "update atendimento set estado = $2 where id = $1",
-            [pagamento.atendimento_id, estadoAtendimento]
-        );
+        await Atendimento.updateEstado(pagamento.atendimento_id, { estado: estadoAtendimento }, tx);
 
         await AuditoriaService.registar({
             id_utilizador: registado_por,
@@ -126,15 +110,8 @@ const anular = async (pagamento_id, { motivo, registado_por }) => {
             antes: { estado: pagamento.estado },
             depois: { estado: "Anulado" },
             motivo
-        }, client);
-
-        await client.query('commit');
-    } catch (error) {
-        await client.query('rollback');
-        throw error;
-    } finally {
-        client.release();
-    }
+        }, tx);
+    });
 };
 
 const PagamentoService = {

@@ -1,101 +1,125 @@
-import pool from '../config/database.js';
+import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm';
+import db from '../db/client.js';
+import { pagamento, pagamentoParcela } from '../db/schema/index.js';
 
-const campos = `p.id, p.atendimento_id, p.valor_total, p.estado, p.data_hora,
-    p.registado_por, p.motivo_anulacao`;
+const campos = {
+    id: pagamento.id,
+    atendimento_id: pagamento.atendimento_id,
+    valor_total: pagamento.valor_total,
+    estado: pagamento.estado,
+    data_hora: pagamento.data_hora,
+    registado_por: pagamento.registado_por,
+    motivo_anulacao: pagamento.motivo_anulacao
+};
 
 //listagem com filtros opcionais (periodo, estado, metodo de pagamento)
 const findAll = async ({ de, ate, estado, metodo } = {}) => {
-    const result = await pool.query(
-        `select ${campos}
-           from pagamento p
-          where ($1::date is null or p.data_hora::date >= $1)
-            and ($2::date is null or p.data_hora::date <= $2)
-            and ($3::text is null or p.estado = $3)
-            and ($4::text is null or exists (
-                    select 1 from pagamento_parcela pp
-                     where pp.pagamento_id = p.id and pp.metodo_pagamento = $4))
-          order by p.data_hora desc`,
-        [de || null, ate || null, estado || null, metodo || null]
-    );
+    const condicoes = [];
 
-    return result.rows;
+    if (de) condicoes.push(sql`${pagamento.data_hora}::date >= ${de}`);
+    if (ate) condicoes.push(sql`${pagamento.data_hora}::date <= ${ate}`);
+    if (estado !== undefined && estado !== null && estado !== '') {
+        condicoes.push(eq(pagamento.estado, estado));
+    }
+    if (metodo !== undefined && metodo !== null && metodo !== '') {
+        condicoes.push(inArray(
+            pagamento.id,
+            db.select({ id: pagamentoParcela.pagamento_id })
+                .from(pagamentoParcela)
+                .where(eq(pagamentoParcela.metodo_pagamento, metodo))
+        ));
+    }
+
+    return db.select(campos)
+        .from(pagamento)
+        .where(condicoes.length > 0 ? and(...condicoes) : undefined)
+        .orderBy(sql`${pagamento.data_hora} desc`);
 };
 
-const findById = async (id) => {
-    const result = await pool.query(
-        `select ${campos} from pagamento p where p.id = $1`,
-        [id]
-    );
+const findById = async (id, executor = db) => {
+    const [linha] = await executor.select(campos)
+        .from(pagamento)
+        .where(eq(pagamento.id, id))
+        .limit(1);
 
-    return result.rows[0] || null;
+    return linha || null;
 };
 
 const findParcelas = async (pagamento_id) => {
-    const result = await pool.query(
-        `select id, metodo_pagamento, valor, referencia, criado_em
-           from pagamento_parcela
-          where pagamento_id = $1
-          order by id`,
-        [pagamento_id]
-    );
-
-    return result.rows;
+    return db.select({
+        id: pagamentoParcela.id,
+        metodo_pagamento: pagamentoParcela.metodo_pagamento,
+        valor: pagamentoParcela.valor,
+        referencia: pagamentoParcela.referencia,
+        criado_em: pagamentoParcela.criado_em
+    })
+        .from(pagamentoParcela)
+        .where(eq(pagamentoParcela.pagamento_id, pagamento_id))
+        .orderBy(asc(pagamentoParcela.id));
 };
 
 const findByAtendimento = async (atendimento_id) => {
-    const result = await pool.query(
-        `select ${campos} from pagamento p where p.atendimento_id = $1 order by p.data_hora desc`,
-        [atendimento_id]
-    );
-
-    return result.rows;
+    return db.select(campos)
+        .from(pagamento)
+        .where(eq(pagamento.atendimento_id, atendimento_id))
+        .orderBy(sql`${pagamento.data_hora} desc`);
 };
 
 //soma das parcelas ja registadas (ignora pagamentos anulados)
-const somaParcelas = async (db, atendimento_id) => {
-    const result = await db.query(
-        `select coalesce(sum(pp.valor), 0)::int as total
-           from pagamento_parcela pp
-           join pagamento p on p.id = pp.pagamento_id
-          where p.atendimento_id = $1 and p.estado <> 'Anulado'`,
-        [atendimento_id]
-    );
+const somaParcelas = async (executor, atendimento_id) => {
+    const [linha] = await executor.select({
+        total: sql`coalesce(sum(${pagamentoParcela.valor}), 0)::int`
+    })
+        .from(pagamentoParcela)
+        .innerJoin(pagamento, eq(pagamento.id, pagamentoParcela.pagamento_id))
+        .where(and(
+            eq(pagamento.atendimento_id, atendimento_id),
+            ne(pagamento.estado, 'Anulado')
+        ));
 
-    return result.rows[0].total;
+    return linha.total;
 };
 
-//---- operacoes usadas dentro de transacoes (recebem o client) ----
+//---- operacoes usadas dentro de transacoes (recebem o tx) ----
 
-const insert = async (client, { atendimento_id, valor_total, estado, registado_por }) => {
-    const result = await client.query(
-        `insert into pagamento (atendimento_id, valor_total, estado, registado_por)
-         values ($1, $2, $3, $4)
-         returning id`,
-        [atendimento_id, valor_total, estado, registado_por]
-    );
+const insert = async (tx, { atendimento_id, valor_total, estado, registado_por }) => {
+    const [linha] = await tx.insert(pagamento)
+        .values({
+            atendimento_id,
+            valor_total,
+            estado,
+            registado_por
+        })
+        .returning({ id: pagamento.id });
 
-    return result.rows[0].id;
+    return linha.id;
 };
 
-const insertParcela = async (client, { pagamento_id, metodo_pagamento, valor, referencia }) => {
-    await client.query(
-        `insert into pagamento_parcela (pagamento_id, metodo_pagamento, valor, referencia)
-         values ($1, $2, $3, $4)`,
-        [pagamento_id, metodo_pagamento, valor, referencia]
-    );
+const insertParcela = async (tx, { pagamento_id, metodo_pagamento, valor, referencia }) => {
+    await tx.insert(pagamentoParcela).values({
+        pagamento_id,
+        metodo_pagamento,
+        valor,
+        referencia: referencia ?? null
+    });
 };
 
-const updateEstado = async (db, id, { estado, motivo_anulacao }) => {
-    const result = await db.query(
-        `update pagamento
-            set estado = $2,
-                motivo_anulacao = coalesce($3, motivo_anulacao)
-          where id = $1
-          returning id, estado`,
-        [id, estado, motivo_anulacao]
-    );
+const updateEstado = async (executor, id, { estado, motivo_anulacao }) => {
+    const valores = { estado };
 
-    return result.rows[0] || null;
+    if (motivo_anulacao !== undefined && motivo_anulacao !== null) {
+        valores.motivo_anulacao = motivo_anulacao;
+    }
+
+    const [linha] = await executor.update(pagamento)
+        .set(valores)
+        .where(eq(pagamento.id, id))
+        .returning({
+            id: pagamento.id,
+            estado: pagamento.estado
+        });
+
+    return linha || null;
 };
 
 const Pagamento = {

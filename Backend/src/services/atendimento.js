@@ -1,4 +1,4 @@
-import pool from '../config/database.js';
+import db from '../db/client.js';
 import Atendimento from '../repository/atendimento.js';
 import Servico from '../repository/servico.js';
 import FidelizacaoService from './fidelizacao.js';
@@ -37,9 +37,9 @@ async function validarServicoAtivo(servico_id) {
 }
 
 //so os cortes marcados como elegiveis contam para o cartao de fidelizacao
-async function registarFidelizacao(client, servico, { cliente_id, atendimento_servico_id, valor_final, registado_por }) {
+async function registarFidelizacao(tx, servico, { cliente_id, atendimento_servico_id, valor_final, registado_por }) {
     if (servico.elegivel_fidelizacao) {
-        await FidelizacaoService.registarCorte(client, {
+        await FidelizacaoService.registarCorte(tx, {
             cliente_id,
             atendimento_servico_id,
             valor_final,
@@ -55,13 +55,9 @@ const criar = async ({ cliente_id, servicos, registado_por }) => {
         validados.push(await validarServicoAtivo(servico.servico_id));
     }
 
-    const client = await pool.connect();
-
-    try {
-        await client.query('begin');
-
+    return db.transaction(async (tx) => {
         const totais = somar(servicos);
-        const atendimento_id = await Atendimento.insertHeader(client, {
+        const atendimento_id = await Atendimento.insertHeader(tx, {
             cliente_id,
             valor_bruto: totais.bruto,
             valor_desconto: totais.desconto,
@@ -73,7 +69,7 @@ const criar = async ({ cliente_id, servicos, registado_por }) => {
             const preco = Number(servicos[i].preco_praticado);
             const desconto = Number(servicos[i].desconto || 0);
 
-            const item_id = await Atendimento.insertServico(client, {
+            const item_id = await Atendimento.insertServico(tx, {
                 atendimento_id,
                 servico_id: servicos[i].servico_id,
                 funcionario_id: servicos[i].funcionario_id,
@@ -84,7 +80,7 @@ const criar = async ({ cliente_id, servicos, registado_por }) => {
                 registado_por
             });
 
-            await registarFidelizacao(client, validados[i], {
+            await registarFidelizacao(tx, validados[i], {
                 cliente_id,
                 atendimento_servico_id: item_id,
                 valor_final: preco - desconto,
@@ -98,20 +94,17 @@ const criar = async ({ cliente_id, servicos, registado_por }) => {
             id_registo: atendimento_id,
             operacao: "criar",
             depois: { cliente_id, valor_bruto: totais.bruto, valor_desconto: totais.desconto, valor_total: totais.total, servicos: servicos.length }
-        }, client);
+        }, tx);
 
-        await client.query('commit');
         return atendimento_id;
-    } catch (error) {
-        await client.query('rollback');
-        throw error;
-    } finally {
-        client.release();
-    }
+    });
 };
 
 const adicionarServico = async (atendimento_id, dados, registado_por) => {
-    const atendimento = await Atendimento.findById(atendimento_id);
+    const [atendimento, servico] = await Promise.all([
+        Atendimento.findById(atendimento_id),
+        validarServicoAtivo(dados.servico_id)
+    ]);
 
     if (!atendimento) {
         throw criarErro(404, "Atendimento nao encontrado");
@@ -120,15 +113,11 @@ const adicionarServico = async (atendimento_id, dados, registado_por) => {
         throw criarErro(409, "Um atendimento anulado nao pode ser alterado");
     }
 
-    const servico = await validarServicoAtivo(dados.servico_id);
     const preco = Number(dados.preco_praticado);
     const desconto = Number(dados.desconto || 0);
-    const client = await pool.connect();
 
-    try {
-        await client.query('begin');
-
-        const item_id = await Atendimento.insertServico(client, {
+    return db.transaction(async (tx) => {
+        const item_id = await Atendimento.insertServico(tx, {
             atendimento_id,
             servico_id: dados.servico_id,
             funcionario_id: dados.funcionario_id,
@@ -139,46 +128,29 @@ const adicionarServico = async (atendimento_id, dados, registado_por) => {
             registado_por
         });
 
-        await registarFidelizacao(client, servico, {
+        await registarFidelizacao(tx, servico, {
             cliente_id: atendimento.cliente_id,
             atendimento_servico_id: item_id,
             valor_final: preco - desconto,
             registado_por
         });
 
-        await Atendimento.recalcular(client, atendimento_id);
-
-        await client.query('commit');
-    } catch (error) {
-        await client.query('rollback');
-        throw error;
-    } finally {
-        client.release();
-    }
+        await Atendimento.recalcular(tx, atendimento_id);
+    });
 };
 
 const removerServico = async (item_id) => {
-    const client = await pool.connect();
-
-    try {
-        await client.query('begin');
-
-        const item = await Atendimento.findServicoItem(client, item_id);
+    return db.transaction(async (tx) => {
+        const item = await Atendimento.findServicoItem(tx, item_id);
         if (!item) {
             throw criarErro(404, "Servico do atendimento nao encontrado");
         }
 
-        await Atendimento.deleteServicoItem(client, item_id);
-        await Atendimento.recalcular(client, item.atendimento_id);
+        await Atendimento.deleteServicoItem(tx, item_id);
+        await Atendimento.recalcular(tx, item.atendimento_id);
 
-        await client.query('commit');
         return item.atendimento_id;
-    } catch (error) {
-        await client.query('rollback');
-        throw error;
-    } finally {
-        client.release();
-    }
+    });
 };
 
 const AtendimentoService = {

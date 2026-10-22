@@ -1,57 +1,67 @@
-import pool from '../config/database.js';
+import { asc, eq, sql } from 'drizzle-orm';
+import db from '../db/client.js';
+import { horarioFuncionario } from '../db/schema/index.js';
 
-const campos = `h.id, h.funcionario_id, h.dia_semana, h.hora_entrada, h.hora_saida,
-    h.data_inicio_vigencia, h.data_fim_vigencia, h.estado`;
-
-const findByFuncionario = async (funcionario_id) => {
-    const result = await pool.query(
-        `select ${campos}
-           from horario_funcionario h
-          where h.funcionario_id = $1
-          order by h.dia_semana, h.hora_entrada`,
-        [funcionario_id]
-    );
-
-    return result.rows;
+const campos = {
+    id: horarioFuncionario.id,
+    funcionario_id: horarioFuncionario.funcionario_id,
+    dia_semana: horarioFuncionario.dia_semana,
+    hora_entrada: horarioFuncionario.hora_entrada,
+    hora_saida: horarioFuncionario.hora_saida,
+    data_inicio_vigencia: horarioFuncionario.data_inicio_vigencia,
+    data_fim_vigencia: horarioFuncionario.data_fim_vigencia,
+    estado: horarioFuncionario.estado
 };
 
-const create = async (funcionario_id, { dia_semana, hora_entrada, hora_saida, data_inicio_vigencia, data_fim_vigencia }) => {
-    const result = await pool.query(
-        `insert into horario_funcionario
-            (funcionario_id, dia_semana, hora_entrada, hora_saida, data_inicio_vigencia, data_fim_vigencia)
-         values ($1, $2, $3, $4, coalesce($5, current_date), $6)
-         returning id, funcionario_id, dia_semana, hora_entrada, hora_saida,
-                   data_inicio_vigencia, data_fim_vigencia, estado`,
-        [funcionario_id, dia_semana, hora_entrada, hora_saida, data_inicio_vigencia ?? null, data_fim_vigencia ?? null]
-    );
+const findByFuncionario = async (funcionario_id) => {
+    return db.select(campos)
+        .from(horarioFuncionario)
+        .where(eq(horarioFuncionario.funcionario_id, funcionario_id))
+        .orderBy(asc(horarioFuncionario.dia_semana), asc(horarioFuncionario.hora_entrada));
+};
 
-    return result.rows[0];
+const create = async (funcionario_id, {
+    dia_semana,
+    hora_entrada,
+    hora_saida,
+    data_inicio_vigencia,
+    data_fim_vigencia
+}) => {
+    const [linha] = await db.insert(horarioFuncionario)
+        .values({
+            funcionario_id,
+            dia_semana,
+            hora_entrada,
+            hora_saida,
+            data_inicio_vigencia: data_inicio_vigencia ?? sql`current_date`,
+            data_fim_vigencia: data_fim_vigencia ?? null
+        })
+        .returning(campos);
+
+    return linha;
 };
 
 //substituir numa transacao evita deixar a programacao pela metade se um horario falhar
 const substituir = async (funcionario_id, horarios) => {
-    const client = await pool.connect();
+    await db.transaction(async (tx) => {
+        await tx.delete(horarioFuncionario)
+            .where(eq(horarioFuncionario.funcionario_id, funcionario_id));
 
-    try {
-        await client.query('begin');
-        await client.query("delete from horario_funcionario where funcionario_id = $1", [funcionario_id]);
-
-        for (const h of horarios) {
-            await client.query(
-                `insert into horario_funcionario
-                    (funcionario_id, dia_semana, hora_entrada, hora_saida, data_inicio_vigencia, data_fim_vigencia)
-                 values ($1, $2, $3, $4, coalesce($5, current_date), $6)`,
-                [funcionario_id, h.dia_semana, h.hora_entrada, h.hora_saida, h.data_inicio_vigencia ?? null, h.data_fim_vigencia ?? null]
-            );
+        if (horarios.length === 0) {
+            return;
         }
 
-        await client.query('commit');
-    } catch (error) {
-        await client.query('rollback');
-        throw error;
-    } finally {
-        client.release();
-    }
+        await tx.insert(horarioFuncionario).values(
+            horarios.map((horario) => ({
+                funcionario_id,
+                dia_semana: horario.dia_semana,
+                hora_entrada: horario.hora_entrada,
+                hora_saida: horario.hora_saida,
+                data_inicio_vigencia: horario.data_inicio_vigencia ?? sql`current_date`,
+                data_fim_vigencia: horario.data_fim_vigencia ?? null
+            }))
+        );
+    });
 };
 
 const Horario = {

@@ -1,144 +1,203 @@
-import pool from '../config/database.js';
+import { and, asc, eq, ne, sql } from 'drizzle-orm';
+import db from '../db/client.js';
+import { perfil, usuario } from '../db/schema/index.js';
 
 //campos devolvidos em respostas (nunca inclui a senha)
-const camposPublicos = `u.id, u.nome, u.telefone, u.id_perfil, u.estado,
-    u.alteracao_obrigatoria_senha, u.ultimo_acesso, u.data_criacao, p.nome as perfil`;
+const camposPublicos = {
+    id: usuario.id,
+    nome: usuario.nome,
+    telefone: usuario.telefone,
+    id_perfil: usuario.id_perfil,
+    estado: usuario.estado,
+    alteracao_obrigatoria_senha: usuario.alteracao_obrigatoria_senha,
+    ultimo_acesso: usuario.ultimo_acesso,
+    data_criacao: usuario.data_criacao,
+    perfil: perfil.nome
+};
 
 //listagem de todos os utilizadores (ordenada por nome)
 const findAll = async () => {
-    const result = await pool.query(
-        `select ${camposPublicos}
-           from usuario u
-           join perfil p on p.id = u.id_perfil
-          order by u.nome`
-    );
-
-    return result.rows;
+    return db.select(camposPublicos)
+        .from(usuario)
+        .innerJoin(perfil, eq(perfil.id, usuario.id_perfil))
+        .orderBy(asc(usuario.nome));
 };
 
 const findById = async (id) => {
-    const result = await pool.query(
-        `select ${camposPublicos}
-           from usuario u
-           join perfil p on p.id = u.id_perfil
-          where u.id = $1`,
-        [id]
-    );
+    const [linha] = await db.select(camposPublicos)
+        .from(usuario)
+        .innerJoin(perfil, eq(perfil.id, usuario.id_perfil))
+        .where(eq(usuario.id, id))
+        .limit(1);
 
-    return result.rows[0] || null;
+    return linha || null;
 };
 
 //uso interno (login): inclui o hash da senha; pesquisa case-insensitive pelo nome
 const findByNomeComSenha = async (nome) => {
-    const result = await pool.query(
-        `select u.id, u.nome, u.telefone, u.senha, u.id_perfil, u.estado,
-                u.alteracao_obrigatoria_senha, p.nome as perfil
-           from usuario u
-           join perfil p on p.id = u.id_perfil
-          where lower(u.nome) = lower($1)`,
-        [nome]
-    );
+    const [linha] = await db.select({
+        id: usuario.id,
+        nome: usuario.nome,
+        telefone: usuario.telefone,
+        senha: usuario.senha,
+        id_perfil: usuario.id_perfil,
+        estado: usuario.estado,
+        alteracao_obrigatoria_senha: usuario.alteracao_obrigatoria_senha,
+        perfil: perfil.nome
+    })
+        .from(usuario)
+        .innerJoin(perfil, eq(perfil.id, usuario.id_perfil))
+        .where(sql`lower(${usuario.nome}) = lower(${nome})`)
+        .limit(1);
 
-    return result.rows[0] || null;
+    return linha || null;
 };
 
 //uso interno (recuperacao de senha): utilizador pelo telefone (sem a senha)
 const findByTelefone = async (telefone) => {
-    const result = await pool.query(
-        `select u.id, u.nome, u.telefone, u.id_perfil, u.estado
-           from usuario u
-          where u.telefone = $1`,
-        [telefone]
-    );
+    const [linha] = await db.select({
+        id: usuario.id,
+        nome: usuario.nome,
+        telefone: usuario.telefone,
+        id_perfil: usuario.id_perfil,
+        estado: usuario.estado
+    })
+        .from(usuario)
+        .where(eq(usuario.telefone, telefone))
+        .limit(1);
 
-    return result.rows[0] || null;
+    return linha || null;
 };
 
 //uso interno (troca de senha): inclui o hash atual
 const findByIdComSenha = async (id) => {
-    const result = await pool.query(
-        "select id, senha from usuario where id = $1",
-        [id]
-    );
+    const [linha] = await db.select({
+        id: usuario.id,
+        senha: usuario.senha
+    })
+        .from(usuario)
+        .where(eq(usuario.id, id))
+        .limit(1);
 
-    return result.rows[0] || null;
+    return linha || null;
 };
 
 //verifica duplicacao de telefone (ignora um id quando em atualizacao)
 const existeTelefone = async (telefone, exceptoId = null) => {
-    const result = await pool.query(
-        `select 1 from usuario
-          where telefone = $1 and ($2::int is null or id <> $2)
-          limit 1`,
-        [telefone, exceptoId]
-    );
+    const condicoes = [eq(usuario.telefone, telefone)];
 
-    return result.rows.length > 0;
+    if (exceptoId !== null && exceptoId !== undefined) {
+        condicoes.push(ne(usuario.id, exceptoId));
+    }
+
+    const linhas = await db.select({ id: usuario.id })
+        .from(usuario)
+        .where(and(...condicoes))
+        .limit(1);
+
+    return linhas.length > 0;
 };
 
 //verifica duplicacao do nome de utilizador (case-insensitive)
 const existeNome = async (nome, exceptoId = null) => {
-    const result = await pool.query(
-        `select 1 from usuario
-          where lower(nome) = lower($1) and ($2::int is null or id <> $2)
-          limit 1`,
-        [nome, exceptoId]
-    );
+    const condicoes = [sql`lower(${usuario.nome}) = lower(${nome})`];
 
-    return result.rows.length > 0;
+    if (exceptoId !== null && exceptoId !== undefined) {
+        condicoes.push(ne(usuario.id, exceptoId));
+    }
+
+    const linhas = await db.select({ id: usuario.id })
+        .from(usuario)
+        .where(and(...condicoes))
+        .limit(1);
+
+    return linhas.length > 0;
 };
 
 const create = async ({ nome, telefone, senhaHash, id_perfil, alteracaoObrigatoria = false }) => {
-    const result = await pool.query(
-        `insert into usuario (nome, senha, telefone, id_perfil, alteracao_obrigatoria_senha)
-         values ($1, $2, $3, $4, $5)
-         returning id, nome, telefone, id_perfil, estado, alteracao_obrigatoria_senha`,
-        [nome, senhaHash, telefone, id_perfil, alteracaoObrigatoria]
-    );
+    const [linha] = await db.insert(usuario)
+        .values({
+            nome,
+            senha: senhaHash,
+            telefone,
+            id_perfil,
+            alteracao_obrigatoria_senha: alteracaoObrigatoria
+        })
+        .returning({
+            id: usuario.id,
+            nome: usuario.nome,
+            telefone: usuario.telefone,
+            id_perfil: usuario.id_perfil,
+            estado: usuario.estado,
+            alteracao_obrigatoria_senha: usuario.alteracao_obrigatoria_senha
+        });
 
-    return result.rows[0];
+    return linha;
 };
 
 //atualizacao parcial
 const update = async (id, { nome, telefone, id_perfil }) => {
-    const result = await pool.query(
-        `update usuario
-            set nome = coalesce($2, nome),
-                telefone = coalesce($3, telefone),
-                id_perfil = coalesce($4, id_perfil)
-          where id = $1
-          returning id, nome, telefone, id_perfil, estado`,
-        [id, nome, telefone, id_perfil]
-    );
+    const valores = {};
 
-    return result.rows[0] || null;
+    if (nome !== undefined && nome !== null) valores.nome = nome;
+    if (telefone !== undefined && telefone !== null) valores.telefone = telefone;
+    if (id_perfil !== undefined && id_perfil !== null) valores.id_perfil = id_perfil;
+
+    if (Object.keys(valores).length === 0) {
+        return findById(id);
+    }
+
+    const [linha] = await db.update(usuario)
+        .set(valores)
+        .where(eq(usuario.id, id))
+        .returning({
+            id: usuario.id,
+            nome: usuario.nome,
+            telefone: usuario.telefone,
+            id_perfil: usuario.id_perfil,
+            estado: usuario.estado
+        });
+
+    return linha || null;
 };
 
 const updateEstado = async (id, estado) => {
-    const result = await pool.query(
-        `update usuario set estado = $2
-          where id = $1
-          returning id, nome, telefone, id_perfil, estado`,
-        [id, estado]
-    );
+    const [linha] = await db.update(usuario)
+        .set({ estado })
+        .where(eq(usuario.id, id))
+        .returning({
+            id: usuario.id,
+            nome: usuario.nome,
+            telefone: usuario.telefone,
+            id_perfil: usuario.id_perfil,
+            estado: usuario.estado
+        });
 
-    return result.rows[0] || null;
+    return linha || null;
 };
 
 const updateSenha = async (id, senhaHash, alteracaoObrigatoria) => {
-    const result = await pool.query(
-        `update usuario
-            set senha = $2, alteracao_obrigatoria_senha = $3
-          where id = $1
-          returning id, nome, telefone, id_perfil, estado`,
-        [id, senhaHash, alteracaoObrigatoria]
-    );
+    const [linha] = await db.update(usuario)
+        .set({
+            senha: senhaHash,
+            alteracao_obrigatoria_senha: alteracaoObrigatoria
+        })
+        .where(eq(usuario.id, id))
+        .returning({
+            id: usuario.id,
+            nome: usuario.nome,
+            telefone: usuario.telefone,
+            id_perfil: usuario.id_perfil,
+            estado: usuario.estado
+        });
 
-    return result.rows[0] || null;
+    return linha || null;
 };
 
 const registarAcesso = async (id) => {
-    await pool.query("update usuario set ultimo_acesso = now() where id = $1", [id]);
+    await db.update(usuario)
+        .set({ ultimo_acesso: sql`now()` })
+        .where(eq(usuario.id, id));
 };
 
 const Usuario = {

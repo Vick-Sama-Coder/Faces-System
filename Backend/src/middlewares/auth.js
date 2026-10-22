@@ -1,5 +1,7 @@
 import jwt from 'jsonwebtoken';
-import pool from '../config/database.js';
+import { eq } from 'drizzle-orm';
+import db from '../db/client.js';
+import { perfil, usuario } from '../db/schema/index.js';
 import Permissao from '../repository/permissao.js';
 
 //Verifica o token no cookie, carrega o utilizador + perfil + permissoes para req.user
@@ -18,20 +20,23 @@ export async function authenticate(req, res, next){
             return res.status(401).json({message: "Nao autenticado: token invalido ou expirado"});
         }
 
-        const result = await pool.query(
-            `select u.id, u.nome, u.telefone, u.id_perfil, u.estado,
-                    u.alteracao_obrigatoria_senha, p.nome as perfil
-             from usuario u
-             join perfil p on p.id = u.id_perfil
-             where u.id = $1`,
-            [payload.id]
-        );
+        const [user] = await db.select({
+            id: usuario.id,
+            nome: usuario.nome,
+            telefone: usuario.telefone,
+            id_perfil: usuario.id_perfil,
+            estado: usuario.estado,
+            alteracao_obrigatoria_senha: usuario.alteracao_obrigatoria_senha,
+            perfil: perfil.nome
+        })
+            .from(usuario)
+            .innerJoin(perfil, eq(perfil.id, usuario.id_perfil))
+            .where(eq(usuario.id, payload.id))
+            .limit(1);
 
-        if(result.rows.length === 0){
+        if(!user){
             return res.status(401).json({message: "Nao autenticado: utilizador nao existe"});
         }
-
-        const user = result.rows[0];
 
         //contas inativas perdem o acesso, mesmo com token valido
         if(user.estado !== "Ativo"){
@@ -50,6 +55,7 @@ export async function authenticate(req, res, next){
             alteracao_obrigatoria_senha: user.alteracao_obrigatoria_senha,
             permissoes
         };
+
         return next();
     }catch(err){
         return next(err);

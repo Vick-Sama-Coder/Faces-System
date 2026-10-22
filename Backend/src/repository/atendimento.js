@@ -1,140 +1,200 @@
-import pool from '../config/database.js';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import db from '../db/client.js';
+import {
+    atendimento,
+    atendimentoServico,
+    cliente,
+    funcionario,
+    servico
+} from '../db/schema/index.js';
 
-const campos = `a.id, a.cliente_id, c.nome as cliente_nome, a.data_hora, a.estado,
-    a.valor_bruto, a.valor_desconto, a.valor_total, a.registado_por, a.motivo_anulacao`;
-
-//listagem com filtros opcionais (periodo, cliente, funcionario, estado)
-const findAll = async ({ de, ate, cliente, funcionario, estado } = {}) => {
-    const result = await pool.query(
-        `select ${campos}
-           from atendimento a
-           join cliente c on c.id = a.cliente_id
-          where ($1::date is null or a.data_hora::date >= $1)
-            and ($2::date is null or a.data_hora::date <= $2)
-            and ($3::int is null or a.cliente_id = $3)
-            and ($4::int is null or exists (
-                    select 1 from atendimento_servico s
-                     where s.atendimento_id = a.id and s.funcionario_id = $4))
-            and ($5::text is null or a.estado = $5)
-          order by a.data_hora desc`,
-        [de || null, ate || null, cliente || null, funcionario || null, estado || null]
-    );
-
-    return result.rows;
+const campos = {
+    id: atendimento.id,
+    cliente_id: atendimento.cliente_id,
+    cliente_nome: cliente.nome,
+    data_hora: atendimento.data_hora,
+    estado: atendimento.estado,
+    valor_bruto: atendimento.valor_bruto,
+    valor_desconto: atendimento.valor_desconto,
+    valor_total: atendimento.valor_total,
+    registado_por: atendimento.registado_por,
+    motivo_anulacao: atendimento.motivo_anulacao
 };
 
-const findById = async (id) => {
-    const result = await pool.query(
-        `select ${campos}
-           from atendimento a
-           join cliente c on c.id = a.cliente_id
-          where a.id = $1`,
-        [id]
-    );
+//listagem com filtros opcionais (periodo, cliente, funcionario, estado)
+const findAll = async ({ de, ate, cliente: clienteId, funcionario: funcionarioId, estado } = {}) => {
+    const condicoes = [];
 
-    return result.rows[0] || null;
+    if (de) condicoes.push(sql`${atendimento.data_hora}::date >= ${de}`);
+    if (ate) condicoes.push(sql`${atendimento.data_hora}::date <= ${ate}`);
+    if (clienteId !== undefined && clienteId !== null && clienteId !== '') {
+        condicoes.push(eq(atendimento.cliente_id, clienteId));
+    }
+    if (funcionarioId !== undefined && funcionarioId !== null && funcionarioId !== '') {
+        condicoes.push(inArray(
+            atendimento.id,
+            db.select({ id: atendimentoServico.atendimento_id })
+                .from(atendimentoServico)
+                .where(eq(atendimentoServico.funcionario_id, funcionarioId))
+        ));
+    }
+    if (estado !== undefined && estado !== null && estado !== '') {
+        condicoes.push(eq(atendimento.estado, estado));
+    }
+
+    return db.select(campos)
+        .from(atendimento)
+        .innerJoin(cliente, eq(cliente.id, atendimento.cliente_id))
+        .where(condicoes.length > 0 ? and(...condicoes) : undefined)
+        .orderBy(sql`${atendimento.data_hora} desc`);
+};
+
+const findById = async (id, executor = db) => {
+    const [linha] = await executor.select(campos)
+        .from(atendimento)
+        .innerJoin(cliente, eq(cliente.id, atendimento.cliente_id))
+        .where(eq(atendimento.id, id))
+        .limit(1);
+
+    return linha || null;
 };
 
 const findServicos = async (atendimento_id) => {
-    const result = await pool.query(
-        `select s.id, s.servico_id, sv.nome as servico_nome,
-                s.funcionario_id, f.nome as funcionario_nome,
-                s.preco_original, s.tipo_preco, s.valor_desconto, s.valor_final, s.estado
-           from atendimento_servico s
-           join servico sv on sv.id = s.servico_id
-           join funcionario f on f.id = s.funcionario_id
-          where s.atendimento_id = $1
-          order by s.id`,
-        [atendimento_id]
-    );
-
-    return result.rows;
+    return db.select({
+        id: atendimentoServico.id,
+        servico_id: atendimentoServico.servico_id,
+        servico_nome: servico.nome,
+        funcionario_id: atendimentoServico.funcionario_id,
+        funcionario_nome: funcionario.nome,
+        preco_original: atendimentoServico.preco_original,
+        tipo_preco: atendimentoServico.tipo_preco,
+        valor_desconto: atendimentoServico.valor_desconto,
+        valor_final: atendimentoServico.valor_final,
+        estado: atendimentoServico.estado
+    })
+        .from(atendimentoServico)
+        .innerJoin(servico, eq(servico.id, atendimentoServico.servico_id))
+        .innerJoin(funcionario, eq(funcionario.id, atendimentoServico.funcionario_id))
+        .where(eq(atendimentoServico.atendimento_id, atendimento_id))
+        .orderBy(asc(atendimentoServico.id));
 };
 
-//---- operacoes usadas dentro de transacoes (recebem o client) ----
+//---- operacoes usadas dentro de transacoes (recebem o tx) ----
 
-const insertHeader = async (client, { cliente_id, valor_bruto, valor_desconto, valor_total, registado_por }) => {
-    const result = await client.query(
-        `insert into atendimento (cliente_id, valor_bruto, valor_desconto, valor_total, registado_por)
-         values ($1, $2, $3, $4, $5)
-         returning id`,
-        [cliente_id, valor_bruto, valor_desconto, valor_total, registado_por]
-    );
+const insertHeader = async (tx, { cliente_id, valor_bruto, valor_desconto, valor_total, registado_por }) => {
+    const [linha] = await tx.insert(atendimento)
+        .values({
+            cliente_id,
+            valor_bruto,
+            valor_desconto,
+            valor_total,
+            registado_por
+        })
+        .returning({ id: atendimento.id });
 
-    return result.rows[0].id;
+    return linha.id;
 };
 
-const insertServico = async (client, { atendimento_id, servico_id, funcionario_id, preco_original, tipo_preco, valor_desconto, valor_final, registado_por }) => {
-    const result = await client.query(
-        `insert into atendimento_servico
-            (atendimento_id, servico_id, funcionario_id, preco_original, tipo_preco, valor_desconto, valor_final, registado_por)
-         values ($1, $2, $3, $4, $5, $6, $7, $8)
-         returning id`,
-        [atendimento_id, servico_id, funcionario_id, preco_original, tipo_preco, valor_desconto, valor_final, registado_por]
-    );
+const insertServico = async (tx, {
+    atendimento_id,
+    servico_id,
+    funcionario_id,
+    preco_original,
+    tipo_preco,
+    valor_desconto,
+    valor_final,
+    registado_por
+}) => {
+    const [linha] = await tx.insert(atendimentoServico)
+        .values({
+            atendimento_id,
+            servico_id,
+            funcionario_id,
+            preco_original,
+            tipo_preco: tipo_preco ?? null,
+            valor_desconto,
+            valor_final,
+            registado_por
+        })
+        .returning({ id: atendimentoServico.id });
 
-    return result.rows[0].id;
+    return linha.id;
 };
 
 //recalcula os totais do cabecalho a partir das linhas ativas
-const recalcular = async (client, atendimento_id) => {
-    await client.query(
-        `update atendimento
-            set valor_bruto = coalesce(t.bruto, 0),
-                valor_desconto = coalesce(t.desconto, 0),
-                valor_total = coalesce(t.total, 0)
-           from (select $1::int as id) x
-           left join (
-                select atendimento_id,
-                       sum(preco_original)::int as bruto,
-                       sum(valor_desconto)::int as desconto,
-                       sum(valor_final)::int as total
-                  from atendimento_servico
-                 where atendimento_id = $1 and estado = 'Ativo'
-                 group by atendimento_id
-           ) t on t.atendimento_id = x.id
-          where atendimento.id = x.id`,
-        [atendimento_id]
-    );
+const recalcular = async (tx, atendimento_id) => {
+    await tx.execute(sql`
+        update atendimento
+           set valor_bruto = coalesce(t.bruto, 0),
+               valor_desconto = coalesce(t.desconto, 0),
+               valor_total = coalesce(t.total, 0)
+          from (select ${atendimento_id}::int as id) x
+          left join (
+               select atendimento_id,
+                      sum(preco_original)::int as bruto,
+                      sum(valor_desconto)::int as desconto,
+                      sum(valor_final)::int as total
+                 from atendimento_servico
+                where atendimento_id = ${atendimento_id} and estado = 'Ativo'
+                group by atendimento_id
+          ) t on t.atendimento_id = x.id
+         where atendimento.id = x.id
+    `);
 };
 
-const findServicoItem = async (client, item_id) => {
-    const result = await client.query(
-        `select id, atendimento_id from atendimento_servico where id = $1`,
-        [item_id]
-    );
+const findServicoItem = async (tx, item_id) => {
+    const [linha] = await tx.select({
+        id: atendimentoServico.id,
+        atendimento_id: atendimentoServico.atendimento_id
+    })
+        .from(atendimentoServico)
+        .where(eq(atendimentoServico.id, item_id))
+        .limit(1);
 
-    return result.rows[0] || null;
+    return linha || null;
 };
 
-const deleteServicoItem = async (client, item_id) => {
-    await client.query("delete from atendimento_servico where id = $1", [item_id]);
+const deleteServicoItem = async (tx, item_id) => {
+    await tx.delete(atendimentoServico)
+        .where(eq(atendimentoServico.id, item_id));
 };
 
-//---- atualizacoes simples (pool) ----
+//---- atualizacoes simples (db) ----
 
 const updateHeader = async (id, { cliente_id }) => {
-    const result = await pool.query(
-        `update atendimento set cliente_id = coalesce($2, cliente_id)
-          where id = $1
-          returning id`,
-        [id, cliente_id]
-    );
+    if (cliente_id === undefined || cliente_id === null) {
+        const [linha] = await db.select({ id: atendimento.id })
+            .from(atendimento)
+            .where(eq(atendimento.id, id))
+            .limit(1);
 
-    return result.rows[0] || null;
+        return linha || null;
+    }
+
+    const [linha] = await db.update(atendimento)
+        .set({ cliente_id })
+        .where(eq(atendimento.id, id))
+        .returning({ id: atendimento.id });
+
+    return linha || null;
 };
 
-const updateEstado = async (id, { estado, motivo_anulacao }) => {
-    const result = await pool.query(
-        `update atendimento
-            set estado = $2,
-                motivo_anulacao = coalesce($3, motivo_anulacao)
-          where id = $1
-          returning id, estado`,
-        [id, estado, motivo_anulacao]
-    );
+const updateEstado = async (id, { estado, motivo_anulacao }, executor = db) => {
+    const valores = { estado };
 
-    return result.rows[0] || null;
+    if (motivo_anulacao !== undefined && motivo_anulacao !== null) {
+        valores.motivo_anulacao = motivo_anulacao;
+    }
+
+    const [linha] = await executor.update(atendimento)
+        .set(valores)
+        .where(eq(atendimento.id, id))
+        .returning({
+            id: atendimento.id,
+            estado: atendimento.estado
+        });
+
+    return linha || null;
 };
 
 const Atendimento = {

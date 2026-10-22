@@ -1,97 +1,161 @@
-import pool from '../config/database.js';
+import { and, asc, eq, sql } from 'drizzle-orm';
+import db from '../db/client.js';
+import {
+    categoriaDespesa,
+    despesa,
+    itemProduto,
+    produto
+} from '../db/schema/index.js';
 
-const campos = `d.id, d.descricao, d.categoria_id, cd.nome as categoria_nome,
-    d.valor_total, d.data_compra, d.metodo_pagamento, d.caixa_sessao_id,
-    d.comprovativo, d.registado_por, d.estado, d.criado_em`;
+const campos = {
+    id: despesa.id,
+    descricao: despesa.descricao,
+    categoria_id: despesa.categoria_id,
+    categoria_nome: categoriaDespesa.nome,
+    valor_total: despesa.valor_total,
+    data_compra: despesa.data_compra,
+    metodo_pagamento: despesa.metodo_pagamento,
+    caixa_sessao_id: despesa.caixa_sessao_id,
+    comprovativo: despesa.comprovativo,
+    registado_por: despesa.registado_por,
+    estado: despesa.estado,
+    criado_em: despesa.criado_em
+};
 
 //listagem com filtros opcionais (periodo, categoria, estado)
 const findAll = async ({ de, ate, categoria, estado } = {}) => {
-    const result = await pool.query(
-        `select ${campos}
-           from despesa d
-           left join categoria_despesa cd on cd.id = d.categoria_id
-          where ($1::date is null or d.data_compra >= $1)
-            and ($2::date is null or d.data_compra <= $2)
-            and ($3::int is null or d.categoria_id = $3)
-            and ($4::text is null or d.estado = $4)
-          order by d.data_compra desc, d.id desc`,
-        [de || null, ate || null, categoria || null, estado || null]
-    );
+    const condicoes = [];
 
-    return result.rows;
+    if (de) condicoes.push(sql`${despesa.data_compra} >= ${de}`);
+    if (ate) condicoes.push(sql`${despesa.data_compra} <= ${ate}`);
+    if (categoria !== undefined && categoria !== null && categoria !== '') {
+        condicoes.push(eq(despesa.categoria_id, categoria));
+    }
+    if (estado !== undefined && estado !== null && estado !== '') {
+        condicoes.push(eq(despesa.estado, estado));
+    }
+
+    return db.select(campos)
+        .from(despesa)
+        .leftJoin(categoriaDespesa, eq(categoriaDespesa.id, despesa.categoria_id))
+        .where(condicoes.length > 0 ? and(...condicoes) : undefined)
+        .orderBy(sql`${despesa.data_compra} desc`, sql`${despesa.id} desc`);
 };
 
-const findById = async (id, db = pool) => {
-    const result = await db.query(
-        `select ${campos}
-           from despesa d
-           left join categoria_despesa cd on cd.id = d.categoria_id
-          where d.id = $1`,
-        [id]
-    );
+const findById = async (id, executor = db) => {
+    const [linha] = await executor.select(campos)
+        .from(despesa)
+        .leftJoin(categoriaDespesa, eq(categoriaDespesa.id, despesa.categoria_id))
+        .where(eq(despesa.id, id))
+        .limit(1);
 
-    return result.rows[0] || null;
+    return linha || null;
 };
 
 const findItens = async (despesa_id) => {
-    const result = await pool.query(
-        `select i.id, i.produto_id, p.nome as produto_nome, i.funcionario_id,
-                i.quantidade, i.preco_unitario, i.valor_total
-           from item_produto i
-           join produto p on p.id = i.produto_id
-          where i.despesa_id = $1
-          order by i.id`,
-        [despesa_id]
-    );
-
-    return result.rows;
+    return db.select({
+        id: itemProduto.id,
+        produto_id: itemProduto.produto_id,
+        produto_nome: produto.nome,
+        funcionario_id: itemProduto.funcionario_id,
+        quantidade: itemProduto.quantidade,
+        preco_unitario: itemProduto.preco_unitario,
+        valor_total: itemProduto.valor_total
+    })
+        .from(itemProduto)
+        .innerJoin(produto, eq(produto.id, itemProduto.produto_id))
+        .where(eq(itemProduto.despesa_id, despesa_id))
+        .orderBy(asc(itemProduto.id));
 };
 
-//---- operacoes usadas dentro de transacoes (recebem o client) ----
+//---- operacoes usadas dentro de transacoes (recebem o tx) ----
 
-const insert = async (client, { descricao, categoria_id, valor_total, data_compra, metodo_pagamento, caixa_sessao_id, comprovativo, registado_por }) => {
-    const result = await client.query(
-        `insert into despesa
-            (descricao, categoria_id, valor_total, data_compra, metodo_pagamento, caixa_sessao_id, comprovativo, registado_por)
-         values ($1, $2, $3, coalesce($4, current_date), $5, $6, $7, $8)
-         returning id`,
-        [descricao, categoria_id ?? null, valor_total, data_compra ?? null, metodo_pagamento ?? null, caixa_sessao_id ?? null, comprovativo ?? null, registado_por]
-    );
+const insert = async (tx, {
+    descricao,
+    categoria_id,
+    valor_total,
+    data_compra,
+    metodo_pagamento,
+    caixa_sessao_id,
+    comprovativo,
+    registado_por
+}) => {
+    const [linha] = await tx.insert(despesa)
+        .values({
+            descricao,
+            categoria_id: categoria_id ?? null,
+            valor_total,
+            data_compra: data_compra ?? sql`current_date`,
+            metodo_pagamento: metodo_pagamento ?? null,
+            caixa_sessao_id: caixa_sessao_id ?? null,
+            comprovativo: comprovativo ?? null,
+            registado_por
+        })
+        .returning({ id: despesa.id });
 
-    return result.rows[0].id;
+    return linha.id;
 };
 
-const insertItem = async (client, { despesa_id, produto_id, funcionario_id, quantidade, preco_unitario, valor_total }) => {
-    await client.query(
-        `insert into item_produto
-            (despesa_id, produto_id, funcionario_id, quantidade, preco_unitario, valor_total)
-         values ($1, $2, $3, $4, $5, $6)`,
-        [despesa_id, produto_id, funcionario_id ?? null, quantidade, preco_unitario, valor_total]
-    );
+const insertItem = async (tx, {
+    despesa_id,
+    produto_id,
+    funcionario_id,
+    quantidade,
+    preco_unitario,
+    valor_total
+}) => {
+    await tx.insert(itemProduto).values({
+        despesa_id,
+        produto_id,
+        funcionario_id: funcionario_id ?? null,
+        quantidade,
+        preco_unitario,
+        valor_total
+    });
 };
 
-//---- atualizacoes simples (pool) ----
+//---- atualizacoes simples (db) ----
 
-const update = async (id, { descricao, categoria_id, valor_total, data_compra, metodo_pagamento, comprovativo }) => {
-    const result = await pool.query(
-        `update despesa
-            set descricao = coalesce($2, descricao),
-                categoria_id = coalesce($3, categoria_id),
-                valor_total = coalesce($4, valor_total),
-                data_compra = coalesce($5, data_compra),
-                metodo_pagamento = coalesce($6, metodo_pagamento),
-                comprovativo = coalesce($7, comprovativo)
-          where id = $1
-          returning id`,
-        [id, descricao, categoria_id, valor_total, data_compra, metodo_pagamento, comprovativo]
-    );
+const update = async (id, {
+    descricao,
+    categoria_id,
+    valor_total,
+    data_compra,
+    metodo_pagamento,
+    comprovativo
+}) => {
+    const valores = {};
 
-    return result.rows[0] || null;
+    if (descricao !== undefined && descricao !== null) valores.descricao = descricao;
+    if (categoria_id !== undefined && categoria_id !== null) valores.categoria_id = categoria_id;
+    if (valor_total !== undefined && valor_total !== null) valores.valor_total = valor_total;
+    if (data_compra !== undefined && data_compra !== null) valores.data_compra = data_compra;
+    if (metodo_pagamento !== undefined && metodo_pagamento !== null) valores.metodo_pagamento = metodo_pagamento;
+    if (comprovativo !== undefined && comprovativo !== null) valores.comprovativo = comprovativo;
+
+    if (Object.keys(valores).length === 0) {
+        const [linha] = await db.select({ id: despesa.id })
+            .from(despesa)
+            .where(eq(despesa.id, id))
+            .limit(1);
+
+        return linha || null;
+    }
+
+    const [linha] = await db.update(despesa)
+        .set(valores)
+        .where(eq(despesa.id, id))
+        .returning({ id: despesa.id });
+
+    return linha || null;
 };
 
 const deleteDespesa = async (id) => {
-    const result = await pool.query("delete from despesa where id = $1 returning id", [id]);
-    return result.rows[0] || null;
+    const [linha] = await db.delete(despesa)
+        .where(eq(despesa.id, id))
+        .returning({ id: despesa.id });
+
+    return linha || null;
 };
 
 const Despesa = {

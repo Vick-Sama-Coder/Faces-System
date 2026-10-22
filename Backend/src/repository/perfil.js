@@ -1,46 +1,53 @@
-import pool from '../config/database.js';
+import { asc, eq } from 'drizzle-orm';
+import db from '../db/client.js';
+import { perfil } from '../db/schema/index.js';
+
+const campos = {
+    id: perfil.id,
+    nome: perfil.nome,
+    descricao: perfil.descricao,
+    estado: perfil.estado
+};
 
 const findAll = async () => {
-    const result = await pool.query(
-        "select id, nome, descricao, estado from perfil order by id"
-    );
-
-    return result.rows;
+    return db.select(campos).from(perfil).orderBy(asc(perfil.id));
 };
 
 const findById = async (id) => {
-    const result = await pool.query(
-        "select id, nome, descricao, estado from perfil where id = $1",
-        [id]
-    );
+    const [linha] = await db.select(campos)
+        .from(perfil)
+        .where(eq(perfil.id, id))
+        .limit(1);
 
-    return result.rows[0] || null;
+    return linha || null;
 };
 
 const create = async ({ nome, descricao }) => {
-    const result = await pool.query(
-        `insert into perfil (nome, descricao)
-         values ($1, $2)
-         returning id, nome, descricao, estado`,
-        [nome, descricao]
-    );
+    const [linha] = await db.insert(perfil)
+        .values({ nome, descricao })
+        .returning(campos);
 
-    return result.rows[0];
+    return linha;
 };
 
 //atualizacao parcial: campos nao enviados mantem o valor atual
 const update = async (id, { nome, descricao, estado }) => {
-    const result = await pool.query(
-        `update perfil
-            set nome = coalesce($2, nome),
-                descricao = coalesce($3, descricao),
-                estado = coalesce($4, estado)
-          where id = $1
-          returning id, nome, descricao, estado`,
-        [id, nome, descricao, estado]
-    );
+    const valores = {};
 
-    return result.rows[0] || null;
+    if (nome !== undefined && nome !== null) valores.nome = nome;
+    if (descricao !== undefined && descricao !== null) valores.descricao = descricao;
+    if (estado !== undefined && estado !== null) valores.estado = estado;
+
+    if (Object.keys(valores).length === 0) {
+        return findById(id);
+    }
+
+    const [linha] = await db.update(perfil)
+        .set(valores)
+        .where(eq(perfil.id, id))
+        .returning(campos);
+
+    return linha || null;
 };
 
 const Perfil = {

@@ -1,63 +1,84 @@
-import pool from '../config/database.js';
+import { and, desc, eq, sql } from 'drizzle-orm';
+import db from '../db/client.js';
+import { logAuditoria, usuario } from '../db/schema/index.js';
 
-const campos = `l.id, l.id_utilizador, u.nome as utilizador_nome, l.data_hora, l.entidade,
-    l.id_registo_afetado, l.tipo_operacao, l.valores_anteriores, l.valores_posteriores,
-    l.motivo, l.identificador_operacao`;
+const campos = {
+    id: logAuditoria.id,
+    id_utilizador: logAuditoria.id_utilizador,
+    utilizador_nome: usuario.nome,
+    data_hora: logAuditoria.data_hora,
+    entidade: logAuditoria.entidade,
+    id_registo_afetado: logAuditoria.id_registo_afetado,
+    tipo_operacao: logAuditoria.tipo_operacao,
+    valores_anteriores: logAuditoria.valores_anteriores,
+    valores_posteriores: logAuditoria.valores_posteriores,
+    motivo: logAuditoria.motivo,
+    identificador_operacao: logAuditoria.identificador_operacao
+};
 
 //os filtros sao opcionais porque investigar uma ocorrencia nao deve obrigar a conhecermos o periodo
 const findAll = async ({ entidade, utilizador, de, ate, operacao } = {}) => {
-    const result = await pool.query(
-        `select ${campos}
-           from log_auditoria l
-           left join usuario u on u.id = l.id_utilizador
-          where ($1::text is null or l.entidade = $1)
-            and ($2::int is null or l.id_utilizador = $2)
-            and ($3::date is null or l.data_hora::date >= $3)
-            and ($4::date is null or l.data_hora::date <= $4)
-            and ($5::text is null or l.tipo_operacao = $5)
-          order by l.data_hora desc, l.id desc`,
-        [entidade || null, utilizador || null, de || null, ate || null, operacao || null]
-    );
+    const condicoes = [];
 
-    return result.rows;
+    if (entidade !== undefined && entidade !== null && entidade !== '') {
+        condicoes.push(eq(logAuditoria.entidade, entidade));
+    }
+    if (utilizador !== undefined && utilizador !== null && utilizador !== '') {
+        condicoes.push(eq(logAuditoria.id_utilizador, utilizador));
+    }
+    if (de) {
+        condicoes.push(sql`${logAuditoria.data_hora}::date >= ${de}`);
+    }
+    if (ate) {
+        condicoes.push(sql`${logAuditoria.data_hora}::date <= ${ate}`);
+    }
+    if (operacao !== undefined && operacao !== null && operacao !== '') {
+        condicoes.push(eq(logAuditoria.tipo_operacao, operacao));
+    }
+
+    return db.select(campos)
+        .from(logAuditoria)
+        .leftJoin(usuario, eq(usuario.id, logAuditoria.id_utilizador))
+        .where(condicoes.length > 0 ? and(...condicoes) : undefined)
+        .orderBy(desc(logAuditoria.data_hora), desc(logAuditoria.id));
 };
 
 const findById = async (id) => {
-    const result = await pool.query(
-        `select ${campos}
-           from log_auditoria l
-           left join usuario u on u.id = l.id_utilizador
-          where l.id = $1`,
-        [id]
-    );
+    const [linha] = await db.select(campos)
+        .from(logAuditoria)
+        .leftJoin(usuario, eq(usuario.id, logAuditoria.id_utilizador))
+        .where(eq(logAuditoria.id, id))
+        .limit(1);
 
-    return result.rows[0] || null;
+    return linha || null;
 };
 
-//serializar aqui evita que o driver trate arrays como arrays do postgres em vez de jsonb
-const json = (valor) => (valor === undefined || valor === null ? null : JSON.stringify(valor));
-
-//recebe o client para o registo ser gravado na mesma transacao da operacao auditada
-const insert = async (db, { id_utilizador, entidade, id_registo_afetado, tipo_operacao, valores_anteriores, valores_posteriores, motivo, identificador_operacao }) => {
-    const result = await db.query(
-        `insert into log_auditoria
-            (id_utilizador, entidade, id_registo_afetado, tipo_operacao,
-             valores_anteriores, valores_posteriores, motivo, identificador_operacao)
-         values ($1, $2, $3, $4, $5, $6, $7, $8)
-         returning id`,
-        [
-            id_utilizador ?? null,
+//recebe o executor (db ou transacao) para o registo ser gravado na mesma
+//transacao da operacao auditada
+const insert = async (executor, {
+    id_utilizador,
+    entidade,
+    id_registo_afetado,
+    tipo_operacao,
+    valores_anteriores,
+    valores_posteriores,
+    motivo,
+    identificador_operacao
+}) => {
+    const [linha] = await executor.insert(logAuditoria)
+        .values({
+            id_utilizador: id_utilizador ?? null,
             entidade,
-            id_registo_afetado ?? null,
+            id_registo_afetado: id_registo_afetado ?? null,
             tipo_operacao,
-            json(valores_anteriores),
-            json(valores_posteriores),
-            motivo ?? null,
-            identificador_operacao ?? null
-        ]
-    );
+            valores_anteriores: valores_anteriores ?? null,
+            valores_posteriores: valores_posteriores ?? null,
+            motivo: motivo ?? null,
+            identificador_operacao: identificador_operacao ?? null
+        })
+        .returning({ id: logAuditoria.id });
 
-    return result.rows[0].id;
+    return linha.id;
 };
 
 const Auditoria = {

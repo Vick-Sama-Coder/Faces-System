@@ -1,11 +1,14 @@
-import pool from '../config/database.js';
+import db from '../db/client.js';
 import Auditoria from '../repository/auditoria.js';
 
 //Regista uma operacao auditavel. Deve ser chamado DENTRO da transacao da operacao
-//(passando o client) para o registo ser atomico com a alteracao; fora de
-//transacao (controller) usa o pool por omissao.
-const registar = async ({ id_utilizador, entidade, id_registo, operacao, antes, depois, motivo, identificador_operacao }, db = pool) => {
-    await Auditoria.insert(db, {
+//(passando o tx) para o registo ser atomico com a alteracao; fora de
+//transacao (controller) usa o db por omissao.
+const registar = async (
+    { id_utilizador, entidade, id_registo, operacao, antes, depois, motivo, identificador_operacao },
+    executor = db
+) => {
+    await Auditoria.insert(executor, {
         id_utilizador,
         entidade,
         id_registo_afetado: id_registo,
