@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 
-const BASE_API = "http://192.168.0.14:5000/";
+const BASE_API = "http://localhost:5000/";
 
 const server = axios.create({
     baseURL: BASE_API,
@@ -49,6 +49,7 @@ export const getUsers = () => {
     return server.get("api/auth/users");
 };
 
+<<<<<<< HEAD
 //cria um novo atendimento (agendamento de servico)
 export const createAtendimento = (data) => {
     return server.post("api/atendimentos", data);
