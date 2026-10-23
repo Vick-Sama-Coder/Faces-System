@@ -109,38 +109,58 @@ export function validarCliente({nome, apelido, telefone}) {
     return erros;
 }
 
-//valida campos do agendamento de atendimento; devolve {campo: mensagem}
-export function validarAtendimento({cliente, servico, valor, data, funcionario}) {
+//valida o registo imediato de atendimento; devolve {campo: mensagem}
+export function validarAtendimento({ cliente_id, servicos }) {
     const erros = {};
 
-    if(!cliente || !String(cliente).trim()){
-        erros.cliente = "Cliente e obrigatorio";
+    if (!cliente_id) {
+        erros.cliente_id = "Selecione o cliente";
     }
 
-    if(!servico || !String(servico).trim()){
-        erros.servico = "Servico e obrigatorio";
-    }
-
-    if(!valor || String(valor).trim() === ""){
-        erros.valor = "Valor e obrigatorio";
+    if (!Array.isArray(servicos) || servicos.length === 0) {
+        erros.servicos = "Adicione pelo menos um servico";
     } else {
-        const valorNum = parseFloat(String(valor).replace(",", "."));
-        if(isNaN(valorNum) || valorNum <= 0){
-            erros.valor = "Valor deve ser um numero maior que zero";
-        }
-    }
-
-    if(!data){
-        erros.data = "Data e obrigatoria";
-    }
-
-    if(!funcionario || !String(funcionario).trim()){
-        erros.funcionario = "Funcionario e obrigatorio";
+        servicos.forEach((item, index) => {
+            if (!item.servico_id) {
+                erros[`servico_${index}`] = "Selecione o servico";
+            }
+            if (!item.funcionario_id) {
+                erros[`funcionario_${index}`] = "Selecione o funcionario";
+            }
+            const preco = Number(item.preco_praticado);
+            if (!preco || preco <= 0) {
+                erros[`preco_${index}`] = "Indique um valor maior que zero";
+            }
+        });
     }
 
     return erros;
+}
 
-//codigo de recuperacao de senha: exactamente 6 digitos
+//valida os dados de uma conta de utilizador (criacao/edicao)
+export function validarUtilizador({ nome, telefone, id_perfil, senha }, { senhaObrigatoria = false } = {}) {
+    const erros = {};
+
+    //gestao de contas: nomes de utilizador podem incluir numeros/simbolos,
+    //por isso so se valida o tamanho (a unicidade e verificada pelo servidor)
+    const nomeLimpo = String(nome || "").trim();
+    if (!nomeLimpo) {
+        erros.nome = "Nome e obrigatorio";
+    } else if (nomeLimpo.length < 3 || nomeLimpo.length > 100) {
+        erros.nome = "Nome: use de 3 a 100 caracteres";
+    }
+
+    const erroTel = validarTelefone(telefone);
+    if (erroTel) erros.telefone = erroTel;
+
+    if (!id_perfil) erros.id_perfil = "Selecione o perfil";
+
+    if (senha || senhaObrigatoria) {
+        const erroSenha = validarSenha(senha);
+        if (erroSenha) erros.senha = erroSenha;
+    }
+
+    return erros;
 }
 export function validarCodigo(codigo){
     if(!codigo){
