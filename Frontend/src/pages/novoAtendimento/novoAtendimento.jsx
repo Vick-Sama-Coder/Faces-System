@@ -2,24 +2,33 @@ import SideBar from "../../components/sidebar/siderbar"
 import Headers from "../../components/headers/header.jsx"
 import NewMarkModal from "../../components/Modals/NewMark/New-Mark-Modal.jsx"
 import FidelizacaoCard from "../../components/FidelizacaoCard/FidelizacaoCard.jsx"
+import ConfirmDialog from "../../components/ConfirmDialog/ConfirmDialog.jsx"
+import DataGrid from "../../components/DataGrid/DataGrid.jsx"
 import "./novoAtendimento.css"
-import Search from "../../components/forms/search/search.jsx"
-import Button from "../../components/forms/button/button.jsx"
-import { useState, useEffect, useMemo } from "react"
+import "../../Styles/management.css"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { format, isAfter, isToday, isValid, parseISO, startOfDay, subDays } from "date-fns"
+import { pt } from "date-fns/locale"
 import {
-    CalendarPlus,
-    ScissorsIcon,
-    Receipt,
-    CheckCircle2,
+    AlertCircle,
     Ban,
-    Eye,
-    X,
-    UserRound,
+    CalendarPlus,
+    CheckCircle2,
+    ChevronDown,
+    Clock3,
     CreditCard,
-    Wallet,
+    Download,
+    Eye,
     Heart,
     Phone,
-    Clock3
+    Receipt,
+    RefreshCw,
+    ScissorsIcon,
+    Search,
+    Sparkles,
+    UserRound,
+    Wallet,
+    X
 } from "lucide-react"
 import {
     getAtendimentos,
@@ -31,17 +40,39 @@ import {
 import { useAuthStore } from "../../store/authStore.js"
 
 const ESTADOS = ["Todos", "Em andamento", "Concluido", "Pago", "Anulado"]
+const PERIODOS = ["Todos", "Hoje", "7 dias", "30 dias"]
 const FORMAS_PAGAMENTO = ["Dinheiro", "M-Pesa", "e-Mola", "Cartao", "Transferencia", "Outro"]
-
-function formatarData(valor) {
-    if (!valor) return "-"
-    const data = new Date(valor)
-    if (Number.isNaN(data.getTime())) return "-"
-    return data.toLocaleString("pt-MZ", { dateStyle: "short", timeStyle: "short" })
-}
 
 function formatarMoeda(valor) {
     return `${Number(valor || 0).toLocaleString("pt-MZ")} MT`
+}
+
+function dataAtendimento(valor) {
+    if (!valor) return null
+    const data = typeof valor === "string" ? parseISO(valor) : new Date(valor)
+    return isValid(data) ? data : null
+}
+
+function formatarData(valor) {
+    const data = dataAtendimento(valor)
+    if (!data) return "—"
+    return format(data, "dd MMM yyyy 'às' HH:mm", { locale: pt })
+}
+
+function formatarDataCurta(valor) {
+    const data = dataAtendimento(valor)
+    if (!data) return "—"
+    return format(data, "dd MMM yyyy", { locale: pt })
+}
+
+function formatarHora(valor) {
+    const data = dataAtendimento(valor)
+    if (!data) return "—"
+    return format(data, "HH:mm")
+}
+
+function rotuloEstado(estado) {
+    return estado === "Concluido" ? "Concluído" : estado
 }
 
 function classeEstado(estado) {
@@ -53,9 +84,108 @@ function classeEstado(estado) {
     }
 }
 
+function tomEstado(estado) {
+    switch (estado) {
+        case "Pago": return "success"
+        case "Concluido": return "primary"
+        case "Anulado": return "danger"
+        default: return "warning"
+    }
+}
+
+function iniciais(nome, apelido) {
+    const partes = `${nome || ""} ${apelido || ""}`.trim().split(/\s+/).filter(Boolean)
+    if (!partes.length) return "AT"
+    const primeira = partes[0][0]
+    const ultima = partes.length > 1 ? partes[partes.length - 1][0] : ""
+    return `${primeira}${ultima}`.toUpperCase()
+}
+
 function saldoDoAtendimento(atendimento) {
     if (!atendimento || atendimento.estado === "Anulado") return 0
     return Math.max(Number(atendimento.valor_total || 0) - Number(atendimento.valor_pago || 0), 0)
+}
+
+async function buscarAtendimentos() {
+    const res = await getAtendimentos()
+    return Array.isArray(res.data) ? res.data : (res.data?.atendimentos || [])
+}
+
+function ClienteAtendimentoCell({ data }) {
+    return (
+        <div className="mgmt-user-cell">
+            <span className="mgmt-avatar customer">{iniciais(data.cliente_nome, data.cliente_apelido)}</span>
+            <span className="mgmt-user-copy">
+                <strong>{data.cliente_nome} {data.cliente_apelido || ""}</strong>
+                <small>{data.cliente_telefone || `Atendimento #${data.id}`}</small>
+            </span>
+        </div>
+    )
+}
+
+function DataAtendimentoCell({ value }) {
+    return (
+        <div className="mgmt-cell-stack">
+            <span className="mgmt-date">
+                <Clock3 size={13} />
+                {formatarDataCurta(value)}
+            </span>
+            <small>{formatarHora(value)}</small>
+        </div>
+    )
+}
+
+function EstadoAtendimentoCell({ value }) {
+    return (
+        <span className={`mgmt-badge ${tomEstado(value)}`}>
+            <span className="mgmt-badge-dot" />
+            {rotuloEstado(value) || "Em andamento"}
+        </span>
+    )
+}
+
+function PagamentoAtendimentoCell({ data }) {
+    const saldo = saldoDoAtendimento(data)
+    const anulado = data.estado === "Anulado"
+    return (
+        <span className="mgmt-payment-copy">
+            <strong>{anulado ? "Atendimento anulado" : data.metodos_pagamento || "Sem pagamento"}</strong>
+            <small className={`mgmt-money ${anulado ? "muted" : saldo > 0 ? "pending" : "settled"}`}>
+                {anulado ? "Sem cobrança" : saldo > 0 ? `${formatarMoeda(saldo)} em falta` : "Liquidado"}
+            </small>
+        </span>
+    )
+}
+
+function TotalAtendimentoCell({ value }) {
+    return <span className="mgmt-money">{formatarMoeda(value)}</span>
+}
+
+function AcoesAtendimentoCell({ data, podeAnular, onVer, onAnular }) {
+    return (
+        <div className="mgmt-row-actions">
+            <button
+                type="button"
+                className="mgmt-row-btn view"
+                onClick={() => onVer(data)}
+                title="Ver detalhe completo"
+                aria-label={`Ver atendimento ${data.id}`}
+            >
+                <Eye size={16} />
+            </button>
+            {podeAnular && data.estado !== "Anulado" && data.estado !== "Pago" && (
+                <button
+                    type="button"
+                    className="mgmt-row-btn danger"
+                    onClick={() => onAnular(data)}
+                    title="Anular atendimento"
+                    aria-label={`Anular atendimento ${data.id}`}
+                >
+                    <Ban size={16} />
+                </button>
+            )}
+        </div>
+    )
 }
 
 function NovoAtendimento() {
@@ -69,71 +199,109 @@ function NovoAtendimento() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
     const [filtro, setFiltro] = useState("Todos")
+    const [periodo, setPeriodo] = useState("Todos")
     const [searchTerm, setSearchTerm] = useState("")
     const [detalhe, setDetalhe] = useState(null)
     const [loadingDetalhe, setLoadingDetalhe] = useState(false)
     const [detalheError, setDetalheError] = useState(null)
     const [savingPagamento, setSavingPagamento] = useState(false)
+    const [anulacao, setAnulacao] = useState(null)
+    const [aAnular, setAAnular] = useState(false)
     const [pagamentoForm, setPagamentoForm] = useState({
         metodo: "Dinheiro",
         valor: ""
     })
+    const gridApiRef = useRef(null)
+    const detalheRequestRef = useRef(0)
 
-    useEffect(() => {
-        carregarAtendimentos()
-    }, [])
-
-    async function carregarAtendimentos() {
+    const carregarAtendimentos = useCallback(async () => {
         setLoading(true)
         setError(null)
         try {
-            const res = await getAtendimentos()
-            const lista = Array.isArray(res.data) ? res.data : (res.data?.atendimentos || [])
-            setAtendimentos(lista)
+            setAtendimentos(await buscarAtendimentos())
         } catch (err) {
             setError(getApiError(err))
         } finally {
             setLoading(false)
         }
-    }
+    }, [])
+
+    useEffect(() => {
+        let activo = true
+
+        buscarAtendimentos()
+            .then((lista) => {
+                if (!activo) return
+                setAtendimentos(lista)
+                setError(null)
+            })
+            .catch((err) => {
+                if (activo) setError(getApiError(err))
+            })
+            .finally(() => {
+                if (activo) setLoading(false)
+            })
+
+        return () => { activo = false }
+    }, [])
 
     const atendimentosFiltrados = useMemo(() => {
         const termo = searchTerm.trim().toLowerCase()
+        const hoje = startOfDay(new Date())
+        const limite = periodo === "7 dias"
+            ? subDays(hoje, 6)
+            : periodo === "30 dias"
+                ? subDays(hoje, 29)
+                : null
 
         return atendimentos.filter((item) => {
             const correspondeEstado = filtro === "Todos" || item.estado === filtro
-            const correspondePesquisa = !termo
-                || String(item.cliente_nome || "").toLowerCase().includes(termo)
+            if (!correspondeEstado) return false
+
+            const data = dataAtendimento(item.data_hora)
+            let correspondePeriodo = periodo === "Todos"
+            if (!correspondePeriodo && data) {
+                correspondePeriodo = periodo === "Hoje"
+                    ? isToday(data)
+                    : limite
+                        ? isAfter(data, limite)
+                        : true
+            }
+            if (!correspondePeriodo) return false
+            if (!termo) return true
+
+            return String(item.cliente_nome || "").toLowerCase().includes(termo)
                 || String(item.cliente_apelido || "").toLowerCase().includes(termo)
                 || String(item.cliente_telefone || "").includes(termo)
                 || String(item.id).includes(termo)
-            return correspondeEstado && correspondePesquisa
         })
-    }, [atendimentos, filtro, searchTerm])
+    }, [atendimentos, filtro, periodo, searchTerm])
 
-    const emAndamento = atendimentos.filter((a) => a.estado === "Em andamento").length
-    const pagos = atendimentos.filter((a) => a.estado === "Pago").length
-    const totalRecebido = atendimentos.reduce((acc, a) => acc + (Number(a.valor_pago) || 0), 0)
-    const totalPendente = atendimentos.reduce((acc, a) => acc + saldoDoAtendimento(a), 0)
-    const hoje = new Date().toDateString()
-    const atendimentosHoje = atendimentos.filter((a) => new Date(a.data_hora).toDateString() === hoje).length
+    const contagemEstados = useMemo(() => {
+        const contagem = { Todos: atendimentos.length }
+        ESTADOS.slice(1).forEach((estado) => {
+            contagem[estado] = atendimentos.filter((item) => item.estado === estado).length
+        })
+        return contagem
+    }, [atendimentos])
 
-    async function handleAnular(atendimento) {
-        const motivo = window.prompt(`Motivo da anulacao do atendimento de ${atendimento.cliente_nome}:`)
-        if (!motivo || !motivo.trim()) return
+    const emAndamento = contagemEstados["Em andamento"] || 0
+    const pagos = contagemEstados.Pago || 0
+    const totalRecebido = atendimentos.reduce((acc, item) => acc + (Number(item.valor_pago) || 0), 0)
+    const totalPendente = atendimentos.reduce((acc, item) => acc + saldoDoAtendimento(item), 0)
+    const atendimentosHoje = atendimentos.filter((item) => {
+        const data = dataAtendimento(item.data_hora)
+        return data ? isToday(data) : false
+    }).length
+    const temFiltros = Boolean(searchTerm.trim() || filtro !== "Todos" || periodo !== "Todos")
 
-        try {
-            await anularAtendimento(atendimento.id, motivo.trim())
-            await carregarAtendimentos()
-            if (detalhe?.id === atendimento.id) {
-                setDetalhe(null)
-            }
-        } catch (err) {
-            setError(getApiError(err))
-        }
-    }
+    const handleAnular = useCallback((atendimento) => {
+        setAnulacao(atendimento)
+    }, [])
 
-    async function handleVerDetalhe(atendimento) {
+    const handleVerDetalhe = useCallback(async (atendimento) => {
+        const pedido = detalheRequestRef.current + 1
+        detalheRequestRef.current = pedido
         setDetalhe({ ...atendimento, servicos: [], pagamentos: [] })
         setDetalheError(null)
         setLoadingDetalhe(true)
@@ -141,6 +309,7 @@ function NovoAtendimento() {
 
         try {
             const res = await getAtendimento(atendimento.id)
+            if (pedido !== detalheRequestRef.current) return
             setDetalhe(res.data)
             const saldo = saldoDoAtendimento(res.data)
             setPagamentoForm({
@@ -148,9 +317,35 @@ function NovoAtendimento() {
                 valor: saldo > 0 ? String(saldo) : ""
             })
         } catch (err) {
-            setDetalheError(getApiError(err))
+            if (pedido === detalheRequestRef.current) setDetalheError(getApiError(err))
         } finally {
-            setLoadingDetalhe(false)
+            if (pedido === detalheRequestRef.current) setLoadingDetalhe(false)
+        }
+    }, [])
+
+    const fecharDetalhe = useCallback(() => {
+        if (savingPagamento) return
+        detalheRequestRef.current += 1
+        setDetalhe(null)
+        setDetalheError(null)
+        setLoadingDetalhe(false)
+    }, [savingPagamento])
+
+    async function confirmarAnulacao(motivo) {
+        if (!anulacao) return
+        setAAnular(true)
+        try {
+            await anularAtendimento(anulacao.id, motivo)
+            await carregarAtendimentos()
+            if (detalhe?.id === anulacao.id) fecharDetalhe()
+            setAnulacao(null)
+        } catch (err) {
+            const mensagem = getApiError(err)
+            setError(mensagem)
+            if (detalhe) setDetalheError(mensagem)
+            setAnulacao(null)
+        } finally {
+            setAAnular(false)
         }
     }
 
@@ -170,8 +365,8 @@ function NovoAtendimento() {
         if (detalheError) setDetalheError(null)
     }
 
-    async function handleRegistarPagamento(e) {
-        e.preventDefault()
+    async function handleRegistarPagamento(event) {
+        event.preventDefault()
         if (!detalhe || savingPagamento) return
 
         const saldo = saldoDoAtendimento(detalhe)
@@ -182,7 +377,7 @@ function NovoAtendimento() {
             return
         }
         if (valor > saldo) {
-            setDetalheError(`O valor nao pode exceder o saldo em falta (${formatarMoeda(saldo)})`)
+            setDetalheError(`O valor não pode exceder o saldo em falta (${formatarMoeda(saldo)})`)
             return
         }
         if (!pagamentoForm.metodo) {
@@ -208,6 +403,85 @@ function NovoAtendimento() {
         }
     }
 
+    function limparFiltros() {
+        setSearchTerm("")
+        setFiltro("Todos")
+        setPeriodo("Todos")
+    }
+
+    function exportarAtendimentos() {
+        if (!gridApiRef.current || !atendimentosFiltrados.length) return
+        gridApiRef.current.exportDataAsCsv({
+            fileName: `atendimentos-${format(new Date(), "yyyy-MM-dd")}.csv`,
+            columnKeys: (gridApiRef.current.getColumns() || [])
+                .filter((coluna) => coluna.getColId() !== "acoes")
+                .map((coluna) => coluna.getColId())
+        })
+    }
+
+    const columnDefs = useMemo(() => [
+        {
+            headerName: "Cliente",
+            field: "cliente_nome",
+            flex: 1.7,
+            minWidth: 220,
+            cellRenderer: ClienteAtendimentoCell
+        },
+        {
+            headerName: "Data",
+            field: "data_hora",
+            flex: 1,
+            minWidth: 140,
+            cellRenderer: DataAtendimentoCell,
+            valueFormatter: (params) => formatarData(params.value),
+            comparator: (a, b) => new Date(a || 0) - new Date(b || 0)
+        },
+        {
+            headerName: "Estado",
+            field: "estado",
+            flex: 0,
+            width: 130,
+            minWidth: 130,
+            cellRenderer: EstadoAtendimentoCell
+        },
+        {
+            headerName: "Pagamento",
+            field: "metodos_pagamento",
+            flex: 1,
+            minWidth: 180,
+            cellRenderer: PagamentoAtendimentoCell
+        },
+        {
+            headerName: "Total",
+            field: "valor_total",
+            flex: 0.8,
+            minWidth: 125,
+            cellRenderer: TotalAtendimentoCell
+        },
+        {
+            headerName: "Ações",
+            colId: "acoes",
+            flex: 0,
+            width: 102,
+            minWidth: 102,
+            maxWidth: 102,
+            pinned: "right",
+            sortable: false,
+            filter: false,
+            resizable: false,
+            cellRenderer: AcoesAtendimentoCell,
+            cellRendererParams: {
+                podeAnular,
+                onVer: handleVerDetalhe,
+                onAnular: handleAnular
+            }
+        }
+    ], [podeAnular, handleVerDetalhe, handleAnular])
+
+    const mensagemVazia = temFiltros
+        ? "Nenhum atendimento corresponde aos filtros aplicados."
+        : "Registe o primeiro atendimento para começar a acompanhar o movimento do salão."
+
     return (
         <>
             {isModalOpen && (
@@ -217,9 +491,26 @@ function NovoAtendimento() {
                 />
             )}
 
+            {anulacao && (
+                <ConfirmDialog
+                    open
+                    title="Anular atendimento?"
+                    description={`O atendimento #${anulacao.id} de ${anulacao.cliente_nome} será anulado e deixará de contar para o movimento. Indique o motivo para manter o histórico.`}
+                    tone="danger"
+                    icon={Ban}
+                    confirmLabel="Anular atendimento"
+                    withReason
+                    reasonLabel="Motivo da anulação"
+                    reasonPlaceholder="Ex.: cliente desistiu, serviço registado por engano..."
+                    loading={aAnular}
+                    onConfirm={confirmarAnulacao}
+                    onClose={() => !aAnular && setAnulacao(null)}
+                />
+            )}
+
             {detalhe && (
-                <div className="appointment-modal-backdrop" onClick={() => setDetalhe(null)}>
-                    <section className="appointment-detail" onClick={(e) => e.stopPropagation()}>
+                <div className="appointment-modal-backdrop" onClick={fecharDetalhe}>
+                    <section className="appointment-detail" onClick={(event) => event.stopPropagation()}>
                         <header className="appointment-detail-header">
                             <div>
                                 <h2>Atendimento #{detalhe.id}</h2>
@@ -228,7 +519,8 @@ function NovoAtendimento() {
                             <button
                                 type="button"
                                 className="appointment-close"
-                                onClick={() => setDetalhe(null)}
+                                onClick={fecharDetalhe}
+                                disabled={savingPagamento}
                                 aria-label="Fechar detalhe"
                             >
                                 <X size={20} />
@@ -240,7 +532,7 @@ function NovoAtendimento() {
 
                             <div className="appointment-detail-summary">
                                 <span className={`status-badge ${classeEstado(detalhe.estado)}`}>
-                                    {detalhe.estado}
+                                    {rotuloEstado(detalhe.estado)}
                                 </span>
                                 <div className="appointment-detail-summary-values">
                                     <span>Total <strong>{formatarMoeda(detalhe.valor_total)}</strong></span>
@@ -252,7 +544,7 @@ function NovoAtendimento() {
                             </div>
 
                             {loadingDetalhe ? (
-                                <p className="appointment-empty">A carregar informacoes completas...</p>
+                                <p className="appointment-empty">A carregar informações completas...</p>
                             ) : (
                                 <>
                                     <section className="appointment-detail-section">
@@ -264,7 +556,7 @@ function NovoAtendimento() {
                                             </div>
                                             <div>
                                                 <span>Telefone</span>
-                                                <strong><Phone size={13} /> {detalhe.cliente_telefone || "-"}</strong>
+                                                <strong><Phone size={13} /> {detalhe.cliente_telefone || "—"}</strong>
                                             </div>
                                             <div>
                                                 <span>Registado por</span>
@@ -278,7 +570,7 @@ function NovoAtendimento() {
                                     </section>
 
                                     <section className="appointment-detail-section">
-                                        <h3><ScissorsIcon size={16} /> Servicos realizados</h3>
+                                        <h3><ScissorsIcon size={16} /> Serviços realizados</h3>
                                         {detalhe.servicos?.length ? (
                                             <ul className="appointment-services">
                                                 {detalhe.servicos.map((item) => (
@@ -289,7 +581,7 @@ function NovoAtendimento() {
                                                                 {item.servico_nome}
                                                                 {item.elegivel_fidelizacao && (
                                                                     <span className="appointment-loyalty-tag">
-                                                                        <Heart size={11} /> Fidelizacao
+                                                                        <Heart size={11} /> Fidelização
                                                                     </span>
                                                                 )}
                                                             </span>
@@ -301,7 +593,7 @@ function NovoAtendimento() {
                                                 ))}
                                             </ul>
                                         ) : (
-                                            <p className="appointment-empty">Nenhum servico associado.</p>
+                                            <p className="appointment-empty">Nenhum serviço associado.</p>
                                         )}
 
                                         <div className="appointment-totals">
@@ -339,12 +631,12 @@ function NovoAtendimento() {
                                                 ))}
                                             </div>
                                         ) : (
-                                            <p className="appointment-empty">Ainda nao existem pagamentos registados.</p>
+                                            <p className="appointment-empty">Ainda não existem pagamentos registados.</p>
                                         )}
                                     </section>
 
                                     <section className="appointment-detail-section">
-                                        <h3><Heart size={16} /> Fidelizacao do cliente</h3>
+                                        <h3><Heart size={16} /> Fidelização do cliente</h3>
                                         <FidelizacaoCard fidelizacao={detalhe.fidelizacao} compact />
                                     </section>
 
@@ -357,7 +649,7 @@ function NovoAtendimento() {
                                                         <label>Forma de pagamento</label>
                                                         <select
                                                             value={pagamentoForm.metodo}
-                                                            onChange={(e) => alterarPagamento("metodo", e.target.value)}
+                                                            onChange={(event) => alterarPagamento("metodo", event.target.value)}
                                                         >
                                                             {FORMAS_PAGAMENTO.map((forma) => (
                                                                 <option key={forma} value={forma}>{forma}</option>
@@ -372,7 +664,7 @@ function NovoAtendimento() {
                                                             max={saldoDoAtendimento(detalhe)}
                                                             step="1"
                                                             value={pagamentoForm.valor}
-                                                            onChange={(e) => alterarPagamento("valor", e.target.value)}
+                                                            onChange={(event) => alterarPagamento("valor", event.target.value)}
                                                         />
                                                     </div>
                                                     <button type="submit" className="submit-btn" disabled={savingPagamento}>
@@ -389,7 +681,7 @@ function NovoAtendimento() {
 
                                     {detalhe.motivo_anulacao && (
                                         <p className="appointment-reason">
-                                            Motivo da anulacao: {detalhe.motivo_anulacao}
+                                            Motivo da anulação: {detalhe.motivo_anulacao}
                                         </p>
                                     )}
                                 </>
@@ -402,11 +694,17 @@ function NovoAtendimento() {
                                     type="button"
                                     className="appointment-cancel-btn"
                                     onClick={() => handleAnular(detalhe)}
+                                    disabled={savingPagamento}
                                 >
                                     <Ban size={16} /> Anular atendimento
                                 </button>
                             )}
-                            <button type="button" className="appointment-close-btn" onClick={() => setDetalhe(null)}>
+                            <button
+                                type="button"
+                                className="appointment-close-btn"
+                                onClick={fecharDetalhe}
+                                disabled={savingPagamento}
+                            >
                                 Fechar
                             </button>
                         </footer>
@@ -428,179 +726,189 @@ function NovoAtendimento() {
                     bellClass="bell"
                     onMenuClick={() => setIsSidebarOpen(true)}
                 />
-                <section className="newbookmark-content">
-                    <header className="page-header">
-                        <div className="page-header-inner">
-                            <div className="page-header-info">
-                                <h1 className="page-title">Atendimentos</h1>
-                                <p className="page-subtitle">Registe, acompanhe e liquide os atendimentos do salao</p>
-                            </div>
-                            <div className="page-header-actions">
-                                <Button className="btn-class" btnClick={() => setIsModalOpen(true)}>
-                                    <span className="btn-icon"><CalendarPlus /></span> Novo Atendimento
-                                </Button>
-                            </div>
+                <section className="newbookmark-content mgmt-page">
+                    <header className="mgmt-hero">
+                        <div className="mgmt-hero-copy">
+                            <span className="mgmt-eyebrow">
+                                <Sparkles size={13} />
+                                Movimento do salão
+                            </span>
+                            <h2 className="mgmt-title">Atendimentos sem perder o ritmo</h2>
+                            <p className="mgmt-subtitle">
+                                Registe novos serviços, acompanhe pagamentos e consulte o histórico
+                                completo de cada cliente.
+                            </p>
+                        </div>
+                        <div className="mgmt-hero-actions">
+                            <button
+                                type="button"
+                                className="mgmt-btn primary"
+                                onClick={() => setIsModalOpen(true)}
+                            >
+                                <CalendarPlus size={17} />
+                                Novo atendimento
+                            </button>
                         </div>
                     </header>
 
-                    <section className="stats-grid">
-                        <div className="stat-card stat-agendados">
-                            <div className="stat-icon">
-                                <CalendarPlus />
-                            </div>
-                            <div className="stat-info">
-                                <span className="stat-label">Em Andamento</span>
-                                <span className="stat-value">{emAndamento}</span>
-                            </div>
-                        </div>
-                        <div className="stat-card stat-concluidos">
-                            <div className="stat-icon">
-                                <CheckCircle2 />
-                            </div>
-                            <div className="stat-info">
-                                <span className="stat-label">Pagos</span>
-                                <span className="stat-value">{pagos}</span>
-                            </div>
-                        </div>
-                        <div className="stat-card stat-pagos">
-                            <div className="stat-icon">
-                                <Wallet />
-                            </div>
-                            <div className="stat-info">
-                                <span className="stat-label">Total Recebido</span>
-                                <span className="stat-value">{formatarMoeda(totalRecebido)}</span>
-                            </div>
-                        </div>
-                        <div className="stat-card stat-pendentes">
-                            <div className="stat-icon">
-                                <Receipt />
-                            </div>
-                            <div className="stat-info">
-                                <span className="stat-label">Por Receber</span>
-                                <span className="stat-value">{formatarMoeda(totalPendente)}</span>
-                            </div>
-                        </div>
-                        <div className="stat-card stat-hoje">
-                            <div className="stat-icon">
-                                <Clock3 />
-                            </div>
-                            <div className="stat-info">
-                                <span className="stat-label">Atendimentos Hoje</span>
-                                <span className="stat-value">{atendimentosHoje}</span>
-                            </div>
-                        </div>
+                    <section className="mgmt-metrics" aria-label="Resumo de atendimentos">
+                        <article className="mgmt-metric warning">
+                            <span className="mgmt-metric-icon"><CalendarPlus size={21} /></span>
+                            <span className="mgmt-metric-copy">
+                                <span className="mgmt-metric-label">Em andamento</span>
+                                <strong className="mgmt-metric-value">{emAndamento}</strong>
+                                <span className="mgmt-metric-hint">A aguardar conclusão</span>
+                            </span>
+                        </article>
+                        <article className="mgmt-metric success">
+                            <span className="mgmt-metric-icon"><CheckCircle2 size={21} /></span>
+                            <span className="mgmt-metric-copy">
+                                <span className="mgmt-metric-label">Pagos</span>
+                                <strong className="mgmt-metric-value">{pagos}</strong>
+                                <span className="mgmt-metric-hint">Atendimentos liquidados</span>
+                            </span>
+                        </article>
+                        <article className="mgmt-metric primary">
+                            <span className="mgmt-metric-icon"><Wallet size={21} /></span>
+                            <span className="mgmt-metric-copy">
+                                <span className="mgmt-metric-label">Total recebido</span>
+                                <strong className="mgmt-metric-value">{formatarMoeda(totalRecebido)}</strong>
+                                <span className="mgmt-metric-hint">Pagamentos registados</span>
+                            </span>
+                        </article>
+                        <article className="mgmt-metric danger">
+                            <span className="mgmt-metric-icon"><Receipt size={21} /></span>
+                            <span className="mgmt-metric-copy">
+                                <span className="mgmt-metric-label">Por receber</span>
+                                <strong className="mgmt-metric-value">{formatarMoeda(totalPendente)}</strong>
+                                <span className="mgmt-metric-hint">Saldo em aberto</span>
+                            </span>
+                        </article>
+                        <article className="mgmt-metric info">
+                            <span className="mgmt-metric-icon"><Clock3 size={21} /></span>
+                            <span className="mgmt-metric-copy">
+                                <span className="mgmt-metric-label">Atendimentos hoje</span>
+                                <strong className="mgmt-metric-value">{atendimentosHoje}</strong>
+                                <span className="mgmt-metric-hint">Movimento do dia</span>
+                            </span>
+                        </article>
                     </section>
 
                     {error && (
-                        <div className="error-banner">
+                        <div className="mgmt-alert" role="alert">
+                            <AlertCircle size={17} />
                             <span>{error}</span>
+                            <button type="button" onClick={() => setError(null)}>Fechar</button>
                         </div>
                     )}
 
-                    <section className="filters-section">
-                        <div className="filter-group">
-                            {ESTADOS.map((estado) => (
-                                <button
-                                    key={estado}
-                                    type="button"
-                                    className={`filter-btn ${filtro === estado ? "active" : ""}`}
-                                    onClick={() => setFiltro(estado)}
-                                >
-                                    {estado}
-                                </button>
-                            ))}
-                        </div>
-                    </section>
+                    <div className="mgmt-filter-tabs" aria-label="Filtrar por estado">
+                        {ESTADOS.map((estado) => (
+                            <button
+                                key={estado}
+                                type="button"
+                                aria-pressed={filtro === estado}
+                                className={`mgmt-filter-tab ${filtro === estado ? "active" : ""}`}
+                                onClick={() => setFiltro(estado)}
+                            >
+                                {rotuloEstado(estado)}
+                                <span className="mgmt-filter-count">{contagemEstados[estado] || 0}</span>
+                            </button>
+                        ))}
+                    </div>
 
-                    <section className="appointments-section">
-                        <div className="search-wrapper">
-                            <Search
-                                placeholderInfo="Pesquisar por cliente, telefone ou numero..."
+                    <section className="mgmt-toolbar" aria-label="Filtros de atendimentos">
+                        <div className="mgmt-search">
+                            <Search size={17} />
+                            <input
+                                type="search"
+                                placeholder="Pesquisar por cliente, telefone ou número..."
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(event) => setSearchTerm(event.target.value)}
+                                aria-label="Pesquisar atendimentos"
                             />
-                        </div>
-
-                        <div className="appointments-list">
-                            {loading ? (
-                                <p className="empty-state">A carregar atendimentos...</p>
-                            ) : atendimentosFiltrados.length === 0 ? (
-                                <p className="empty-state">
-                                    {atendimentos.length === 0
-                                        ? "Nenhum atendimento registado."
-                                        : "Nenhum atendimento corresponde ao filtro."}
-                                </p>
-                            ) : (
-                                <div className="appointments-table-wrap">
-                                    <table className="appointments-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Cliente</th>
-                                                <th>Data</th>
-                                                <th>Estado</th>
-                                                <th>Pagamento</th>
-                                                <th>Total</th>
-                                                <th className="appointments-actions-col">Acoes</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {atendimentosFiltrados.map((atendimento) => {
-                                                const saldo = saldoDoAtendimento(atendimento)
-                                                return (
-                                                    <tr key={atendimento.id}>
-                                                        <td>
-                                                            <span className="appointment-client">
-                                                                <UserRound size={16} />
-                                                                <span>
-                                                                    <strong>{atendimento.cliente_nome} {atendimento.cliente_apelido || ""}</strong>
-                                                                    <small>{atendimento.cliente_telefone || "-"}</small>
-                                                                </span>
-                                                            </span>
-                                                        </td>
-                                                        <td>{formatarData(atendimento.data_hora)}</td>
-                                                        <td>
-                                                            <span className={`status-badge ${classeEstado(atendimento.estado)}`}>
-                                                                {atendimento.estado}
-                                                            </span>
-                                                        </td>
-                                                        <td>
-                                                            <div className="appointment-payment-cell">
-                                                                <span>{atendimento.metodos_pagamento || "Sem pagamento"}</span>
-                                                                <small className={saldo > 0 ? "pending" : "settled"}>
-                                                                    {saldo > 0 ? `${formatarMoeda(saldo)} em falta` : "Liquidado"}
-                                                                </small>
-                                                            </div>
-                                                        </td>
-                                                        <td>{formatarMoeda(atendimento.valor_total)}</td>
-                                                        <td className="appointments-actions-col">
-                                                            <button
-                                                                type="button"
-                                                                className="action-btn view"
-                                                                title="Ver detalhe completo"
-                                                                onClick={() => handleVerDetalhe(atendimento)}
-                                                            >
-                                                                <Eye size={18} />
-                                                            </button>
-                                                            {podeAnular && atendimento.estado !== "Anulado" && atendimento.estado !== "Pago" && (
-                                                                <button
-                                                                    type="button"
-                                                                    className="action-btn cancel"
-                                                                    title="Anular atendimento"
-                                                                    onClick={() => handleAnular(atendimento)}
-                                                                >
-                                                                    <Ban size={18} />
-                                                                </button>
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                )
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
+                            {searchTerm && (
+                                <button
+                                    type="button"
+                                    className="mgmt-search-clear"
+                                    onClick={() => setSearchTerm("")}
+                                    aria-label="Limpar pesquisa"
+                                >
+                                    <X size={14} />
+                                </button>
                             )}
                         </div>
+
+                        <div className="mgmt-select-wrap">
+                            <select
+                                className="mgmt-select"
+                                value={periodo}
+                                onChange={(event) => setPeriodo(event.target.value)}
+                                aria-label="Filtrar por período"
+                            >
+                                {PERIODOS.map((opcao) => (
+                                    <option key={opcao} value={opcao}>
+                                        {opcao === "Todos" ? "Todo o período" : opcao}
+                                    </option>
+                                ))}
+                            </select>
+                            <ChevronDown size={15} />
+                        </div>
+
+                        <span className="mgmt-toolbar-meta">
+                            <strong>{atendimentosFiltrados.length}</strong>
+                            de {atendimentos.length} atendimentos
+                        </span>
+
+                        <div className="mgmt-toolbar-actions">
+                            <button
+                                type="button"
+                                className="mgmt-tool export"
+                                onClick={exportarAtendimentos}
+                                disabled={!atendimentosFiltrados.length}
+                                title="Exportar lista em CSV"
+                            >
+                                <Download size={16} />
+                                Exportar
+                            </button>
+                            <button
+                                type="button"
+                                className="mgmt-tool icon-only"
+                                onClick={carregarAtendimentos}
+                                disabled={loading}
+                                title="Actualizar lista"
+                                aria-label="Actualizar lista de atendimentos"
+                            >
+                                <RefreshCw size={16} className={loading ? "mgmt-spin" : ""} />
+                            </button>
+                        </div>
                     </section>
+
+                    <DataGrid
+                        rowData={atendimentosFiltrados}
+                        columnDefs={columnDefs}
+                        loading={loading}
+                        onGridReady={(params) => { gridApiRef.current = params.api }}
+                        onRowDoubleClicked={(event) => handleVerDetalhe(event.data)}
+                        emptyIcon={error ? AlertCircle : temFiltros ? Search : CalendarPlus}
+                        emptyTitle={error ? "Não foi possível carregar" : temFiltros ? "Sem resultados" : "Ainda não há atendimentos"}
+                        emptyMessage={error ? "Verifique a ligação ao servidor e tente novamente." : mensagemVazia}
+                        emptyAction={error ? (
+                            <button type="button" className="mgmt-btn ghost" onClick={carregarAtendimentos}>
+                                <RefreshCw size={16} />
+                                Tentar novamente
+                            </button>
+                        ) : temFiltros ? (
+                            <button type="button" className="mgmt-btn ghost" onClick={limparFiltros}>
+                                Limpar filtros
+                            </button>
+                        ) : (
+                            <button type="button" className="mgmt-btn primary" onClick={() => setIsModalOpen(true)}>
+                                <CalendarPlus size={16} />
+                                Novo atendimento
+                            </button>
+                        )}
+                    />
                 </section>
             </div>
         </>

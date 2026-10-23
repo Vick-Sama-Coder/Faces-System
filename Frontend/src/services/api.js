@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 
-const BASE_API = "http://localhost:5000/";
+const BASE_API = "http://192.168.0.17:5000/";
 
 const server = axios.create({
     baseURL: BASE_API,
@@ -228,6 +228,70 @@ export const getPermissoes = () => {
 //---- dashboard ----
 export const getDashboard = () => {
     return server.get("api/dashboard");
+};
+
+//---- relatorios ----
+//todos os relatorios partilham o mesmo filtro de periodo (?de=&ate=)
+export const getRelatorioResumo = (params) => {
+    return server.get("api/relatorios/resumo", { params });
+};
+
+export const getRelatorioCaixa = (params) => {
+    return server.get("api/relatorios/caixa", { params });
+};
+
+export const getRelatorioServicos = (params) => {
+    return server.get("api/relatorios/servicos", { params });
+};
+
+export const getRelatorioFuncionarios = (params) => {
+    return server.get("api/relatorios/funcionarios", { params });
+};
+
+export const getRelatorioAssiduidade = (params) => {
+    return server.get("api/relatorios/assiduidade", { params });
+};
+
+export const getRelatorioClientes = (params) => {
+    return server.get("api/relatorios/clientes", { params });
+};
+
+export const getRelatorioFidelizacao = (params) => {
+    return server.get("api/relatorios/fidelizacao", { params });
+};
+
+export const getRelatorioAnulacoes = (params) => {
+    return server.get("api/relatorios/anulacoes", { params });
+};
+
+export const getRelatorioMovimentos = (params) => {
+    return server.get("api/relatorios/movimentos", { params });
+};
+
+//---- categorias de despesa ----
+export const getCategoriasDespesa = () => {
+    return server.get("api/categorias-despesa");
+};
+
+export const createCategoriaDespesa = (data) => {
+    return server.post("api/categorias-despesa", data);
+};
+
+//---- despesas ----
+export const getDespesas = (params) => {
+    return server.get("api/despesas", { params });
+};
+
+export const createDespesa = (data) => {
+    return server.post("api/despesas", data);
+};
+
+export const updateDespesa = (id, data) => {
+    return server.put(`api/despesas/${id}`, data);
+};
+
+export const deleteDespesa = (id) => {
+    return server.delete(`api/despesas/${id}`);
 };
 
 //---- auditoria / logs ----

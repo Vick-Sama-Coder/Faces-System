@@ -455,6 +455,21 @@
     justify-content: center;
 }
 
+.appointment-close:hover:not(:disabled) {
+    color: var(--Primary-faces);
+    background: var(--backdrop);
+}
+
+.appointment-close:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.appointment-close:focus-visible {
+    outline: 2px solid var(--Primary-faces);
+    outline-offset: 2px;
+}
+
 .appointment-detail-body {
     padding: 20px 24px;
     display: flex;
@@ -885,6 +900,12 @@
     font-family: inherit;
     cursor: pointer;
     margin-right: auto;
+}
+
+.appointment-close-btn:disabled,
+.appointment-cancel-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 @media (max-width: 760px) {

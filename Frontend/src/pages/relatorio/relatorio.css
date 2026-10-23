@@ -1,0 +1,1175 @@
+/* Relatorios: leitura financeira e operacional do salao */
+
+.relatorio-periodo-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    max-width: 100%;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: var(--backdrop);
+    color: var(--Primary-faces);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.relatorio-spin {
+    animation: relatorio-spin 0.9s linear infinite;
+}
+
+@keyframes relatorio-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Periodo */
+
+.relatorio-periodo {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 14px 16px;
+    border: 1px solid var(--Border);
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 4px 20px rgba(30, 15, 50, 0.04);
+}
+
+.relatorio-presets {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.relatorio-preset {
+    padding: 8px 12px;
+    border: 1px solid var(--Border);
+    border-radius: 999px;
+    background: #ffffff;
+    color: var(--Secundary-text);
+    font-family: inherit;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.relatorio-preset:hover {
+    border-color: rgba(109, 53, 200, 0.3);
+    background: var(--backdrop);
+    color: var(--Primary-faces);
+}
+
+.relatorio-preset.active {
+    border-color: var(--Primary-faces);
+    background: var(--Primary-faces);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(109, 53, 200, 0.22);
+}
+
+.relatorio-datas {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.relatorio-datas label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 132px;
+}
+
+.relatorio-datas label span {
+    color: var(--Secundary-text);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.relatorio-datas input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 10px;
+    border: 1px solid var(--Border);
+    border-radius: 9px;
+    background: #ffffff;
+    color: var(--Principal-text);
+    font-family: inherit;
+    font-size: var(--text-sm);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.relatorio-datas input:focus {
+    border-color: var(--Primary-faces);
+    box-shadow: 0 0 0 3px rgba(109, 53, 200, 0.1);
+}
+
+.relatorio-apply {
+    height: 38px;
+    padding: 0 16px;
+}
+
+/* Estados de carregamento */
+
+.relatorio-loading-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 340px;
+    padding: 32px;
+    border: 1px solid var(--Border);
+    border-radius: 16px;
+    background: #ffffff;
+    color: var(--Secundary-text);
+    text-align: center;
+}
+
+.relatorio-loading-card strong {
+    color: var(--Principal-text);
+    font-family: "Manrope", sans-serif;
+    font-size: var(--text-lg);
+}
+
+.relatorio-loading-card > span:not(.relatorio-loader) {
+    max-width: 420px;
+    font-size: var(--text-sm);
+    line-height: 1.5;
+}
+
+.relatorio-loading-card .admin-btn {
+    margin-top: 8px;
+}
+
+.relatorio-loader {
+    width: 38px;
+    height: 38px;
+    margin-bottom: 6px;
+    border: 3px solid var(--Border);
+    border-top-color: var(--Primary-faces);
+    border-radius: 50%;
+    animation: relatorio-spin 0.8s linear infinite;
+}
+
+/* Indicadores principais */
+
+.relatorio-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.relatorio-kpi {
+    display: flex;
+    align-items: flex-start;
+    gap: 13px;
+    min-width: 0;
+    padding: 17px 18px;
+    border: 1px solid var(--Border);
+    border-top: 3px solid var(--Primary-faces);
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 4px 20px rgba(30, 15, 50, 0.05);
+}
+
+.relatorio-kpi.receita { border-top-color: #21A366; }
+.relatorio-kpi.despesa { border-top-color: var(--Error); }
+.relatorio-kpi.resultado { border-top-color: var(--Accent); }
+.relatorio-kpi.margem { border-top-color: var(--Warning); }
+.relatorio-kpi.negativo { border-top-color: var(--Error); }
+
+.relatorio-kpi-icon {
+    width: 42px;
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: 11px;
+    color: var(--Primary-faces);
+    background: rgba(109, 53, 200, 0.1);
+}
+
+.relatorio-kpi.receita .relatorio-kpi-icon {
+    color: #1f7a4a;
+    background: rgba(33, 163, 102, 0.12);
+}
+
+.relatorio-kpi.despesa .relatorio-kpi-icon,
+.relatorio-kpi.resultado.negativo .relatorio-kpi-icon {
+    color: var(--Error);
+    background: rgba(224, 75, 75, 0.11);
+}
+
+.relatorio-kpi.margem .relatorio-kpi-icon {
+    color: var(--Warning);
+    background: rgba(233, 154, 50, 0.13);
+}
+
+.relatorio-kpi > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    width: 100%;
+}
+
+.relatorio-kpi-label {
+    color: var(--Secundary-text);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.relatorio-kpi strong {
+    overflow: hidden;
+    color: var(--Principal-text);
+    font-family: "Manrope", sans-serif;
+    font-size: var(--text-xl);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.relatorio-kpi.resultado.negativo strong {
+    color: var(--Error);
+}
+
+.relatorio-kpi small {
+    overflow: hidden;
+    color: var(--Secundary-text);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.relatorio-margin-bar {
+    height: 5px;
+    overflow: hidden;
+    margin-top: 4px;
+    border-radius: 999px;
+    background: var(--Secundary-Background);
+}
+
+.relatorio-margin-bar span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--Warning), #f6c56b);
+    transition: width 0.3s ease;
+}
+
+.relatorio-kpi.negativo .relatorio-margin-bar span {
+    background: var(--Error);
+}
+
+/* Separadores / abas */
+
+.relatorio-tabs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 54px;
+    overflow-x: auto;
+    padding: 6px;
+    border: 1px solid var(--Border);
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 4px 20px rgba(30, 15, 50, 0.04);
+    scrollbar-width: none;
+}
+
+.relatorio-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.relatorio-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 17px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--Secundary-text);
+    font-family: inherit;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.relatorio-tab:hover {
+    background: var(--backdrop);
+    color: var(--Primary-faces);
+}
+
+.relatorio-tab.active {
+    background: var(--Primary-faces);
+    color: #ffffff;
+}
+
+.relatorio-tab-count {
+    min-width: 20px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(109, 53, 200, 0.1);
+    color: var(--Primary-faces);
+    font-size: 10px;
+    line-height: 16px;
+    text-align: center;
+}
+
+.relatorio-tab.active .relatorio-tab-count {
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+}
+
+/* Cartoes */
+
+.relatorio-resumo-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    width: 100%;
+}
+
+.relatorio-card-span2 {
+    grid-column: span 2;
+}
+
+.relatorio-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    width: 100%;
+    align-items: start;
+}
+
+.relatorio-card {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-width: 0;
+    padding: 22px;
+    border: 1px solid var(--Border);
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: 0 4px 20px rgba(30, 15, 50, 0.05);
+}
+
+.relatorio-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.relatorio-card-header h2 {
+    margin: 0;
+    color: var(--Principal-text);
+    font-family: "Manrope", sans-serif;
+    font-size: var(--text-lg);
+}
+
+.relatorio-card-header p {
+    margin: 3px 0 0;
+    color: var(--Secundary-text);
+    font-size: var(--text-xs);
+    line-height: 1.4;
+}
+
+.relatorio-card-mark {
+    flex-shrink: 0;
+    color: var(--Primary-faces);
+}
+
+.relatorio-card-chip {
+    flex-shrink: 0;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: var(--backdrop);
+    color: var(--Primary-faces);
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* Graficos */
+
+.relatorio-chart {
+    width: 100%;
+    height: 340px;
+    min-width: 0;
+}
+
+.relatorio-chart .recharts-text {
+    font-family: inherit;
+}
+
+.relatorio-chart-legend {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding-top: 2px;
+}
+
+.relatorio-chart-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--Secundary-text);
+    font-size: var(--text-xs);
+    font-weight: 600;
+}
+
+.relatorio-chart-legend i {
+    width: 8px;
+    height: 8px;
+    border-radius: 3px;
+}
+
+/* Despesas por categoria */
+
+.relatorio-pie-layout {
+    display: grid;
+    grid-template-columns: 190px minmax(0, 1fr);
+    gap: 18px;
+    align-items: center;
+}
+
+.relatorio-pie-chart {
+    position: relative;
+    width: 100%;
+    height: 210px;
+    min-width: 0;
+}
+
+.relatorio-pie-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    pointer-events: none;
+}
+
+.relatorio-pie-center span {
+    color: var(--Secundary-text);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.relatorio-pie-center strong {
+    overflow: hidden;
+    max-width: 86%;
+    color: var(--Principal-text);
+    font-family: "Manrope", sans-serif;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.relatorio-pie-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+
+.relatorio-pie-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    font-size: var(--text-xs);
+}
+
+.relatorio-pie-dot {
+    width: 8px;
+    height: 8px;
+    flex-shrink: 0;
+    border-radius: 3px;
+}
+
+.relatorio-pie-name {
+    flex: 1;
+    overflow: hidden;
+    color: var(--Secundary-text);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.relatorio-pie-legend-item strong {
+    color: var(--Principal-text);
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+/* Rankings */
+
+.relatorio-rank-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    max-height: 360px;
+    overflow-y: auto;
+    padding-right: 3px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--Border) transparent;
+}
+
+.relatorio-rank-row {
+    display: grid;
+    grid-template-columns: 25px minmax(0, 1fr);
+    gap: 8px;
+    align-items: start;
+}
+
+.relatorio-rank-index {
+    padding-top: 1px;
+    color: var(--Accent);
+    font-family: "Manrope", sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.relatorio-rank-main {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.relatorio-rank-line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.relatorio-rank-line span {
+    overflow: hidden;
+    color: var(--Principal-text);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.relatorio-rank-line strong {
+    color: var(--Principal-text);
+    font-family: "Manrope", sans-serif;
+    font-size: var(--text-xs);
+    white-space: nowrap;
+}
+
+.relatorio-rank-bar {
+    height: 5px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--Secundary-Background);
+}
+
+.relatorio-rank-bar span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--Accent), var(--Primary-faces));
+    transition: width 0.3s ease;
+}
+
+.relatorio-rank-main small {
+    color: var(--Secundary-text);
+    font-size: 10px;
+}
+
+/* Fidelizacao */
+
+.relatorio-loyalty-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.relatorio-loyalty-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px;
+    border-radius: 10px;
+    background: var(--backdrop);
+}
+
+.relatorio-loyalty-item span {
+    color: var(--Secundary-text);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.relatorio-loyalty-item strong {
+    color: var(--Principal-text);
+    font-family: "Manrope", sans-serif;
+    font-size: var(--text-lg);
+}
+
+.relatorio-loyalty-item small {
+    color: var(--Secundary-text);
+    font-size: 9px;
+    line-height: 1.3;
+}
+
+.relatorio-loyalty-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.relatorio-loyalty-progress-large {
+    margin-top: 4px;
+}
+
+.relatorio-loyalty-progress-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--Secundary-text);
+    font-size: var(--text-xs);
+}
+
+.relatorio-loyalty-progress-line strong {
+    color: var(--Primary-faces);
+    font-family: "Manrope", sans-serif;
+    font-size: var(--text-xs);
+}
+
+.relatorio-mini-bar {
+    width: 100%;
+    height: 5px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--Secundary-Background);
+}
+
+.relatorio-mini-bar span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--Accent), var(--Primary-faces));
+    transition: width 0.3s ease;
+}
+
+.relatorio-loyalty-list {
+    overflow: hidden;
+    border: 1px solid var(--Border);
+    border-radius: 12px;
+}
+
+.relatorio-loyalty-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px;
+    border-bottom: 1px solid var(--Border);
+}
+
+.relatorio-loyalty-row:last-child {
+    border-bottom: 0;
+}
+
+.relatorio-loyalty-row span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--Secundary-text);
+    font-size: var(--text-sm);
+}
+
+.relatorio-loyalty-row svg {
+    flex-shrink: 0;
+    color: var(--Primary-faces);
+}
+
+.relatorio-loyalty-row strong {
+    color: var(--Principal-text);
+    font-family: "Manrope", sans-serif;
+    font-size: var(--text-md);
+}
+
+.relatorio-note {
+    margin: 0;
+    color: var(--Secundary-text);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+}
+
+/* Equipa e clientes */
+
+.relatorio-team-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.relatorio-team-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+}
+
+.relatorio-avatar {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--Accent), var(--Primary-faces));
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+
+.relatorio-avatar.posicao-1 {
+    box-shadow: 0 0 0 3px rgba(233, 154, 50, 0.18);
+}
+
+.relatorio-avatar.posicao-2 {
+    box-shadow: 0 0 0 3px rgba(155, 109, 227, 0.16);
+}
+
+.relatorio-avatar.posicao-3 {
+    box-shadow: 0 0 0 3px rgba(33, 163, 102, 0.14);
+}
+
+.relatorio-team-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1;
+    min-width: 0;
+}
+
+.relatorio-team-info strong {
+    overflow: hidden;
+    color: var(--Principal-text);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.relatorio-team-info small {
+    color: var(--Secundary-text);
+    font-size: 10px;
+}
+
+.relatorio-team-value {
+    color: var(--Principal-text);
+    font-family: "Manrope", sans-serif;
+    font-size: var(--text-xs);
+    white-space: nowrap;
+}
+
+.relatorio-person {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+}
+
+.relatorio-person > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.relatorio-person strong {
+    overflow: hidden;
+    color: var(--Principal-text);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.relatorio-person small {
+    color: var(--Secundary-text);
+    font-size: 10px;
+}
+
+.relatorio-person .relatorio-mini-bar {
+    max-width: 110px;
+    margin-top: 1px;
+}
+
+.relatorio-client-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.relatorio-client-stats > div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--backdrop);
+}
+
+.relatorio-client-stats span {
+    color: var(--Secundary-text);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.relatorio-client-stats strong {
+    color: var(--Principal-text);
+    font-family: "Manrope", sans-serif;
+    font-size: var(--text-lg);
+}
+
+/* Tabelas */
+
+.relatorio-table-scroll {
+    width: 100%;
+    max-height: 460px;
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--Border) transparent;
+}
+
+.relatorio-table-scroll-tall {
+    max-height: 620px;
+}
+
+.relatorio-table {
+    min-width: 540px;
+}
+
+.relatorio-table-compact {
+    min-width: 460px;
+}
+
+.relatorio-table .relatorio-pill {
+    font-family: inherit;
+}
+
+.relatorio-motivo {
+    max-width: 280px;
+    color: var(--Secundary-text);
+}
+
+.relatorio-footnote {
+    margin: 0;
+    color: var(--Secundary-text);
+    font-size: var(--text-xs);
+}
+
+/* Resumos do caixa e anulacoes */
+
+.relatorio-caixa-resumo,
+.relatorio-anulacoes-resumo {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.relatorio-stat-mini {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    padding: 14px 16px;
+    border: 1px solid var(--Border);
+    border-left: 4px solid var(--Primary-faces);
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 4px 20px rgba(30, 15, 50, 0.04);
+}
+
+.relatorio-stat-mini span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--Secundary-text);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.relatorio-stat-mini span svg {
+    flex-shrink: 0;
+}
+
+.relatorio-stat-mini strong {
+    overflow: hidden;
+    color: var(--Principal-text);
+    font-family: "Manrope", sans-serif;
+    font-size: var(--text-xl);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.relatorio-stat-mini.success { border-left-color: #21A366; }
+.relatorio-stat-mini.success svg { color: #1f7a4a; }
+.relatorio-stat-mini.danger { border-left-color: var(--Error); }
+.relatorio-stat-mini.danger svg { color: var(--Error); }
+.relatorio-stat-mini.warning { border-left-color: var(--Warning); }
+.relatorio-stat-mini.warning svg { color: var(--Warning); }
+.relatorio-stat-mini.primary { border-left-color: var(--Primary-faces); }
+.relatorio-stat-mini.primary svg { color: var(--Primary-faces); }
+.relatorio-stat-mini.neutral { border-left-color: var(--Secundary-text); }
+.relatorio-stat-mini.neutral svg { color: var(--Secundary-text); }
+
+/* Etiquetas de estado */
+
+.relatorio-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.relatorio-pill.success {
+    color: #1f7a4a;
+    background: rgba(33, 163, 102, 0.12);
+}
+
+.relatorio-pill.warning {
+    color: #b9770e;
+    background: rgba(233, 154, 50, 0.14);
+}
+
+.relatorio-pill.danger {
+    color: var(--Error);
+    background: rgba(224, 75, 75, 0.12);
+}
+
+.relatorio-pill.neutral {
+    color: var(--Secundary-text);
+    background: rgba(111, 107, 120, 0.12);
+}
+
+.relatorio-pill.tipo-entrada {
+    color: #1f7a4a;
+    background: rgba(33, 163, 102, 0.12);
+}
+
+.relatorio-pill.tipo-saida {
+    color: var(--Error);
+    background: rgba(224, 75, 75, 0.12);
+}
+
+.relatorio-pill.tipo-levantamento {
+    color: #b9770e;
+    background: rgba(233, 154, 50, 0.14);
+}
+
+/* Estados vazios */
+
+.relatorio-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 220px;
+    padding: 32px 16px;
+    color: var(--Secundary-text);
+    text-align: center;
+}
+
+.relatorio-empty svg {
+    margin-bottom: 3px;
+    color: var(--Accent);
+}
+
+.relatorio-empty strong {
+    color: var(--Principal-text);
+    font-size: var(--text-sm);
+}
+
+.relatorio-empty span {
+    max-width: 380px;
+    font-size: var(--text-xs);
+    line-height: 1.5;
+}
+
+.relatorio-empty-success svg {
+    color: var(--Sucess);
+}
+
+@media (max-width: 1500px) {
+    .relatorio-grid-2 {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 1280px) {
+    .relatorio-resumo-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .relatorio-card-span2 {
+        grid-column: span 2;
+    }
+}
+
+@media (max-width: 1100px) {
+    .relatorio-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .relatorio-resumo-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .relatorio-card-span2 {
+        grid-column: span 1;
+    }
+
+    .relatorio-grid-2 {
+        grid-template-columns: 1fr;
+    }
+
+    .relatorio-caixa-resumo,
+    .relatorio-anulacoes-resumo {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 900px) {
+    .relatorio-periodo {
+        align-items: stretch;
+    }
+
+    .relatorio-presets,
+    .relatorio-datas {
+        width: 100%;
+    }
+
+    .relatorio-datas {
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 820px) {
+    .relatorio-resumo-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .relatorio-card-span2 {
+        grid-column: span 1;
+    }
+
+    .relatorio-pie-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .relatorio-pie-chart {
+        width: 100%;
+        max-width: 220px;
+        margin: 0 auto;
+    }
+
+    .relatorio-pie-center strong {
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 678px) {
+    .relatorio-kpis {
+        grid-template-columns: 1fr;
+    }
+
+    .relatorio-caixa-resumo,
+    .relatorio-anulacoes-resumo {
+        grid-template-columns: 1fr;
+    }
+
+    .relatorio-loyalty-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .relatorio-chart {
+        height: 280px;
+    }
+
+    .relatorio-datas {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .relatorio-datas label {
+        min-width: 0;
+    }
+
+    .relatorio-apply {
+        grid-column: span 2;
+    }
+
+    .relatorio-periodo-badge {
+        width: 100%;
+        justify-content: center;
+        white-space: normal;
+        text-align: center;
+    }
+
+    .relatorio-tab {
+        padding: 8px 10px;
+        font-size: var(--text-xs);
+    }
+
+    .relatorio-card {
+        padding: 16px;
+    }
+
+    .relatorio-client-stats {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .relatorio-spin,
+    .relatorio-loader {
+        animation: none;
+    }
+
+    .relatorio-margin-bar span,
+    .relatorio-rank-bar span,
+    .relatorio-mini-bar span {
+        transition: none;
+    }
+}

@@ -21,7 +21,7 @@ export default function AppRoutes(){
     return(
         <Routes>
             {/* --- dashboard e o index: unica rota protegida por sessao --- */}
-            <Route path='/' element={<DashBoard/>}/>
+            <Route path='/' element={<RequireAuth><DashBoard/></RequireAuth>}/>
 
             {/* --- rotas publicas de auth --- */}
             <Route path="/login" element={<RedirectIfAuth><Home/></RedirectIfAuth>}/>
