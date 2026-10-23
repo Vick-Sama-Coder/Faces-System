@@ -44,18 +44,8 @@ where codigo in (
 )
 on conflict do nothing;
 
--- Financeiro (3): caixa, despesas, salarios e relatorios
-insert into perfil_permissao (id_perfil, id_permissao)
-select 3, id from permissao
-where codigo in (
-    'clientes:ler', 'servicos:ler', 'funcionarios:ler',
-    'pagamentos:anular',
-    'caixa:operar', 'caixa:levantar', 'caixa:fechar',
-    'despesas:escrever',
-    'horarios:gerir', 'assiduidade:gerir', 'salarios:gerir',
-    'relatorios:ler'
-)
-on conflict do nothing;
+-- O perfil Financeiro (3) foi descontinuado. As suas permissoes passam a ser
+-- exclusivas do Administrador (1), que ja recebe todas as permissoes acima.
 
 -- Auditor (4): consulta de relatorios e auditoria
 insert into perfil_permissao (id_perfil, id_permissao)

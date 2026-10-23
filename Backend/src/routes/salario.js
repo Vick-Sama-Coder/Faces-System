@@ -4,7 +4,7 @@ import SalarioController from '../controller/salario.js';
 
 const router = express.Router();
 
-//Gestao do processamento salarial (Administrador e Financeiro)
+//Gestao do processamento salarial
 router.get('/salarios/processamentos', authenticate, authorizePermission('salarios:gerir'), SalarioController.getProcessamentos);
 router.get('/salarios/processamentos/:id', authenticate, authorizePermission('salarios:gerir'), SalarioController.getProcessamentoById);
 router.post('/salarios/processar', authenticate, authorizePermission('salarios:gerir'), SalarioController.processar);

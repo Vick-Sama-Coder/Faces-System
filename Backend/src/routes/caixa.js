@@ -4,7 +4,7 @@ import CaixaController from '../controller/caixa.js';
 
 const router = express.Router();
 
-//Operacao do caixa requer as permissoes respetivas (Administrador e Financeiro)
+//Operacao do caixa requer as permissoes respetivas
 router.post('/caixa/abrir', authenticate, authorizePermission('caixa:operar'), CaixaController.abrirCaixa);
 router.get('/caixa/atual', authenticate, authorizePermission('caixa:operar'), CaixaController.getCaixaAtual);
 router.post('/caixa/levantamento', authenticate, authorizePermission('caixa:levantar'), CaixaController.registarLevantamento);

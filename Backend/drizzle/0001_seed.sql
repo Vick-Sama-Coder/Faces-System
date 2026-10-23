@@ -4,7 +4,6 @@
 insert into perfil (id, nome, descricao, estado) values
     (1, 'Administrador', 'Acesso total ao sistema', 'Ativo'),
     (2, 'Usuario', 'Recepcao e atendimento', 'Ativo'),
-    (3, 'Financeiro', 'Caixa, despesas e salarios', 'Ativo'),
     (4, 'Auditor', 'Consulta de relatorios e auditoria', 'Ativo')
 on conflict (id) do update
     set nome = excluded.nome,
@@ -59,19 +58,6 @@ where codigo in (
     'atendimentos:escrever',
     'pagamentos:registar',
     'caixa:operar'
-)
-on conflict do nothing;
-
--- Financeiro (3): caixa, despesas, salarios e relatorios.
-insert into perfil_permissao (id_perfil, id_permissao)
-select 3, id from permissao
-where codigo in (
-    'clientes:ler', 'servicos:ler', 'funcionarios:ler',
-    'pagamentos:anular',
-    'caixa:operar', 'caixa:levantar', 'caixa:fechar',
-    'despesas:escrever',
-    'horarios:gerir', 'assiduidade:gerir', 'salarios:gerir',
-    'relatorios:ler'
 )
 on conflict do nothing;
 

@@ -11,7 +11,7 @@ import {
     index
 } from 'drizzle-orm/pg-core';
 
-// Perfis de acesso (Administrador, Usuario, Financeiro, Auditor).
+// Perfis de acesso (Administrador, Usuario, Auditor).
 export const perfil = pgTable('perfil', {
     id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
     nome: varchar('nome', { length: 100 }).notNull(),
