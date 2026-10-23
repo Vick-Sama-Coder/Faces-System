@@ -1,11 +1,12 @@
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, sql } from 'drizzle-orm';
 import db from '../db/client.js';
-import { logAuditoria, usuario } from '../db/schema/index.js';
+import { logAuditoria, perfil, usuario } from '../db/schema/index.js';
 
 const campos = {
     id: logAuditoria.id,
     id_utilizador: logAuditoria.id_utilizador,
     utilizador_nome: usuario.nome,
+    utilizador_perfil: perfil.nome,
     data_hora: logAuditoria.data_hora,
     entidade: logAuditoria.entidade,
     id_registo_afetado: logAuditoria.id_registo_afetado,
@@ -16,8 +17,21 @@ const campos = {
     identificador_operacao: logAuditoria.identificador_operacao
 };
 
+const comRelacoes = () => db.select(campos)
+    .from(logAuditoria)
+    .leftJoin(usuario, eq(usuario.id, logAuditoria.id_utilizador))
+    .leftJoin(perfil, eq(perfil.id, usuario.id_perfil));
+
 //os filtros sao opcionais porque investigar uma ocorrencia nao deve obrigar a conhecermos o periodo
-const findAll = async ({ entidade, utilizador, de, ate, operacao } = {}) => {
+const findAll = async ({
+    entidade,
+    utilizador,
+    utilizador_nome,
+    perfil: perfilNome,
+    de,
+    ate,
+    operacao
+} = {}) => {
     const condicoes = [];
 
     if (entidade !== undefined && entidade !== null && entidade !== '') {
@@ -25,6 +39,12 @@ const findAll = async ({ entidade, utilizador, de, ate, operacao } = {}) => {
     }
     if (utilizador !== undefined && utilizador !== null && utilizador !== '') {
         condicoes.push(eq(logAuditoria.id_utilizador, utilizador));
+    }
+    if (utilizador_nome !== undefined && utilizador_nome !== null && utilizador_nome !== '') {
+        condicoes.push(ilike(usuario.nome, `%${utilizador_nome}%`));
+    }
+    if (perfilNome !== undefined && perfilNome !== null && perfilNome !== '') {
+        condicoes.push(eq(perfil.nome, perfilNome));
     }
     if (de) {
         condicoes.push(sql`${logAuditoria.data_hora}::date >= ${de}`);
@@ -36,21 +56,40 @@ const findAll = async ({ entidade, utilizador, de, ate, operacao } = {}) => {
         condicoes.push(eq(logAuditoria.tipo_operacao, operacao));
     }
 
-    return db.select(campos)
-        .from(logAuditoria)
-        .leftJoin(usuario, eq(usuario.id, logAuditoria.id_utilizador))
+    return comRelacoes()
         .where(condicoes.length > 0 ? and(...condicoes) : undefined)
         .orderBy(desc(logAuditoria.data_hora), desc(logAuditoria.id));
 };
 
 const findById = async (id) => {
-    const [linha] = await db.select(campos)
-        .from(logAuditoria)
-        .leftJoin(usuario, eq(usuario.id, logAuditoria.id_utilizador))
+    const [linha] = await comRelacoes()
         .where(eq(logAuditoria.id, id))
         .limit(1);
 
     return linha || null;
+};
+
+const findOpcoes = async () => {
+    const [operacoes, perfis, utilizadores] = await Promise.all([
+        db.selectDistinct({ valor: logAuditoria.tipo_operacao })
+            .from(logAuditoria)
+            .orderBy(logAuditoria.tipo_operacao),
+        db.selectDistinct({ valor: perfil.nome })
+            .from(logAuditoria)
+            .innerJoin(usuario, eq(usuario.id, logAuditoria.id_utilizador))
+            .innerJoin(perfil, eq(perfil.id, usuario.id_perfil))
+            .orderBy(perfil.nome),
+        db.selectDistinct({ valor: usuario.nome })
+            .from(logAuditoria)
+            .innerJoin(usuario, eq(usuario.id, logAuditoria.id_utilizador))
+            .orderBy(usuario.nome)
+    ]);
+
+    return {
+        operacoes: operacoes.map((linha) => linha.valor),
+        perfis: perfis.map((linha) => linha.valor),
+        utilizadores: utilizadores.map((linha) => linha.valor)
+    };
 };
 
 //recebe o executor (db ou transacao) para o registo ser gravado na mesma
@@ -84,6 +123,7 @@ const insert = async (executor, {
 const Auditoria = {
     findAll,
     findById,
+    findOpcoes,
     insert
 };
 

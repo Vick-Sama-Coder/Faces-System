@@ -1,5 +1,7 @@
 import Atendimento from "../repository/atendimento.js";
+import Pagamento from "../repository/pagamento.js";
 import AtendimentoService from "../services/atendimento.js";
+import FidelizacaoService from "../services/fidelizacao.js";
 import AuditoriaService from "../services/auditoria.js";
 
 const getAtendimentos = async (req, res, next) => {
@@ -21,6 +23,14 @@ const getAtendimentoById = async (req, res, next) => {
         }
 
         atendimento.servicos = await Atendimento.findServicos(atendimento.id);
+
+        const pagamentos = await Pagamento.findByAtendimento(atendimento.id);
+        for (const pagamento of pagamentos) {
+            pagamento.parcelas = await Pagamento.findParcelas(pagamento.id);
+        }
+        atendimento.pagamentos = pagamentos;
+        atendimento.fidelizacao = await FidelizacaoService.progresso(atendimento.cliente_id);
+
         res.status(200).json(atendimento);
     } catch (error) {
         next(error);

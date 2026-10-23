@@ -3,22 +3,47 @@ import db from '../db/client.js';
 import {
     atendimento,
     atendimentoServico,
+    categoriaSalao,
     cliente,
     funcionario,
-    servico
+    servico,
+    usuario
 } from '../db/schema/index.js';
 
 const campos = {
     id: atendimento.id,
     cliente_id: atendimento.cliente_id,
     cliente_nome: cliente.nome,
+    cliente_apelido: cliente.apelido,
+    cliente_telefone: cliente.telefone,
     data_hora: atendimento.data_hora,
     estado: atendimento.estado,
     valor_bruto: atendimento.valor_bruto,
     valor_desconto: atendimento.valor_desconto,
     valor_total: atendimento.valor_total,
     registado_por: atendimento.registado_por,
-    motivo_anulacao: atendimento.motivo_anulacao
+    registado_por_nome: usuario.nome,
+    motivo_anulacao: atendimento.motivo_anulacao,
+    valor_pago: sql`coalesce((
+        select sum(pp.valor)::int
+          from pagamento_parcela pp
+          join pagamento p on p.id = pp.pagamento_id
+         where p.atendimento_id = ${atendimento.id}
+           and p.estado <> 'Anulado'
+    ), 0)`,
+    metodos_pagamento: sql`coalesce((
+        select string_agg(distinct pp.metodo_pagamento, ', ')
+          from pagamento_parcela pp
+          join pagamento p on p.id = pp.pagamento_id
+         where p.atendimento_id = ${atendimento.id}
+           and p.estado <> 'Anulado'
+    ), '')`,
+    tem_cartao_fidelizacao: sql`exists(
+        select 1
+          from cartao_fidelizacao cf
+         where cf.cliente_id = ${atendimento.cliente_id}
+           and cf.estado = 'Ativo'
+    )`
 };
 
 //listagem com filtros opcionais (periodo, cliente, funcionario, estado)
@@ -45,6 +70,7 @@ const findAll = async ({ de, ate, cliente: clienteId, funcionario: funcionarioId
     return db.select(campos)
         .from(atendimento)
         .innerJoin(cliente, eq(cliente.id, atendimento.cliente_id))
+        .leftJoin(usuario, eq(usuario.id, atendimento.registado_por))
         .where(condicoes.length > 0 ? and(...condicoes) : undefined)
         .orderBy(sql`${atendimento.data_hora} desc`);
 };
@@ -53,6 +79,7 @@ const findById = async (id, executor = db) => {
     const [linha] = await executor.select(campos)
         .from(atendimento)
         .innerJoin(cliente, eq(cliente.id, atendimento.cliente_id))
+        .leftJoin(usuario, eq(usuario.id, atendimento.registado_por))
         .where(eq(atendimento.id, id))
         .limit(1);
 
@@ -64,16 +91,19 @@ const findServicos = async (atendimento_id) => {
         id: atendimentoServico.id,
         servico_id: atendimentoServico.servico_id,
         servico_nome: servico.nome,
+        categoria_nome: categoriaSalao.nome,
         funcionario_id: atendimentoServico.funcionario_id,
         funcionario_nome: funcionario.nome,
         preco_original: atendimentoServico.preco_original,
         tipo_preco: atendimentoServico.tipo_preco,
+        elegivel_fidelizacao: servico.elegivel_fidelizacao,
         valor_desconto: atendimentoServico.valor_desconto,
         valor_final: atendimentoServico.valor_final,
         estado: atendimentoServico.estado
     })
         .from(atendimentoServico)
         .innerJoin(servico, eq(servico.id, atendimentoServico.servico_id))
+        .innerJoin(categoriaSalao, eq(categoriaSalao.id, servico.categoria_id))
         .innerJoin(funcionario, eq(funcionario.id, atendimentoServico.funcionario_id))
         .where(eq(atendimentoServico.atendimento_id, atendimento_id))
         .orderBy(asc(atendimentoServico.id));

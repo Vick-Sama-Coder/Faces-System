@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import bcrypt from 'bcrypt';
 import generetedToken from '../utils/token.js';
 import Usuario from '../repository/usuario.js';
+import Permissao from '../repository/permissao.js';
 import RecuperacaoSenha from '../repository/recuperacaoSenha.js';
 import { authenticate, authorize } from '../middlewares/auth.js';
 import { validarNome, validarTelefone, validarSenha, validarCodigo, limparTelefone } from '../utils/validacoes.js';
@@ -129,11 +130,15 @@ router.post('/login', async(req,res, next)=>{
 
         await Usuario.registarAcesso(userData.id);
 
+        //permissoes efetivas: perfil + excecoes individuais
+        const permissoes = await Permissao.codigosEfetivos(userData.id, userData.id_perfil);
+
         res.status(200).json({message:"login feito com sucesso", user:{
             id: userData.id,
             nome: userData.nome,
             telefone: userData.telefone,
             perfil: userData.perfil,
+            permissoes,
             deve_alterar_senha: userData.alteracao_obrigatoria_senha
         }})
 
