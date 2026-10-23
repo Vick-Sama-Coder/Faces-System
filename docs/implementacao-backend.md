@@ -270,7 +270,7 @@ permissões (documentacao.md §4, §7.1).
     `ultimo_acesso timestamp`, `data_criacao timestamp default now()`,
     `unique (telefone)`.
   - `perfil`: `descricao varchar(255)`, `estado varchar(20) default 'Ativo'`.
-  - Semear perfis adicionais previstos: `3` Auditor, `4` Financeiro (opcional, conforme §4).
+  - Semear perfis adicionais previstos: `4` Auditor (o antigo `3` Financeiro foi descontinuado).
 - `017_create_permissao.sql` — `permissao (id, codigo unique, descricao, modulo)`,
   `perfil_permissao (id_perfil, id_permissao)`,
   `usuario_permissao (id_usuario, id_permissao, efeito 'conceder'|'revogar')`,
@@ -814,7 +814,8 @@ e aprovação (RF15–RF19, RN14–RN15, HU relacionadas).
 
 | Método | Rota | Permissão | Descrição |
 | --- | --- | --- | --- |
-| GET | `/api/auditoria?entidade=&utilizador=&de=&ate=&operacao=` | `auditoria:ler` | Consulta (filtros opcionais) |
+| GET | `/api/auditoria?entidade=&utilizador=&utilizador_nome=&perfil=&de=&ate=&operacao=` | `auditoria:ler` | Consulta (filtros opcionais) |
+| GET | `/api/auditoria/opcoes` | `auditoria:ler` | Opções de operação, perfil e utilizador |
 | GET | `/api/auditoria/:id` | `auditoria:ler` | Detalhe |
 
 **Critério de conclusão**
@@ -923,31 +924,33 @@ implementado, deve ser aberta uma tarefa na fase correspondente.
 
 Expande a matriz simples atual (`Administrador`/`Usuario`) para a granularidade das
 Fases 1 e seguintes. Cada código corresponde a `modulo:acao` em `permissao.codigo`.
+O perfil `Financeiro` foi descontinuado; as suas permissões passam a ser do
+`Administrador`.
 
-| Permissão | Administrador | Usuario | Financeiro | Auditor |
-| --- | :---: | :---: | :---: | :---: |
-| `clientes:ler` | ✅ | ✅ | ✅ | ✅ |
-| `clientes:escrever` | ✅ | ✅ | — | — |
-| `servicos:ler` | ✅ | ✅ | ✅ | ✅ |
-| `servicos:escrever` | ✅ | — | — | — |
-| `funcionarios:ler` | ✅ | — | ✅ | ✅ |
-| `funcionarios:escrever` | ✅ | — | — | — |
-| `atendimentos:escrever` | ✅ | ✅ | — | — |
-| `atendimentos:anular` | ✅ | — | — | — |
-| `pagamentos:registar` | ✅ | ✅ | — | — |
-| `pagamentos:anular` | ✅ | — | ✅ | — |
-| `caixa:operar` | ✅ | ✅ | ✅ | — |
-| `caixa:levantar` | ✅ | — | ✅ | — |
-| `caixa:fechar` | ✅ | — | ✅ | — |
-| `despesas:escrever` | ✅ | — | ✅ | — |
-| `fidelizacao:corrigir` | ✅ | — | — | — |
-| `horarios:gerir` | ✅ | — | ✅ | — |
-| `assiduidade:gerir` | ✅ | — | ✅ | — |
-| `salarios:gerir` | ✅ | — | ✅ | — |
-| `salarios:aprovar` | ✅ | — | — | — |
-| `relatorios:ler` | ✅ | — | ✅ | ✅ |
-| `contas:gerir` | ✅ | — | — | — |
-| `auditoria:ler` | ✅ | — | — | ✅ |
+| Permissão | Administrador | Usuario | Auditor |
+| --- | :---: | :---: | :---: |
+| `clientes:ler` | ✅ | ✅ | ✅ |
+| `clientes:escrever` | ✅ | ✅ | — |
+| `servicos:ler` | ✅ | ✅ | ✅ |
+| `servicos:escrever` | ✅ | — | — |
+| `funcionarios:ler` | ✅ | — | ✅ |
+| `funcionarios:escrever` | ✅ | — | — |
+| `atendimentos:escrever` | ✅ | ✅ | — |
+| `atendimentos:anular` | ✅ | — | — |
+| `pagamentos:registar` | ✅ | ✅ | — |
+| `pagamentos:anular` | ✅ | — | — |
+| `caixa:operar` | ✅ | ✅ | — |
+| `caixa:levantar` | ✅ | — | — |
+| `caixa:fechar` | ✅ | — | — |
+| `despesas:escrever` | ✅ | — | — |
+| `fidelizacao:corrigir` | ✅ | — | — |
+| `horarios:gerir` | ✅ | — | — |
+| `assiduidade:gerir` | ✅ | — | — |
+| `salarios:gerir` | ✅ | — | — |
+| `salarios:aprovar` | ✅ | — | — |
+| `relatorios:ler` | ✅ | — | ✅ |
+| `contas:gerir` | ✅ | — | — |
+| `auditoria:ler` | ✅ | — | ✅ |
 
 > Esta matriz é a **configuração inicial**; deve ser ajustável por perfil e por
 > utilizador (exceções individuais), conforme documentacao.md §4.
@@ -983,7 +986,7 @@ decisões e o seu impacto está consolidado na **Fase 16** (a cargo do utilizado
 2. **Modelo de desconto:** valor fixo, percentagem ou ambos — Fase 5.
 3. **Tipo de `telefone`:** manter `int` ou migrar para `varchar` — Fases 2, 4.
 4. **Empréstimos** (HU-17): incluídos na Fase 8 ou fase própria — Fase 8.
-5. **Perfis adicionais** (Financeiro, Auditor) e multi-perfil — Fase 1.
+5. **Perfis adicionais** (Auditor) e multi-perfil — Fase 1.
 6. **Deduções salariais:** automáticas ou manuais — Fase 10.
 7. **Anulações:** todos os admins ou restrito por módulo — Fases 5, 6.
 8. **Exportação de relatórios:** CSV/PDF/Excel — Fase 11.

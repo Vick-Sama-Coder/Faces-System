@@ -434,12 +434,14 @@ clientes, funcionários, custos ou qualquer dado interno.
 Registo auditável das operações relevantes (RF23/RN21/RNF03). Todas as rotas exigem
 `auditoria:ler` (Administrador e Auditor).
 
-- `GET /api/auditoria?entidade=&utilizador=&de=&ate=&operacao=` — lista (filtros opcionais)
+- `GET /api/auditoria?entidade=&utilizador=&utilizador_nome=&perfil=&de=&ate=&operacao=` — lista (filtros opcionais)
+- `GET /api/auditoria/opcoes` — valores disponíveis para os filtros (`operacoes`, `perfis`, `utilizadores`)
 - `GET /api/auditoria/:id` — detalhe (`200`/`404`)
 
 ```json
 {
   "id": 11, "id_utilizador": 1, "utilizador_nome": "Administrador",
+  "utilizador_perfil": "Administrador",
   "data_hora": "2026-10-17T...", "entidade": "pagamento", "id_registo_afetado": 2,
   "tipo_operacao": "anular", "valores_anteriores": { "estado": "Liquidado" },
   "valores_posteriores": { "estado": "Anulado" }, "motivo": "erro de caixa"

@@ -1027,7 +1027,7 @@ curl -s -b "$JAR" "$BASE/comissoes?funcionario=1&estado=Paga"
 ```
 
 **Erros:** período fora de `AAAA-MM` → `400`; mês `13` → `400`; aprovar duas vezes → `409`;
-pagar antes de aprovar → `409`; sem `salarios:aprovar` → `403` (ex.: Financeiro).
+pagar antes de aprovar → `409`; sem `salarios:aprovar` → `403` (ex.: perfil `Usuario`).
 
 ---
 

@@ -229,8 +229,10 @@ os nomes/descrições corretos (idempotente via `on conflict do update`):
 | --- | --- | --- |
 | `1` | `Administrador` | Acesso total |
 | `2` | `Usuario` | Recepção/atendimento (perfil atribuído no registo) |
-| `3` | `Financeiro` | Caixa, despesas e salários |
 | `4` | `Auditor` | Consulta de relatórios e auditoria |
+
+> O antigo perfil `3` (`Financeiro`) foi descontinuado. As suas responsabilidades
+> passaram para o `Administrador`.
 
 O `017_seed_permissoes.sql` popula o catálogo `permissao` (códigos `modulo:acao`) e
 atribui as permissões a cada perfil em `perfil_permissao`:

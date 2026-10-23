@@ -24,19 +24,17 @@ Definidas em `Frontend/src/routes/AppRoutes.jsx`:
 | `/login` | `Home` (login) | `RedirectIfAuth` |
 | `/register` | `SignUp` | `RedirectIfAuth` |
 | `/forgotpass` | `ForgotPassword` | pública |
-| `/clientes` | `Clientes` | pública (sem guarda) |
-| `/novoAtendimento` | `NovoAtendimento` | pública (sem guarda) |
-| `/servicos` | `Servicos` | pública (sem guarda) |
-| `/relatorio` | `Relatorio` | pública (sem guarda) |
-| `/despesas` | `Despesas` | pública (sem guarda) |
-| `/funcionarios` | `Funcionarios` | `RequireRole ["Administrador"]` |
-| `/gestao-utilizadores` | `GestaoUtilizadores` | `RequireRole ["Administrador"]` |
-| `/permissoes` | `Permissoes` | `RequireRole ["Administrador"]` |
+| `/clientes` | `Clientes` | `RequirePermission` (`clientes:ler`/`clientes:escrever`) |
+| `/novoAtendimento` | `NovoAtendimento` | `RequirePermission` (`atendimentos:escrever`) |
+| `/servicos` | `Servicos` | `RequirePermission` (`servicos:ler`/`servicos:escrever`) |
+| `/categorias` | `Categorias` | `RequirePermission` (`servicos:escrever`) |
+| `/relatorio` | `Relatorio` | `RequirePermission` (`relatorios:ler`) |
+| `/despesas` | `Despesas` | `RequirePermission` (`despesas:escrever`) |
+| `/funcionarios` | `Funcionarios` | `RequirePermission` (`funcionarios:ler`/`funcionarios:escrever`) |
+| `/gestao-utilizadores` | `GestaoUtilizadores` | `RequirePermission` (`contas:gerir`) |
+| `/permissoes` | `Permissoes` | `RequirePermission` (`contas:gerir`) |
+| `/logs` | `Logs` | `RequirePermission` (`auditoria:ler`) |
 | `*` | `NotFound` (`<h1>Not Found</h1>`) | pública |
-
-> Nota: `/clientes`, `/novoAtendimento`, `/servicos`, `/relatorio` e `/despesas` estão
-> marcadas no comentário do ficheiro como "públicas, sem protecção de rota". Considere
-> envolvê-las em `RequireAuth` antes de produção (ver [estado-e-pendencias.md](./estado-e-pendencias.md)).
 
 ## Estado global (Zustand)
 
@@ -81,12 +79,12 @@ Acções: `checkAuth`, `login`, `register`, `logout`, `clearError`, `clearSucess
 
 ### Sidebar — grupos e perfis
 
-Os itens são agrupados em `GRUPOS`; cada item tem `perfis: []` (todos) ou uma lista de
-perfis autorizados:
+Os itens são agrupados em `GRUPOS`; cada item tem `perfis`/`permissao` e é mostrado
+apenas quando o utilizador tem acesso ao módulo:
 
-- **Operação:** Dashboard, Novo Atendimento, Clientes, Serviços
+- **Operação:** Dashboard, Novo Atendimento, Clientes, Serviços, Categorias
 - **Financeiro:** Relatório, Despesas
-- **Administração:** Funcionários, Gestão de Utilizadores, Permissões (só `Administrador`)
+- **Administração:** Funcionários, Gestão de Utilizadores, Permissões, Logs
 
 Grupos sem itens visíveis são escondidos automaticamente.
 
@@ -97,12 +95,14 @@ Grupos sem itens visíveis são escondidos automaticamente.
 | `home` (login) | `pages/home.jsx` | ✅ Ligada ao `authStore` (nome de utilizador + senha) |
 | `SignUp` (registo) | `pages/auth/Resgister/SignUp.jsx` | ✅ Ligada ao `authStore` |
 | `ForgotPassword` | `pages/auth/ForgotPassword/forgotPass.jsx` | ✅ Recuperação por código SMS ao telefone |
-| `dashboard` | `pages/dashboard/dashboard.jsx` | 🚧 Dados mock |
-| `novoAtendimento` | `pages/novoAtendimento/novoAtendimento.jsx` | 🚧 AG Grid com mock |
-| `funcionarios` | `pages/funcionarios/funcionarios.jsx` | 🚧 AG Grid com mock |
-| `GestaoUtilizadores` | `pages/admin/GestaoUtilizadores.jsx` | ✅ `GET /api/auth/users` |
-| `Permissoes` | `pages/admin/Permissoes.jsx` | ✅ Matriz estática |
-| `clientes`, `despesas`, `relatorio`, `servicos` | respectivas pastas | 🚧 Placeholder |
+| `dashboard` | `pages/dashboard/dashboard.jsx` | ✅ Dados reais via `/api/dashboard` |
+| `novoAtendimento` | `pages/novoAtendimento/novoAtendimento.jsx` | ✅ Lista, detalhe, pagamentos e fidelizacao |
+| `categorias` | `pages/categorias/categorias.jsx` | ✅ CRUD de categorias |
+| `logs` | `pages/logs/logs.jsx` | ✅ Consulta de auditoria |
+| `funcionarios` | `pages/funcionarios/funcionarios.jsx` | ✅ CRUD sem documento/conta de utilizador |
+| `GestaoUtilizadores` | `pages/admin/GestaoUtilizadores.jsx` | ✅ `GET /api/usuarios` |
+| `Permissoes` | `pages/admin/Permissoes.jsx` | ✅ Matriz por perfil |
+| `clientes`, `despesas`, `relatorio`, `servicos` | respectivas pastas | ✅ Ligados à API |
 
 ## Validações no cliente
 
