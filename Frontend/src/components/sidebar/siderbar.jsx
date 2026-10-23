@@ -9,6 +9,7 @@ import {
     Receipt,
     ShieldCheck,
     LogOut,
+    Tag,
     X } from "lucide-react"
 import { NavLink, useNavigate } from "react-router"
 import Photo from '../../assets/logo/faces-logo.png'
@@ -24,6 +25,7 @@ const GRUPOS = [
             { nome: "Novo Atendimento", path: "/novoAtendimento",     Icone: CalendarPlus,       perfis: [], title: "Novo Atendimento" },
             { nome: "Clientes",         path: "/clientes",            Icone: UserRound,          perfis: [], title: "Clientes" },
             { nome: "Servicos",         path: "/servicos",            Icone: ScissorsIcon,       perfis: [], title: "Servicos" },
+            { nome : "Categorias",      path: "/categorias",          Icone: Tag,       perfis:[],   title: "Categorias"},
         ]
     },
     {
