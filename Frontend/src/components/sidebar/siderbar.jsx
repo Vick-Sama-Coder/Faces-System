@@ -8,6 +8,8 @@ import {
     ChartNoAxesCombinedIcon,
     Receipt,
     ShieldCheck,
+    Tags,
+    ScrollText,
     LogOut,
     X } from "lucide-react"
 import { NavLink, useNavigate } from "react-router"
@@ -15,30 +17,32 @@ import Photo from '../../assets/logo/faces-logo.png'
 import { useAuthStore } from '../../store/authStore.js';
 import './sidebar.css'
 
-//Seccoes da sidebar agrupadas: `perfis` define quem pode ver (vazio = todos)
+//Seccoes da sidebar agrupadas: `permissoes` define quem pode ver (vazio = todos)
 const GRUPOS = [
     {
         titulo: "Operacao",
         itens: [
-            { nome: "DashBoard",        path: "/",                    Icone: LayoutDashboardIcon, perfis: [] },
-            { nome: "Novo Atendimento", path: "/novoAtendimento",     Icone: CalendarPlus,       perfis: [] },
-            { nome: "Clientes",         path: "/clientes",            Icone: UserRound,          perfis: [] },
-            { nome: "Servicos",         path: "/servicos",            Icone: ScissorsIcon,       perfis: [] },
+            { nome: "DashBoard",        path: "/",                    Icone: LayoutDashboardIcon, permissoes: [] },
+            { nome: "Novo Atendimento", path: "/novoAtendimento",     Icone: CalendarPlus,       permissoes: ["atendimentos:escrever"] },
+            { nome: "Clientes",         path: "/clientes",            Icone: UserRound,          permissoes: ["clientes:ler", "clientes:escrever"] },
+            { nome: "Servicos",         path: "/servicos",            Icone: ScissorsIcon,       permissoes: ["servicos:ler", "servicos:escrever"] },
+            { nome: "Categorias",       path: "/categorias",          Icone: Tags,               permissoes: ["servicos:escrever"] },
         ]
     },
     {
         titulo: "Financeiro",
         itens: [
-            { nome: "Relatorio",        path: "/relatorio",           Icone: ChartNoAxesCombinedIcon, perfis: [] },
-            { nome: "Despesas",         path: "/despesas",            Icone: Receipt,             perfis: [] },
+            { nome: "Relatorio",        path: "/relatorio",           Icone: ChartNoAxesCombinedIcon, permissoes: ["relatorios:ler"] },
+            { nome: "Despesas",         path: "/despesas",            Icone: Receipt,             permissoes: ["despesas:escrever"] },
         ]
     },
     {
         titulo: "Administracao",
         itens: [
-            { nome: "Funcionarios",           path: "/funcionarios",        Icone: Users,         perfis: ["Administrador"] },
-            { nome: "Gestao de Utilizadores", path: "/gestao-utilizadores", Icone: UserCog,       perfis: ["Administrador"] },
-            { nome: "Permissoes",             path: "/permissoes",          Icone: ShieldCheck,   perfis: ["Administrador"] },
+            { nome: "Funcionarios",           path: "/funcionarios",        Icone: Users,         permissoes: ["funcionarios:ler", "funcionarios:escrever"] },
+            { nome: "Gestao de Utilizadores", path: "/gestao-utilizadores", Icone: UserCog,       permissoes: ["contas:gerir"] },
+            { nome: "Permissoes",             path: "/permissoes",          Icone: ShieldCheck,   permissoes: ["contas:gerir"] },
+            { nome: "Logs",                   path: "/logs",                Icone: ScrollText,    permissoes: ["auditoria:ler"] },
         ]
     },
 ];
@@ -52,11 +56,14 @@ function SideBar({ isOpen, setIsOpen }){
     }
 
     //filtra grupo a grupo: esconde itens e grupos vazios sem autorizacao
+    const permissoes = user?.permissoes || []
+
     const grupos = GRUPOS
         .map((g) => ({
             ...g,
             itens: g.itens.filter(
-                (s) => s.perfis.length === 0 || s.perfis.includes(user?.perfil)
+                (s) => s.permissoes.length === 0
+                    || s.permissoes.some((codigo) => permissoes.includes(codigo))
             )
         }))
         .filter((g) => g.itens.length > 0)
@@ -96,6 +103,8 @@ function SideBar({ isOpen, setIsOpen }){
                                 key={path}
                                 to={path}
                                 onClick={fechar}
+                                title={nome}
+                                aria-label={nome}
                                 className={({ isActive }) => `side-link${isActive ? " active" : ""}`}
                             >
                                 <span className="p">

@@ -49,10 +49,76 @@ export const getUsers = () => {
     return server.get("api/auth/users");
 };
 
+//---- categorias de servico ----
+export const getCategorias = () => {
+    return server.get("api/categorias");
+};
 
-//cria um novo atendimento (agendamento de servico)
+export const createCategoria = (data) => {
+    return server.post("api/categorias", data);
+};
+
+export const updateCategoria = (id, data) => {
+    return server.put(`api/categorias/${id}`, data);
+};
+
+export const deleteCategoria = (id) => {
+    return server.delete(`api/categorias/${id}`);
+};
+
+//---- funcionarios ----
+export const getFuncionarios = () => {
+    return server.get("api/funcionarios");
+};
+
+export const createFuncionario = (data) => {
+    return server.post("api/funcionarios", data);
+};
+
+export const updateFuncionario = (id, data) => {
+    return server.put(`api/funcionarios/${id}`, data);
+};
+
+export const updateFuncionarioEstado = (id, estado) => {
+    return server.patch(`api/funcionarios/${id}/estado`, { estado });
+};
+
+export const deleteFuncionario = (id) => {
+    return server.delete(`api/funcionarios/${id}`);
+};
+
+//---- atendimentos ----
+//registo imediato: { cliente_id, servicos: [{ servico_id, funcionario_id, preco_praticado, desconto }] }
 export const createAtendimento = (data) => {
     return server.post("api/atendimentos", data);
+};
+
+export const getAtendimentos = (params) => {
+    return server.get("api/atendimentos", { params });
+};
+
+export const getAtendimento = (id) => {
+    return server.get(`api/atendimentos/${id}`);
+};
+
+export const concluirAtendimento = (id) => {
+    return server.patch(`api/atendimentos/${id}/concluir`);
+};
+
+export const anularAtendimento = (id, motivo) => {
+    return server.post(`api/atendimentos/${id}/anular`, { motivo });
+};
+
+export const registrarPagamento = (atendimentoId, data) => {
+    return server.post(`api/atendimentos/${atendimentoId}/pagamentos`, data);
+};
+
+export const getPagamentoAtendimento = (atendimentoId) => {
+    return server.get(`api/atendimentos/${atendimentoId}/pagamento`);
+};
+
+export const getFidelizacao = (clienteId) => {
+    return server.get(`api/clientes/${clienteId}/fidelizacao`);
 };
 
 //clientes: listar todos
@@ -75,9 +141,14 @@ export const deleteCliente = (id) => {
     return server.delete(`api/clientes/${id}`);
 };
 
-//servicos: listar todos
-export const getServicos = () => {
-    return server.get("api/servicos");
+//clientes: activar / desactivar
+export const updateClienteEstado = (id, estado) => {
+    return server.patch(`api/clientes/${id}/estado`, { estado });
+};
+
+//servicos: listar todos (por omissao a API devolve apenas activos)
+export const getServicos = (params) => {
+    return server.get("api/servicos", { params });
 };
 
 //servicos: criar novo
@@ -93,5 +164,82 @@ export const updateServico = (id, data) => {
 //servicos: eliminar
 export const deleteServico = (id) => {
     return server.delete(`api/servicos/${id}`);
+};
+
+//servicos: activar / desactivar
+export const updateServicoEstado = (id, estado) => {
+    return server.patch(`api/servicos/${id}/estado`, { estado });
+};
+
+//---- utilizadores (gestao de contas) ----
+export const getUsuarios = () => {
+    return server.get("api/usuarios");
+};
+
+export const createUsuario = (data) => {
+    return server.post("api/usuarios", data);
+};
+
+export const updateUsuario = (id, data) => {
+    return server.put(`api/usuarios/${id}`, data);
+};
+
+export const updateUsuarioEstado = (id, estado) => {
+    return server.patch(`api/usuarios/${id}/estado`, { estado });
+};
+
+export const reporSenhaUsuario = (id) => {
+    return server.post(`api/usuarios/${id}/repor-senha`);
+};
+
+export const getPermissoesUsuario = (id) => {
+    return server.get(`api/usuarios/${id}/permissoes`);
+};
+
+export const updatePermissoesUsuario = (id, { conceder = [], revogar = [] }) => {
+    return server.put(`api/usuarios/${id}/permissoes`, { conceder, revogar });
+};
+
+//---- perfis e catalogo de permissoes ----
+export const getPerfis = () => {
+    return server.get("api/perfis");
+};
+
+export const getPerfil = (id) => {
+    return server.get(`api/perfis/${id}`);
+};
+
+export const createPerfil = (data) => {
+    return server.post("api/perfis", data);
+};
+
+export const updatePerfil = (id, data) => {
+    return server.put(`api/perfis/${id}`, data);
+};
+
+export const updatePermissoesPerfil = (id, permissoes) => {
+    return server.put(`api/perfis/${id}/permissoes`, { permissoes });
+};
+
+export const getPermissoes = () => {
+    return server.get("api/permissoes");
+};
+
+//---- dashboard ----
+export const getDashboard = () => {
+    return server.get("api/dashboard");
+};
+
+//---- auditoria / logs ----
+export const getAuditoria = (params) => {
+    return server.get("api/auditoria", { params });
+};
+
+export const getAuditoriaOpcoes = () => {
+    return server.get("api/auditoria/opcoes");
+};
+
+export const getAuditoriaRegisto = (id) => {
+    return server.get(`api/auditoria/${id}`);
 };
 

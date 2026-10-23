@@ -10,9 +10,11 @@ import Funcionarios from "../pages/funcionarios/funcionarios.jsx"
 import NovoAtendimento from "../pages/novoAtendimento/novoAtendimento.jsx"
 import Relatorio from "../pages/relatorio/relatorio.jsx"
 import Servico from "../pages/servicos/servicos.jsx"
+import Categorias from "../pages/categorias/categorias.jsx"
+import Logs from "../pages/logs/logs.jsx"
 import GestaoUtilizadores from "../pages/admin/GestaoUtilizadores.jsx"
 import Permissoes from "../pages/admin/Permissoes.jsx"
-import { RequireAuth, RequireRole, RedirectIfAuth } from "./RequireAuth.jsx"
+import { RequireAuth, RequirePermission, RedirectIfAuth } from "./RequireAuth.jsx"
 
 
 export default function AppRoutes(){
@@ -26,22 +28,38 @@ export default function AppRoutes(){
             <Route path="/register" element={<RedirectIfAuth><Register/></RedirectIfAuth>} />
             <Route path="/forgotpass" element={<ForgotPass/>}/>
 
-            {/* --- rotas de operacao (publicas, sem protecao de rota) --- */}
-            <Route path="/clientes" element={<Clientes/>}/>
-            <Route path="/novoAtendimento" element={<NovoAtendimento/>}/>
-            <Route path="/servicos" element={<Servico/>}/>
-            <Route path="/relatorio" element={<Relatorio/>}/>
-            <Route path="/despesas" element={<Despesas/>}/>
+            {/* --- rotas de operacao: exigem a permissao correspondente --- */}
+            <Route path="/clientes" element={
+                <RequirePermission permissoes={["clientes:ler", "clientes:escrever"]}><Clientes/></RequirePermission>
+            }/>
+            <Route path="/novoAtendimento" element={
+                <RequirePermission permissoes={["atendimentos:escrever"]}><NovoAtendimento/></RequirePermission>
+            }/>
+            <Route path="/servicos" element={
+                <RequirePermission permissoes={["servicos:ler", "servicos:escrever"]}><Servico/></RequirePermission>
+            }/>
+            <Route path="/categorias" element={
+                <RequirePermission permissoes={["servicos:escrever"]}><Categorias/></RequirePermission>
+            }/>
+            <Route path="/relatorio" element={
+                <RequirePermission permissoes={["relatorios:ler"]}><Relatorio/></RequirePermission>
+            }/>
+            <Route path="/despesas" element={
+                <RequirePermission permissoes={["despesas:escrever"]}><Despesas/></RequirePermission>
+            }/>
 
-            {/* --- reservadas ao Administrador --- */}
+            {/* --- administracao: permissao de gestao de contas --- */}
             <Route path="/funcionarios" element={
-                <RequireRole perfis={["Administrador"]}><Funcionarios/></RequireRole>
+                <RequirePermission permissoes={["funcionarios:ler", "funcionarios:escrever"]}><Funcionarios/></RequirePermission>
             }/>
             <Route path="/gestao-utilizadores" element={
-                <RequireRole perfis={["Administrador"]}><GestaoUtilizadores/></RequireRole>
+                <RequirePermission permissoes={["contas:gerir"]}><GestaoUtilizadores/></RequirePermission>
             }/>
             <Route path="/permissoes" element={
-                <RequireRole perfis={["Administrador"]}><Permissoes/></RequireRole>
+                <RequirePermission permissoes={["contas:gerir"]}><Permissoes/></RequirePermission>
+            }/>
+            <Route path="/logs" element={
+                <RequirePermission permissoes={["auditoria:ler"]}><Logs/></RequirePermission>
             }/>
             <Route path="*" element={<h1>Not Found</h1>}/>
         </Routes>

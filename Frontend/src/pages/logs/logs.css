@@ -1,0 +1,176 @@
+.logs-filters {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(120px, 1fr)) auto;
+    gap: 12px;
+    align-items: end;
+    padding: 16px;
+    background: #ffffff;
+    border: 1px solid var(--Border);
+    border-radius: 14px;
+    box-shadow: 0 4px 20px rgba(30, 15, 50, 0.05);
+}
+
+.logs-filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.logs-filter-field label {
+    font-size: var(--text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--Secundary-text);
+}
+
+.logs-filter-field input,
+.logs-filter-field select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border: 1px solid var(--Border);
+    border-radius: 9px;
+    background: #ffffff;
+    color: var(--Principal-text);
+    font-size: var(--text-sm);
+    font-family: inherit;
+    outline: none;
+}
+
+.logs-filter-field input:focus,
+.logs-filter-field select:focus {
+    border-color: var(--Primary-faces);
+    box-shadow: 0 0 0 3px rgba(109, 53, 200, 0.1);
+}
+
+.logs-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.logs-table {
+    min-width: 760px;
+}
+
+.logs-user-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.logs-user-cell small {
+    padding-left: 20px;
+    color: var(--Secundary-text);
+    font-size: var(--text-xs);
+}
+
+.logs-user {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+}
+
+.logs-user svg {
+    color: var(--Primary-faces);
+}
+
+.logs-motivo-cell {
+    max-width: 240px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.logs-detail {
+    gap: 18px;
+}
+
+.logs-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.logs-detail-grid > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 10px 12px;
+    border: 1px solid var(--Border);
+    border-radius: 10px;
+    background: var(--backdrop);
+}
+
+.logs-detail-grid span,
+.logs-detail-motivo span {
+    font-size: var(--text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--Secundary-text);
+}
+
+.logs-detail-grid strong {
+    font-size: var(--text-sm);
+    color: var(--Principal-text);
+}
+
+.logs-detail-motivo p {
+    margin: 4px 0 0;
+    font-size: var(--text-sm);
+    color: var(--Principal-text);
+}
+
+.logs-json-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.logs-json-grid > div {
+    min-width: 0;
+}
+
+.logs-json-grid h3 {
+    margin: 0 0 6px;
+    font-size: var(--text-sm);
+    color: var(--Principal-text);
+}
+
+.logs-json-grid pre {
+    margin: 0;
+    padding: 12px;
+    max-height: 320px;
+    overflow: auto;
+    border-radius: 10px;
+    background: #1f1b28;
+    color: #e9e3f5;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+@media (max-width: 1100px) {
+    .logs-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .logs-filter-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-end;
+    }
+}
+
+@media (max-width: 720px) {
+    .logs-filters,
+    .logs-detail-grid,
+    .logs-json-grid {
+        grid-template-columns: 1fr;
+    }
+}

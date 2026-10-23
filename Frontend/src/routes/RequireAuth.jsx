@@ -33,6 +33,34 @@ export function RequireAuth({ children }){
     return children;
 }
 
+//Exige pelo menos uma das permissoes indicadas — ex.: <RequirePermission permissoes={["clientes:ler"]}>
+export function RequirePermission({ children, permissoes }){
+    const { user, initialized, checkAuth } = useAuthStore();
+    const location = useLocation();
+
+    useEffect(() => {
+        if(!initialized){
+            checkAuth();
+        }
+    }, [initialized, checkAuth]);
+
+    if(!initialized){
+        return <Waiting/>;
+    }
+
+    if(!user){
+        return <Navigate to="/login" replace state={{ from: location.pathname }}/>;
+    }
+
+    const efetivas = user.permissoes || [];
+
+    if(permissoes && permissoes.length > 0 && !permissoes.some((codigo) => efetivas.includes(codigo))){
+        return <Navigate to="/" replace/>;
+    }
+
+    return children;
+}
+
 //Exige um perfil especifico — ex.: <RequireRole perfis={["Administrador"]}>
 export function RequireRole({ children, perfis }){
     const { user, initialized, checkAuth } = useAuthStore();
