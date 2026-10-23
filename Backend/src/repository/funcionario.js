@@ -12,13 +12,11 @@ const campos = {
     id: funcionario.id,
     nome: funcionario.nome,
     telefone: funcionario.telefone,
-    documento: funcionario.documento,
     cargo: funcionario.cargo,
     data_admissao: sql`to_char(${funcionario.data_admissao}, 'YYYY-MM-DD')`,
     salario: funcionario.salario,
     comissao_percentual: sql`${funcionario.comissao_percentual}::float8`,
     estado: funcionario.estado,
-    id_usuario: funcionario.id_usuario,
     data_criacao: funcionario.data_criacao
 };
 
@@ -40,25 +38,21 @@ const findById = async (id) => {
 const create = async ({
     nome,
     telefone,
-    documento,
     cargo,
     data_admissao,
     salario,
-    comissao_percentual,
-    id_usuario
+    comissao_percentual
 }) => {
     const [linha] = await db.insert(funcionario)
         .values({
             nome,
             telefone: telefone ?? null,
-            documento: documento ?? null,
             cargo: cargo ?? null,
             data_admissao: data_admissao ?? null,
             salario,
             comissao_percentual: comissao_percentual !== undefined && comissao_percentual !== null
                 ? String(comissao_percentual)
-                : '30.00',
-            id_usuario: id_usuario ?? null
+                : '30.00'
         })
         .returning(campos);
 
@@ -69,25 +63,21 @@ const create = async ({
 const update = async (id, {
     nome,
     telefone,
-    documento,
     cargo,
     data_admissao,
     salario,
-    comissao_percentual,
-    id_usuario
+    comissao_percentual
 }) => {
     const valores = {};
 
     if (nome !== undefined && nome !== null) valores.nome = nome;
     if (telefone !== undefined && telefone !== null) valores.telefone = telefone;
-    if (documento !== undefined && documento !== null) valores.documento = documento;
     if (cargo !== undefined && cargo !== null) valores.cargo = cargo;
     if (data_admissao !== undefined && data_admissao !== null) valores.data_admissao = data_admissao;
     if (salario !== undefined && salario !== null) valores.salario = salario;
     if (comissao_percentual !== undefined && comissao_percentual !== null) {
         valores.comissao_percentual = String(comissao_percentual);
     }
-    if (id_usuario !== undefined && id_usuario !== null) valores.id_usuario = id_usuario;
 
     if (Object.keys(valores).length === 0) {
         return findById(id);

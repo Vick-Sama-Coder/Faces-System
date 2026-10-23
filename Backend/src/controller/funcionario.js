@@ -34,32 +34,28 @@ const createFuncionario = async (req, res, next) => {
             return res.status(400).json({ message: "Os campos nome e salario sao obrigatorios" });
         }
 
-        const { telefone, documento, cargo, data_admissao, comissao_percentual, id_usuario } = req.body;
+        const { telefone, cargo, data_admissao, comissao_percentual } = req.body;
 
         res.status(201).json(await Funcionario.create({
-            nome, telefone, documento, cargo, data_admissao, salario, comissao_percentual, id_usuario
+            nome, telefone, cargo, data_admissao, salario, comissao_percentual
         }));
     } catch (error) {
-        //23503 = a conta associada nao existe
-        if (error.code === "23503") {
-            return res.status(400).json({ field: "id_usuario", message: "Conta associada nao encontrada" });
-        }
         next(error);
     }
 };
 
 const updateFuncionario = async (req, res, next) => {
     try {
-        const { nome, telefone, documento, cargo, data_admissao, salario, comissao_percentual, id_usuario } = req.body;
+        const { nome, telefone, cargo, data_admissao, salario, comissao_percentual } = req.body;
 
-        if (nome === undefined && telefone === undefined && documento === undefined &&
+        if (nome === undefined && telefone === undefined &&
             cargo === undefined && data_admissao === undefined && salario === undefined &&
-            comissao_percentual === undefined && id_usuario === undefined) {
+            comissao_percentual === undefined) {
             return res.status(400).json({ message: "Nenhum campo para atualizar foi enviado" });
         }
 
         const funcionario = await Funcionario.update(req.params.id, {
-            nome, telefone, documento, cargo, data_admissao, salario, comissao_percentual, id_usuario
+            nome, telefone, cargo, data_admissao, salario, comissao_percentual
         });
 
         if (!funcionario) {
@@ -68,9 +64,6 @@ const updateFuncionario = async (req, res, next) => {
 
         res.status(200).json(funcionario);
     } catch (error) {
-        if (error.code === "23503") {
-            return res.status(400).json({ field: "id_usuario", message: "Conta associada nao encontrada" });
-        }
         next(error);
     }
 };
