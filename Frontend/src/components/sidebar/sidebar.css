@@ -1,151 +1,220 @@
-.sidebar{
-    font-size: var(--text-sm);
+
+/* ===========================
+   SIDEBAR
+=========================== */
+
+.sidebar {
+    box-sizing: border-box;
+    position: relative;
     z-index: 10;
+
     display: flex;
-    flex-flow: column nowrap;
+    flex-direction: column;
     align-items: flex-start;
-    justify-content: flex-start;
+
     width: 215px;
-    height: 100vh;
+    min-width: 215px;
+    min-height: 100vh;
     padding: 15px;
-    border-right: 5px solid var(--Primary-faces);
-    overflow-y: auto;
-    overflow-x: hidden;
-    scrollbar-width: thin;
-    scrollbar-color: #d7cbe8 transparent;
 
     background-color: var(--card);
+    font-size: var(--text-sm);
 }
 
-.sidebar::-webkit-scrollbar {
-    width: 6px;
-}
+/* ===========================
+   LOGO E CABEÇALHO
+=========================== */
 
-.sidebar::-webkit-scrollbar-thumb {
-    background: #d7cbe8;
-    border-radius: 10px;
-}
-.sidebar-group{
+.sidebar-brand {
     width: 100%;
-    padding: 5px 0;
 }
-.img{
+
+.sidebar-title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    margin: 0;
+}
+
+.img {
     display: block;
 }
 
-.logo{
-    margin: 0;
+.logo {
+    display: block;
     width: 100px;
     height: 100px;
-}
-.sidebar-brand{
-    width: 100%;
-}
-.sidebar-title{
-    padding: 10px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    
+    object-fit: contain;
+    margin: 0;
 }
 
-/* grupos de navegacao (titulo + itens) */
-.sidebar-group{
+/* ===========================
+   GRUPOS DE NAVEGAÇÃO
+=========================== */
+
+.sidebar-group {
     width: 100%;
+    padding: 5px 0;
     margin-bottom: 10px;
 }
-.sidebar-group-title{
+
+.sidebar-group-title {
     display: block;
     padding: 0 10px;
     margin: 0 0 5px;
+
+    color: #6b6b6b;
     font-size: 0.7rem;
     font-weight: bold;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #6b6b6b;
 }
 
-/* item activo: sublinhado a esquerda + fundo suave */
-.side-link.active{
+/* ===========================
+   LINKS
+=========================== */
+
+.side-link {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+
+    color: inherit;
+    text-decoration: none;
+    border: none;
+    border-radius: 5px;
+
+    background: transparent;
+}
+
+.p {
+    display: flex;
+    align-items: center;
+    gap: 0;
+
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 42px;
+    padding: 10px;
+
+    margin: 5px 0;
+
+    color: inherit;
+    font-weight: bold;
+    border-radius: 5px;
+
+    transition:
+        background-color 0.2s ease,
+        color 0.2s ease;
+}
+
+.icon {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+}
+
+.info {
+    margin: 0;
+    padding-left: 15px;
+}
+
+/* Link ativo */
+
+.side-link.active {
     background-color: rgba(109, 53, 200, 0.1);
-    border-left: 3px solid var(--Primary-faces);
+    color: var(--Primary-faces);
 }
 
-.p:active, .p:hover, .p::after{
+/* Hover dos links */
+
+.side-link:hover .p {
     background-color: var(--Primary-faces);
     color: var(--card);
-    cursor: pointer;
 }
-.side-link{
-    text-decoration: none;
-    color: black;
-    width: 100%;
-}
-/* botao de logout (e um <button>, precisa reset de estilo) */
-.logout-btn{
+
+/* ===========================
+   BOTÃO DE LOGOUT
+=========================== */
+
+.logout-btn {
     display: block;
+    box-sizing: border-box;
+    width: 100%;
+
+    margin-top: auto;
+    padding: 0;
+
+    color: var(--Error);
     background: transparent;
     border: none;
+
     font-family: inherit;
     font-size: inherit;
     font-weight: bold;
-    cursor: pointer;
-    padding: 0;
-    margin-top: auto;
     text-align: left;
-    color: var(--Error);
-    justify-self: flex-end;
-}
-.logout-btn .p:hover{
-    background-color: var(--Error);
-    color: var(--card);
-}
-.p{
-    display: flex;
-    align-items: center;
-    font-weight: bold;
-    padding: 10px 10px 10px 10px;
-    margin: 5px 0px;
-    width: 100%;
-    border-radius: 5px ;
-    transition-duration: .4s;
 
+    cursor: pointer;
 }
-.info{
-    margin: 0;
-    padding-left: 15px;
-    
+
+.logout-btn .p {
+    color: var(--Error);
 }
+
+.logout-btn .p:hover {
+    color: var(--card);
+    background-color: var(--Error);
+}
+
+/* ===========================
+   FECHAR MENU MOBILE
+=========================== */
 
 .close-mobile {
     display: none;
 }
 
-/* backdrop so existe no mobile; em desktop fica explicitamente escondido */
+/* Fundo atrás do menu */
+
 .sidebar-backdrop {
     display: none;
 }
 
+/* ===========================
+   MOBILE
+=========================== */
 
-/* Mobile */
-@media screen and (max-width: 678px) {
+@media screen and (max-width: 677px) {
     .sidebar {
         position: fixed;
         top: 0;
         left: 0;
 
         width: 80%;
+        min-width: 0;
         max-width: 300px;
-        
+        height: 100vh;
+        min-height: 0;
+
+        overflow-x: hidden;
+        overflow-y: auto;
+
+        background-color: var(--card);
 
         transform: translateX(-100%);
         transition: transform 0.3s ease;
 
         z-index: 30;
     }
+
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
     .sidebar-backdrop {
         display: block;
-
         position: fixed;
         inset: 0;
 
@@ -154,51 +223,84 @@
 
         z-index: 20;
     }
-    .sidebar.open {
-        transform: translateX(0);
-        height: 100vh;
-        overflow-y: auto;
-        scroll-behavior: smooth;
-        scrollbar-width: none;
-
-    }
-    
 
     .close-mobile {
         display: flex;
+        align-items: center;
+        justify-content: center;
+
         position: absolute;
         top: 15px;
         right: 15px;
 
-        border: none;
+        padding: 5px;
+        color: inherit;
         background: transparent;
+        border: none;
+
         cursor: pointer;
+        z-index: 31;
     }
 }
 
+/* ===========================
+   TABLET
+=========================== */
 
-
-
-/* Tablet */
 @media (min-width: 678px) and (max-width: 1023px) {
-
-    .sidebar{
+    .sidebar {
         width: 70px;
+        min-width: 70px;
         padding: 10px;
-        height: 100vh;
-        
     }
-    .sidebar-group-title{
-        display: none;
+
+    .sidebar-brand {
+        width: 100%;
     }
-    .p{
-        padding: 10px 16px 10px 13px;    }
-    .logo{
+
+    .sidebar-title {
+        padding: 5px 0 15px;
+    }
+
+    .logo {
         width: 40px;
         height: 40px;
     }
-    .info{
-        display: none;
 
+    .sidebar-group-title {
+        display: none;
+    }
+
+    .sidebar-group {
+        width: 100%;
+    }
+
+    .side-link,
+    .logout-btn {
+        width: 100%;
+    }
+
+    .p {
+        justify-content: center;
+        padding: 10px 0;
+    }
+
+    .info {
+        display: none;
+    }
+
+    .side-link.active {
+        background-color: rgba(109, 53, 200, 0.1);
+    }
+}
+
+/* ===========================
+   ACESSIBILIDADE
+=========================== */
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar,
+    .p {
+        transition: none;
     }
 }
