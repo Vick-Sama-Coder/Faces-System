@@ -6,10 +6,24 @@
     align-items: flex-start;
     justify-content: flex-start;
     width: 215px;
+    height: 100vh;
     padding: 15px;
     border-right: 5px solid var(--Primary-faces);
-    
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #d7cbe8 transparent;
+
     background-color: var(--card);
+}
+
+.sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: #d7cbe8;
+    border-radius: 10px;
 }
 .sidebar-group{
     width: 100%;
