@@ -4,19 +4,22 @@ import ClientModal from "../../components/Modals/ClientModal/ClientModal.jsx"
 import "./clientes.css"
 import Search from "../../components/forms/search/search.jsx"
 import Button from "../../components/forms/button/button.jsx"
-import { useState, useEffect } from "react"
-import { User, Trash2, Edit, Clock } from "lucide-react"
-import { getClientes, deleteCliente, getApiError } from "../../services/api.js"
+import { useState, useEffect, useMemo } from "react"
+import { User, Trash2, Edit, Clock, UserCheck } from "lucide-react"
+import { getClientes, updateClienteEstado, getApiError } from "../../services/api.js"
+import { useAuthStore } from "../../store/authStore.js"
 
 function Clientes() {
+    const { user } = useAuthStore()
+    const podeEscrever = user?.permissoes?.includes("clientes:escrever")
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [clientes, setClientes] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingCliente, setEditingCliente] = useState(null)
+    const [searchTerm, setSearchTerm] = useState("")
 
-    // carregar clientes do backend
     useEffect(() => {
         carregarClientes()
     }, [])
@@ -26,7 +29,9 @@ function Clientes() {
         setError(null)
         try {
             const res = await getClientes()
-            setClientes(res.data.clientes || [])
+            //a API devolve sempre um array; mantemos compatibilidade com { clientes }
+            const lista = Array.isArray(res.data) ? res.data : (res.data?.clientes || [])
+            setClientes(lista)
         } catch (err) {
             setError(getApiError(err))
         } finally {
@@ -34,20 +39,23 @@ function Clientes() {
         }
     }
 
-    async function handleNovoCliente() {
+    function handleNovoCliente() {
         setEditingCliente(null)
         setIsModalOpen(true)
     }
 
-    async function handleEditarCliente(cliente) {
+    function handleEditarCliente(cliente) {
         setEditingCliente(cliente)
         setIsModalOpen(true)
     }
 
-    async function handleDesactivarCliente(id) {
-        if (!window.confirm("Tem a certeza que deseja desactivar este cliente?")) return
+    async function handleAlternarEstado(cliente) {
+        const activo = cliente.estado === "Ativo"
+        const accao = activo ? "desactivar" : "reactivar"
+        if (!window.confirm(`Tem a certeza que deseja ${accao} este cliente?`)) return
+
         try {
-            await deleteCliente(id)
+            await updateClienteEstado(cliente.id, activo ? "Inativo" : "Ativo")
             await carregarClientes()
         } catch (err) {
             setError(getApiError(err))
@@ -59,6 +67,27 @@ function Clientes() {
         setEditingCliente(null)
         await carregarClientes()
     }
+
+    //pesquisa local: mantem as estatisticas calculadas sobre a lista completa
+    const clientesFiltrados = useMemo(() => {
+        const termo = searchTerm.trim().toLowerCase()
+        if (!termo) return clientes
+
+        return clientes.filter((cliente) => {
+            const nome = `${cliente.nome || ""} ${cliente.apelido || ""}`.toLowerCase()
+            const telefone = String(cliente.telefone || "")
+            return nome.includes(termo) || telefone.includes(termo)
+        })
+    }, [clientes, searchTerm])
+
+    const totalClientes = clientes.length
+    const clientesActivos = clientes.filter((c) => c.estado === "Ativo").length
+    const novosEsteMes = clientes.filter((c) => {
+        if (!c.data_registo) return false
+        const data = new Date(c.data_registo)
+        const hoje = new Date()
+        return data.getMonth() === hoje.getMonth() && data.getFullYear() === hoje.getFullYear()
+    }).length
 
     if (loading) {
         return (
@@ -104,22 +133,22 @@ function Clientes() {
                     onMenuClick={() => setIsSidebarOpen(true)}
                 />
                 <section className="clientes-content">
-                    {/* Page Header */}
                     <header className="page-header">
                         <div className="page-header-inner">
                             <div className="page-header-info">
                                 <h1 className="page-title">Clientes</h1>
                                 <p className="page-subtitle">Gerencie os clientes do seu salão</p>
                             </div>
-                            <div className="page-header-actions">
-                                <Button btnClick={handleNovoCliente}>
-                                    <span className="btn-icon"><User /></span> Novo Cliente
-                                </Button>
-                            </div>
+                            {podeEscrever && (
+                                <div className="page-header-actions">
+                                    <Button btnClick={handleNovoCliente}>
+                                        <span className="btn-icon"><User /></span> Novo Cliente
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </header>
 
-                    {/* Stats Overview */}
                     <section className="stats-grid">
                         <div className="stat-card stat-total">
                             <div className="stat-icon">
@@ -127,44 +156,45 @@ function Clientes() {
                             </div>
                             <div className="stat-info">
                                 <span className="stat-label">Total de Clientes</span>
-                                <span className="stat-value">{clientes.length}</span>
+                                <span className="stat-value">{totalClientes}</span>
                             </div>
                         </div>
                         <div className="stat-card stat-activos">
                             <div className="stat-icon">
-                                <Clock />
+                                <UserCheck />
                             </div>
                             <div className="stat-info">
                                 <span className="stat-label">Clientes Activos</span>
-                                <span className="stat-value">{clientes.length}</span>
+                                <span className="stat-value">{clientesActivos}</span>
                             </div>
                         </div>
                         <div className="stat-card stat-recentes">
                             <div className="stat-icon">
-                                <User />
+                                <Clock />
                             </div>
                             <div className="stat-info">
                                 <span className="stat-label">Novos Este Mês</span>
-                                <span className="stat-value">0</span>
+                                <span className="stat-value">{novosEsteMes}</span>
                             </div>
                         </div>
                     </section>
 
-                    {/* Error banner */}
                     {error && (
                         <div className="error-banner">
                             <span>{error}</span>
                         </div>
                     )}
 
-                    {/* Search Section */}
                     <section className="search-section">
                         <div className="search-wrapper">
-                            <Search placeholderInfo="Pesquisar por nome ou telefone..." />
+                            <Search
+                                placeholderInfo="Pesquisar por nome ou telefone..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
                         </div>
                     </section>
 
-                    {/* Clients Table */}
                     <section className="table-section">
                         <div className="table-container">
                             <table className="clientes-table">
@@ -172,18 +202,21 @@ function Clientes() {
                                     <tr>
                                         <th>Cliente</th>
                                         <th>Telefone</th>
-                                        <th className="actions-col">Ações</th>
+                                        <th>Estado</th>
+                                        {podeEscrever && <th className="actions-col">Ações</th>}
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {clientes.length === 0 ? (
+                                    {clientesFiltrados.length === 0 ? (
                                         <tr>
-                                            <td colSpan="3" className="empty-row">
-                                                Nenhum cliente registado ainda.
+                                            <td colSpan={podeEscrever ? 4 : 3} className="empty-row">
+                                                {clientes.length === 0
+                                                    ? "Nenhum cliente registado ainda."
+                                                    : "Nenhum cliente corresponde à pesquisa."}
                                             </td>
                                         </tr>
                                     ) : (
-                                        clientes.map((cliente) => (
+                                        clientesFiltrados.map((cliente) => (
                                             <tr key={cliente.id}>
                                                 <td>
                                                     <div className="client-info">
@@ -195,28 +228,29 @@ function Clientes() {
                                                 <td>
                                                     <span className="client-phone">{cliente.telefone}</span>
                                                 </td>
-                                                <td className="actions-col">
-                                                    <button
-                                                        className="action-btn edit"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            handleEditarCliente(cliente)
-                                                        }}
-                                                        title="Editar cliente"
-                                                    >
-                                                        <Edit size={18} />
-                                                    </button>
-                                                    <button
-                                                        className="action-btn delete"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            handleDesactivarCliente(cliente.id)
-                                                        }}
-                                                        title="Desactivar cliente"
-                                                    >
-                                                        <Trash2 size={18} />
-                                                    </button>
+                                                <td>
+                                                    <span className={`status-badge ${cliente.estado === "Ativo" ? "ativo" : "inativo"}`}>
+                                                        {cliente.estado || "Ativo"}
+                                                    </span>
                                                 </td>
+                                                {podeEscrever && (
+                                                    <td className="actions-col">
+                                                        <button
+                                                            className="action-btn edit"
+                                                            onClick={() => handleEditarCliente(cliente)}
+                                                            title="Editar cliente"
+                                                        >
+                                                            <Edit size={18} />
+                                                        </button>
+                                                        <button
+                                                            className={`action-btn ${cliente.estado === "Ativo" ? "delete" : "activate"}`}
+                                                            onClick={() => handleAlternarEstado(cliente)}
+                                                            title={cliente.estado === "Ativo" ? "Desactivar cliente" : "Reactivar cliente"}
+                                                        >
+                                                            <Trash2 size={18} />
+                                                        </button>
+                                                    </td>
+                                                )}
                                             </tr>
                                         ))
                                     )}

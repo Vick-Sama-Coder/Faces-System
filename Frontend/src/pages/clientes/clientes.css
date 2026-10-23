@@ -23,6 +23,7 @@
     display: flex;
     flex-direction: column;
     gap: 24px;
+    min-width: 0;
     padding: 24px;
     overflow-y: auto;
 }
@@ -273,6 +274,36 @@
 
 .action-btn.delete:hover {
     background: rgba(224, 75, 75, 0.2);
+}
+
+.action-btn.activate {
+    color: var(--Sucess);
+    background: rgba(33, 163, 102, 0.1);
+}
+
+.action-btn.activate:hover {
+    background: rgba(33, 163, 102, 0.2);
+}
+
+/* Estado do cliente */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: var(--text-xs);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.status-badge.ativo {
+    color: var(--Sucess);
+    background: rgba(33, 163, 102, 0.12);
+}
+
+.status-badge.inativo {
+    color: var(--Secundary-text);
+    background: rgba(111, 107, 120, 0.12);
 }
 
 /* Empty row */

@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { X, Scissors, Save, Edit2 } from "lucide-react";
-import { createServico, updateServico, getApiError, getApiErrorField } from "../../../services/api.js";
+import { useEffect, useState } from "react";
+import { X, Scissors, Save, Edit2, Tag, Heart } from "lucide-react";
+import { createServico, updateServico, getCategorias, getApiError, getApiErrorField } from "../../../services/api.js";
 import './ServicoModal.css'
 
 function ServicoModal({ onclose, servico = null, onSuccess }) {
@@ -9,12 +9,29 @@ function ServicoModal({ onclose, servico = null, onSuccess }) {
     const [formData, setFormData] = useState({
         nome: servico ? servico.nome : "",
         valor: servico ? servico.valor : "",
-        categoria_id: servico ? servico.categoria_id : "",
+        categoria_id: servico ? String(servico.categoria_id) : ""
     });
 
+    const [categorias, setCategorias] = useState([]);
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+
+    useEffect(() => {
+        let activo = true;
+
+        async function carregarCategorias() {
+            try {
+                const res = await getCategorias();
+                if (activo) setCategorias(Array.isArray(res.data) ? res.data : []);
+            } catch (err) {
+                if (activo) setError(getApiError(err));
+            }
+        }
+
+        carregarCategorias();
+        return () => { activo = false };
+    }, []);
 
     const handleChange = (field, value) => {
         setFormData({ ...formData, [field]: value });
@@ -27,7 +44,7 @@ function ServicoModal({ onclose, servico = null, onSuccess }) {
     const validate = () => {
         const erros = {};
         if (!formData.nome.trim()) erros.nome = "O nome do servico e obrigatorio";
-        if (!formData.valor || formData.valor <= 0) erros.valor = "O valor deve ser maior que zero";
+        if (!formData.valor || Number(formData.valor) <= 0) erros.valor = "O valor deve ser maior que zero";
         if (!formData.categoria_id) erros.categoria_id = "A categoria e obrigatoria";
         setErrors(erros);
         return Object.keys(erros).length === 0;
@@ -35,8 +52,7 @@ function ServicoModal({ onclose, servico = null, onSuccess }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!validate()) return;
-        if (loading) return;
+        if (!validate() || loading) return;
 
         setLoading(true);
         setError(null);
@@ -44,8 +60,8 @@ function ServicoModal({ onclose, servico = null, onSuccess }) {
         try {
             const payload = {
                 nome: formData.nome.trim(),
-                valor: parseInt(formData.valor, 10),
-                categoria_id: parseInt(formData.categoria_id, 10),
+                valor: Number.parseInt(formData.valor, 10),
+                categoria_id: Number.parseInt(formData.categoria_id, 10)
             };
 
             if (isEdit) {
@@ -119,59 +135,71 @@ function ServicoModal({ onclose, servico = null, onSuccess }) {
                             )}
                         </div>
 
-                        <div className="form-group">
-                            <p>
-                                <span className="currency">MT</span>
-                                <span>Valor (preco)</span>
-                            </p>
-                            <input
-                                type="number"
-                                name="valor"
-                                id="valor"
-                                placeholder="Ex.: 250"
-                                value={formData.valor}
-                                onChange={(e) => handleChange("valor", e.target.value)}
-                                className={errors.valor ? "input-invalido" : ""}
-                                aria-invalid={errors.valor ? "true" : undefined}
-                                aria-describedby={errors.valor ? "valor-erro" : undefined}
-                                required
-                                min="0"
-                                step="1"
-                            />
-                            {errors.valor && (
-                                <span className="field-error" id="valor-erro" role="alert">
-                                    {errors.valor}
-                                </span>
-                            )}
+                        <div className="form-row">
+                            <div className="form-group">
+                                <p>
+                                    <span className="currency">MT</span>
+                                    <span>Valor</span>
+                                </p>
+                                <input
+                                    type="number"
+                                    name="valor"
+                                    id="valor"
+                                    placeholder="Ex.: 250"
+                                    value={formData.valor}
+                                    onChange={(e) => handleChange("valor", e.target.value)}
+                                    className={errors.valor ? "input-invalido" : ""}
+                                    aria-invalid={errors.valor ? "true" : undefined}
+                                    required
+                                    min="1"
+                                    step="1"
+                                />
+                                {errors.valor && (
+                                    <span className="field-error" id="valor-erro" role="alert">
+                                        {errors.valor}
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="form-group">
+                                <p>
+                                    <Tag />
+                                    <span>Categoria</span>
+                                </p>
+                                <select
+                                    name="categoria_id"
+                                    id="categoria_id"
+                                    value={formData.categoria_id}
+                                    onChange={(e) => handleChange("categoria_id", e.target.value)}
+                                    className={errors.categoria_id ? "input-invalido" : ""}
+                                    aria-invalid={errors.categoria_id ? "true" : undefined}
+                                    required
+                                >
+                                    <option value="">Selecione a categoria...</option>
+                                    {categorias.map((categoria) => (
+                                        <option key={categoria.id} value={categoria.id}>
+                                            {categoria.nome}
+                                        </option>
+                                    ))}
+                                </select>
+                                {errors.categoria_id && (
+                                    <span className="field-error" id="categoria_id-erro" role="alert">
+                                        {errors.categoria_id}
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
-                        <div className="form-group">
-                            <p>
-                                <span>Categoria</span>
-                            </p>
-                            <input
-                                type="text"
-                                name="categoria_id"
-                                id="categoria_id"
-                                placeholder="ID da categoria do servico"
-                                value={formData.categoria_id}
-                                onChange={(e) => handleChange("categoria_id", e.target.value)}
-                                className={errors.categoria_id ? "input-invalido" : ""}
-                                aria-invalid={errors.categoria_id ? "true" : undefined}
-                                aria-describedby={errors.categoria_id ? "categoria_id-erro" : undefined}
-                                required
-                            />
-                            {errors.categoria_id && (
-                                <span className="field-error" id="categoria_id-erro" role="alert">
-                                    {errors.categoria_id}
-                                </span>
-                            )}
+                        <div className="servico-modal-note">
+                            <Heart size={18} />
+                            <span>
+                                A fidelizacao e configurada no botao <strong>Eleger fidelizacao</strong> na pagina de servicos.
+                            </span>
                         </div>
 
                         <button
                             type="submit"
                             className="submit-btn"
-                            onClick={(e) => e.stopPropagation()}
                             disabled={loading}
                         >
                             <span className="btn-icon">

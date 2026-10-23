@@ -40,13 +40,11 @@ function ClientModal({ onclose, cliente = null, onSuccess }) {
         setError(null);
 
         try {
-            if (isEdit) {
-                await updateCliente(cliente.id, formData);
-            } else {
-                await createCliente(formData);
-            }
+            const res = isEdit
+                ? await updateCliente(cliente.id, formData)
+                : await createCliente(formData);
             setLoading(false);
-            if (onSuccess) onSuccess();
+            if (onSuccess) onSuccess(res.data);
             onclose();
         } catch (err) {
             setLoading(false);

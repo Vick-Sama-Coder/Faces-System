@@ -185,6 +185,81 @@
     border-color: var(--Error);
 }
 
+.form-group select,
+.form-group textarea {
+    padding: 10px 14px;
+    border: 1px solid var(--Border);
+    border-radius: 10px;
+    font-size: var(--text-md);
+    color: var(--Principal-text);
+    background: #ffffff;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    font-family: inherit;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: var(--Primary-faces);
+    box-shadow: 0 0 0 3px rgba(109, 53, 200, 0.1);
+}
+
+.form-group select.input-invalido,
+.form-group textarea.input-invalido {
+    border-color: var(--Error);
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: end;
+}
+
+.form-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--Border);
+    border-radius: 10px;
+    background: var(--backdrop);
+    color: var(--Principal-text);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+}
+
+.form-check input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--Primary-faces);
+}
+
+.form-check span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.form-check svg {
+    color: var(--Primary-faces);
+}
+
+@media (max-width: 520px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
 .field-error {
     font-size: var(--text-xs);
     color: var(--Error);
@@ -251,4 +326,26 @@
     .main-content form {
         gap: 16px;
     }
+}
+.servico-modal-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid #e7ddf5;
+    border-radius: 10px;
+    background: #fbf7ff;
+    color: #6f6b78;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.servico-modal-note svg {
+    color: #6d35c8;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.servico-modal-note strong {
+    color: #4b2a80;
 }
