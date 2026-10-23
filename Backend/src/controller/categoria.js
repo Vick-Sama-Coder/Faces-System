@@ -1,5 +1,14 @@
 import Categoria from "../repository/categoria.js";
 
+//verifica duplicados sem depender de uma constraint unica na base de dados
+const nomeDuplicado = async (nome, ignorarId = null) => {
+    const categorias = await Categoria.findAll();
+    return categorias.some((categoria) => (
+        categoria.nome.trim().toLowerCase() === nome.toLowerCase()
+        && Number(categoria.id) !== Number(ignorarId)
+    ));
+};
+
 const getCategorias = async (req, res, next) => {
     try {
         res.status(200).json(await Categoria.findAll());
@@ -24,24 +33,35 @@ const getCategoriaById = async (req, res, next) => {
 
 const createCategoria = async (req, res, next) => {
     try {
-        const { nome } = req.body;
+        const nome = typeof req.body.nome === "string" ? req.body.nome.trim() : "";
 
         if (!nome) {
-            return res.status(400).json({ message: "O campo nome e obrigatorio" });
+            return res.status(400).json({ field: "nome", message: "O campo nome e obrigatorio" });
+        }
+
+        if (await nomeDuplicado(nome)) {
+            return res.status(409).json({ field: "nome", message: "Ja existe uma categoria com este nome" });
         }
 
         res.status(201).json(await Categoria.create({ nome }));
     } catch (error) {
+        if (error.code === "23505") {
+            return res.status(409).json({ field: "nome", message: "Ja existe uma categoria com este nome" });
+        }
         next(error);
     }
 };
 
 const updateCategoria = async (req, res, next) => {
     try {
-        const { nome } = req.body;
+        const nome = typeof req.body.nome === "string" ? req.body.nome.trim() : "";
 
-        if (nome === undefined) {
-            return res.status(400).json({ message: "O campo nome e obrigatorio" });
+        if (!nome) {
+            return res.status(400).json({ field: "nome", message: "O campo nome e obrigatorio" });
+        }
+
+        if (await nomeDuplicado(nome, req.params.id)) {
+            return res.status(409).json({ field: "nome", message: "Ja existe uma categoria com este nome" });
         }
 
         const categoria = await Categoria.update(req.params.id, { nome });
@@ -52,6 +72,9 @@ const updateCategoria = async (req, res, next) => {
 
         res.status(200).json(categoria);
     } catch (error) {
+        if (error.code === "23505") {
+            return res.status(409).json({ field: "nome", message: "Ja existe uma categoria com este nome" });
+        }
         next(error);
     }
 };
