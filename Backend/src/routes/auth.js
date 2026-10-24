@@ -5,6 +5,7 @@ import generetedToken from '../utils/token.js';
 import Usuario from '../repository/usuario.js';
 import Permissao from '../repository/permissao.js';
 import RecuperacaoSenha from '../repository/recuperacaoSenha.js';
+import AuditoriaService from '../services/auditoria.js';
 import { authenticate, authorize } from '../middlewares/auth.js';
 import { validarNome, validarTelefone, validarSenha, validarCodigo, limparTelefone } from '../utils/validacoes.js';
 import { enviarSms } from '../utils/sms.js';
@@ -249,6 +250,110 @@ router.post('/redefinir-senha', async (req,res, next)=>{
 //sessao actual: devolve o utilizador logado (inclui permissoes efetivas)
 router.get('/me', authenticate, (req,res)=>{
     res.status(200).json({user: req.user});
+})
+
+//actualizacao do proprio perfil: o id vem sempre da sessao autenticada.
+//nome e telefone sao dados sensiveis (login e recuperacao de senha), por isso
+//a alteracao exige a confirmação da senha actual.
+router.patch('/me', authenticate, async (req,res, next)=>{
+    try{
+        const {nome, telefone, senha_atual} = req.body || {};
+
+        const querNome = nome !== undefined;
+        const querTelefone = telefone !== undefined;
+
+        if(!querNome && !querTelefone){
+            return res.status(400).json({message: "Nenhum campo para atualizar foi enviado"});
+        }
+
+        if(!senha_atual || typeof senha_atual !== "string"){
+            return erroCampo(res, "senha_atual", "Confirme com a sua senha atual");
+        }
+
+        let nomeLimpo;
+        if(querNome){
+            if(typeof nome !== "string"){
+                return erroCampo(res, "nome", "Nome invalido");
+            }
+            nomeLimpo = nome.trim();
+            const erroNome = validarNome(nomeLimpo);
+            if(erroNome){
+                return erroCampo(res, "nome", erroNome);
+            }
+        }
+
+        let telefoneLimpo;
+        if(querTelefone){
+            const erroTel = validarTelefone(telefone);
+            if(erroTel){
+                return erroCampo(res, "telefone", erroTel);
+            }
+            telefoneLimpo = limparTelefone(telefone);
+        }
+
+        const atual = await Usuario.findByIdComSenha(req.user.id);
+        if(!atual){
+            return res.status(404).json({message: "Utilizador nao encontrado"});
+        }
+
+        const isMatch = await bcrypt.compare(String(senha_atual), atual.senha);
+        if(!isMatch){
+            return res.status(401).json({ field: "senha_atual", message: "Senha atual invalida" });
+        }
+
+        const nomeFinal = querNome ? nomeLimpo : req.user.nome;
+        const telefoneFinal = querTelefone ? String(telefoneLimpo) : String(req.user.telefone);
+
+        if(nomeFinal === req.user.nome && telefoneFinal === String(req.user.telefone)){
+            return res.status(400).json({message: "Nenhuma alteracao foi detectada"});
+        }
+
+        if(querNome && await Usuario.existeNome(nomeLimpo, req.user.id)){
+            return res.status(409).json({ field: "nome", message: "Ja existe um utilizador com este nome" });
+        }
+
+        if(querTelefone && await Usuario.existeTelefone(telefoneLimpo, req.user.id)){
+            return res.status(409).json({ field: "telefone", message: "Ja existe um utilizador com este telefone" });
+        }
+
+        const alteracoes = {};
+        if(querNome) alteracoes.nome = nomeLimpo;
+        if(querTelefone) alteracoes.telefone = telefoneLimpo;
+
+        const atualizado = await Usuario.update(req.user.id, alteracoes);
+        if(!atualizado){
+            return res.status(404).json({message: "Utilizador nao encontrado"});
+        }
+
+        const perfilAtualizado = await Usuario.findById(req.user.id);
+        if(!perfilAtualizado){
+            return res.status(404).json({message: "Utilizador nao encontrado"});
+        }
+
+        //auditoria sem credenciais: apenas os dados de contacto alterados
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "usuario",
+            id_registo: req.user.id,
+            operacao: "atualizar",
+            antes: { nome: req.user.nome, telefone: req.user.telefone },
+            depois: { nome: perfilAtualizado.nome, telefone: perfilAtualizado.telefone }
+        });
+
+        res.status(200).json({
+            message: "Perfil atualizado com sucesso",
+            user: perfilAtualizado
+        });
+    }catch(err){
+        if(err.code === "23505"){
+            const field = String(err.constraint || "").includes("nome") ? "nome" : "telefone";
+            const message = field === "nome"
+                ? "Ja existe um utilizador com este nome"
+                : "Ja existe um utilizador com este telefone";
+            return res.status(409).json({ field, message });
+        }
+        next(err);
+    }
 })
 
 //troca de senha pelo proprio utilizador (primeiro acesso ou alteracao normal)

@@ -12,16 +12,16 @@
     gap: 13px;
     min-width: 0;
     padding: 17px 18px;
-    border: 1px solid var(--Border);
-    border-top: 3px solid var(--Primary-faces);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--primary);
     border-radius: 14px;
-    background: #ffffff;
-    box-shadow: 0 4px 20px rgba(30, 15, 50, 0.05);
+    background: var(--surface);
+    box-shadow: 0 4px 20px var(--shadow-color-soft);
 }
 
-.despesas-kpi.quantidade { border-top-color: var(--Accent); }
-.despesas-kpi.ticket { border-top-color: var(--Warning); }
-.despesas-kpi.maior { border-top-color: var(--Error); }
+.despesas-kpi.quantidade { border-top-color: var(--accent); }
+.despesas-kpi.ticket { border-top-color: var(--warning); }
+.despesas-kpi.maior { border-top-color: var(--danger); }
 
 .despesas-kpi-icon {
     width: 42px;
@@ -31,23 +31,23 @@
     justify-content: center;
     flex-shrink: 0;
     border-radius: 11px;
-    color: var(--Primary-faces);
-    background: rgba(109, 53, 200, 0.1);
+    color: var(--primary-text);
+    background: var(--primary-soft);
 }
 
 .despesas-kpi.quantidade .despesas-kpi-icon {
-    color: var(--Accent);
-    background: rgba(155, 109, 227, 0.12);
+    color: var(--primary-text);
+    background: var(--primary-soft);
 }
 
 .despesas-kpi.ticket .despesas-kpi-icon {
-    color: var(--Warning);
-    background: rgba(233, 154, 50, 0.13);
+    color: var(--warning-text);
+    background: var(--warning-soft);
 }
 
 .despesas-kpi.maior .despesas-kpi-icon {
-    color: var(--Error);
-    background: rgba(224, 75, 75, 0.11);
+    color: var(--danger-text);
+    background: var(--danger-soft);
 }
 
 .despesas-kpi > div {
@@ -58,7 +58,7 @@
 }
 
 .despesas-kpi-label {
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: var(--text-xs);
     font-weight: 700;
     letter-spacing: 0.03em;
@@ -67,7 +67,7 @@
 
 .despesas-kpi strong {
     overflow: hidden;
-    color: var(--Principal-text);
+    color: var(--text);
     font-family: "Manrope", sans-serif;
     font-size: var(--text-xl);
     text-overflow: ellipsis;
@@ -76,7 +76,7 @@
 
 .despesas-kpi small {
     overflow: hidden;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: var(--text-xs);
     font-weight: 500;
     text-overflow: ellipsis;
@@ -91,10 +91,10 @@
     gap: 12px;
     flex-wrap: wrap;
     padding: 16px;
-    border: 1px solid var(--Border);
+    border: 1px solid var(--border);
     border-radius: 14px;
-    background: #ffffff;
-    box-shadow: 0 4px 20px rgba(30, 15, 50, 0.04);
+    background: var(--surface);
+    box-shadow: 0 4px 20px var(--shadow-color-soft);
 }
 
 .despesas-filter-field {
@@ -105,7 +105,7 @@
 }
 
 .despesas-filter-field label {
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: var(--text-xs);
     font-weight: 700;
     letter-spacing: 0.03em;
@@ -117,10 +117,10 @@
     width: 100%;
     box-sizing: border-box;
     padding: 10px 12px;
-    border: 1px solid var(--Border);
+    border: 1px solid var(--input-border);
     border-radius: 9px;
-    background: #ffffff;
-    color: var(--Principal-text);
+    background: var(--input-bg);
+    color: var(--text);
     font-family: inherit;
     font-size: var(--text-sm);
     outline: none;
@@ -129,8 +129,8 @@
 
 .despesas-filter-field input:focus,
 .despesas-filter-field select:focus {
-    border-color: var(--Primary-faces);
-    box-shadow: 0 0 0 3px rgba(109, 53, 200, 0.1);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
 .despesas-filter-search {
@@ -147,7 +147,7 @@
 .despesas-search svg {
     position: absolute;
     left: 12px;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     pointer-events: none;
 }
 
@@ -164,7 +164,7 @@
 }
 
 .despesas-filter-counter {
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: var(--text-xs);
     font-weight: 600;
     white-space: nowrap;
@@ -198,13 +198,13 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    color: var(--Principal-text);
+    color: var(--text);
     font-size: var(--text-sm);
     font-weight: 700;
 }
 
 .despesas-section-title svg {
-    color: var(--Primary-faces);
+    color: var(--primary-text);
 }
 
 .despesas-table-wrap {
@@ -230,12 +230,12 @@
 }
 
 .despesas-cell-title strong {
-    color: var(--Principal-text);
+    color: var(--text);
     font-weight: 600;
 }
 
 .despesas-cell-main > span {
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: var(--text-xs);
 }
 
@@ -249,11 +249,11 @@
 
 .despesas-category-cell svg,
 .despesas-date-cell svg {
-    color: var(--Secundary-text);
+    color: var(--text-muted);
 }
 
 .despesas-value {
-    color: var(--Principal-text);
+    color: var(--text);
     font-family: "Manrope", sans-serif;
     white-space: nowrap;
 }
@@ -275,18 +275,18 @@
     justify-content: center;
     margin-bottom: 4px;
     border-radius: 18px;
-    color: var(--Primary-faces);
-    background: var(--backdrop);
+    color: var(--primary-text);
+    background: var(--surface-tint);
 }
 
 .despesas-empty strong {
-    color: var(--Principal-text);
+    color: var(--text);
     font-size: var(--text-md);
 }
 
 .despesas-empty > span:not(.despesas-empty-icon) {
     max-width: 420px;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: var(--text-sm);
     line-height: 1.5;
 }
@@ -309,10 +309,10 @@
     flex-direction: column;
     gap: 14px;
     padding: 16px;
-    border: 1px solid var(--Border);
+    border: 1px solid var(--border);
     border-radius: 14px;
-    background: #ffffff;
-    box-shadow: 0 4px 20px rgba(30, 15, 50, 0.05);
+    background: var(--surface);
+    box-shadow: 0 4px 20px var(--shadow-color-soft);
 }
 
 .despesas-panel-header {
@@ -331,7 +331,7 @@
 
 .despesas-panel-title > svg {
     margin-top: 2px;
-    color: var(--Primary-faces);
+    color: var(--primary-text);
     flex-shrink: 0;
 }
 
@@ -343,13 +343,13 @@
 }
 
 .despesas-panel-title strong {
-    color: var(--Principal-text);
+    color: var(--text);
     font-family: "Manrope", sans-serif;
     font-size: var(--text-sm);
 }
 
 .despesas-panel-title span {
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: var(--text-xs);
     line-height: 1.35;
 }
@@ -361,17 +361,17 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    border: 1px solid var(--Border);
+    border: 1px solid var(--border);
     border-radius: 8px;
-    background: var(--backdrop);
-    color: var(--Primary-faces);
+    background: var(--surface-tint);
+    color: var(--primary-text);
     cursor: pointer;
     transition: background 0.2s, border-color 0.2s;
 }
 
 .despesas-panel-add:hover {
-    border-color: rgba(109, 53, 200, 0.3);
-    background: rgba(109, 53, 200, 0.12);
+    border-color: var(--primary-border);
+    background: var(--primary-soft);
 }
 
 .despesas-category-form {
@@ -384,22 +384,23 @@
     flex: 1;
     min-width: 0;
     padding: 8px 10px;
-    border: 1px solid var(--Border);
+    border: 1px solid var(--input-border);
     border-radius: 8px;
-    color: var(--Principal-text);
+    background: var(--input-bg);
+    color: var(--text);
     font-family: inherit;
     font-size: var(--text-sm);
     outline: none;
 }
 
 .despesas-category-form input:focus {
-    border-color: var(--Primary-faces);
-    box-shadow: 0 0 0 3px rgba(109, 53, 200, 0.1);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
 .despesas-inline-error {
     margin: 0;
-    color: var(--Error);
+    color: var(--danger-text);
     font-size: var(--text-xs);
     font-weight: 600;
 }
@@ -432,7 +433,7 @@
 .despesas-category-line span,
 .despesas-payment-line span {
     overflow: hidden;
-    color: var(--Principal-text);
+    color: var(--text);
     font-size: var(--text-sm);
     font-weight: 600;
     text-overflow: ellipsis;
@@ -441,7 +442,7 @@
 
 .despesas-category-line strong,
 .despesas-payment-line strong {
-    color: var(--Principal-text);
+    color: var(--text);
     font-family: "Manrope", sans-serif;
     font-size: var(--text-xs);
     white-space: nowrap;
@@ -451,27 +452,27 @@
     height: 6px;
     overflow: hidden;
     border-radius: 999px;
-    background: var(--Secundary-Background);
+    background: var(--bg-page);
 }
 
 .despesas-category-bar span {
     display: block;
     height: 100%;
     border-radius: inherit;
-    background: linear-gradient(90deg, var(--Accent), var(--Primary-faces));
+    background: linear-gradient(90deg, var(--accent), var(--primary));
     transition: width 0.3s ease;
 }
 
 .despesas-category-row small,
 .despesas-payment-row small {
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: 11px;
 }
 
 .despesas-panel-empty {
     margin: 0;
     padding: 12px 0;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: var(--text-sm);
     text-align: center;
 }
@@ -479,14 +480,14 @@
 .despesas-panel-hint {
     margin: 0;
     padding-top: 10px;
-    border-top: 1px dashed var(--Border);
-    color: var(--Secundary-text);
+    border-top: 1px dashed var(--border);
+    color: var(--text-muted);
     font-size: var(--text-xs);
     line-height: 1.45;
 }
 
 .despesas-panel-hint strong {
-    color: var(--Primary-faces);
+    color: var(--primary-text);
 }
 
 @media (max-width: 1180px) {

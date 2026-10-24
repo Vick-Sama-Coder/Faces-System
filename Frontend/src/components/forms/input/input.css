@@ -7,13 +7,13 @@ label{
 .field-error{
     display: block;
     margin: -10px 0 12px;
-    color: var(--Error);
+    color: var(--danger-text);
     font-size: var(--text-sm);
     font-weight: 600;
 }
 .input-invalido{
-    border-color: var(--Error) !important;
+    border-color: var(--danger) !important;
 }
 .input-invalido:focus{
-    outline-color: var(--Error);
+    outline-color: var(--danger);
 }

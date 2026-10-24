@@ -40,7 +40,7 @@ async function buscarServicos() {
 function ServicoCell({ data }) {
     return (
         <div className="mgmt-service-cell">
-            <span className="mgmt-icon-box"><Scissors size={17} /></span>
+            <span className="mgmt-icon-box name-icon"><Scissors size={17} /></span>
             <span className="mgmt-service-copy">
                 <strong>{data.nome}</strong>
                 <small>{data.descricao || "Sem descrição registada"}</small>

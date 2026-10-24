@@ -1,5 +1,6 @@
 import { MenuIcon, UserCircle, Bell, LogOut } from "lucide-react"
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
+import ThemeToggle from "../ThemeToggle/ThemeToggle.jsx"
 import { useAuthStore } from "../../store/authStore.js"
 import './header.css'
 
@@ -42,13 +43,20 @@ function Headers({heady, title, h1Class, menuClass, userClass, bellClass, pClass
             </div>
 
             <div className={`app-header-user ${userClass || ""}`}>
+                <ThemeToggle />
+
                 <span className={`app-header-bell ${bellClass || ""}`} aria-hidden="true">
                     <Bell size={18} />
                 </span>
 
                 <span className="app-header-divider" aria-hidden="true" />
 
-                <div className={`app-header-profile ${pClass || ""}`}>
+                <Link
+                    to="/perfil"
+                    className={`app-header-profile app-header-profile-link ${pClass || ""}`}
+                    aria-label={`Abrir o perfil de ${nome}`}
+                    title="O Meu Perfil"
+                >
                     <span className="app-header-avatar" aria-hidden="true">
                         {iniciais || <UserCircle size={20} />}
                     </span>
@@ -56,7 +64,7 @@ function Headers({heady, title, h1Class, menuClass, userClass, bellClass, pClass
                         <strong className="app-header-name" title={nome}>{nome}</strong>
                         <span className="app-header-role">{perfil}</span>
                     </span>
-                </div>
+                </Link>
 
                 <button
                     type="button"

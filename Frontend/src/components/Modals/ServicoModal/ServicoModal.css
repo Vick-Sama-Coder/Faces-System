@@ -1,7 +1,7 @@
 .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(23, 21, 37, 0.45);
+    background: var(--overlay);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -12,13 +12,13 @@
 }
 
 .servico-modal {
-    background: #ffffff;
+    background: var(--surface);
     width: 100%;
     max-width: 480px;
     max-height: 90vh;
     overflow-y: auto;
     border-radius: 16px;
-    box-shadow: 0 20px 40px rgba(30, 15, 50, 0.15);
+    box-shadow: 0 20px 40px var(--shadow-color-strong);
     display: flex;
     flex-flow: column nowrap;
     animation: modalSlide 0.25s ease-out;
@@ -40,7 +40,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 20px 24px;
-    border-bottom: 1px solid var(--Border);
+    border-bottom: 1px solid var(--border);
     gap: 16px;
 }
 
@@ -48,8 +48,8 @@
     width: 44px;
     height: 44px;
     border-radius: 12px;
-    background: rgba(109, 53, 200, 0.1);
-    color: var(--Primary-faces);
+    background: var(--primary-soft);
+    color: var(--primary-text);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -69,7 +69,7 @@
     margin: 0;
     font-size: var(--text-lg);
     font-weight: 700;
-    color: var(--Principal-text);
+    color: var(--text);
     font-family: "Manrope", sans-serif;
 }
 
@@ -80,7 +80,7 @@
 .headerer span {
     display: block;
     font-size: var(--text-sm);
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-weight: 400;
     margin-top: 4px;
 }
@@ -89,8 +89,8 @@
     width: 36px;
     height: 36px;
     border-radius: 10px;
-    background: var(--Secundary-Background);
-    color: var(--Secundary-text);
+    background: var(--bg-page);
+    color: var(--text-muted);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -100,8 +100,8 @@
 }
 
 .plusIcon:hover {
-    background: rgba(109, 53, 200, 0.15);
-    color: var(--Primary-faces);
+    background: var(--primary-soft);
+    color: var(--primary-text);
 }
 
 .plusIcon svg {
@@ -114,8 +114,8 @@
     align-items: center;
     gap: 10px;
     padding: 12px 24px;
-    background: #fdecec;
-    color: var(--Error);
+    background: var(--danger-soft);
+    color: var(--danger-text);
     font-size: 13px;
     font-weight: 500;
 }
@@ -146,53 +146,53 @@
     margin: 0;
     font-size: var(--text-sm);
     font-weight: 600;
-    color: var(--Principal-text);
+    color: var(--text);
 }
 
 .form-group p svg {
     width: 16px;
     height: 16px;
-    color: var(--Primary-faces);
+    color: var(--primary-text);
 }
 
 .currency {
     font-size: var(--text-xs);
-    background: var(--Secundary-Background);
+    background: var(--bg-page);
     padding: 2px 8px;
     border-radius: 6px;
-    color: var(--Primary-faces);
+    color: var(--primary-text);
     font-weight: 600;
 }
 
 .form-group input {
     padding: 10px 14px;
-    border: 1px solid var(--Border);
+    border: 1px solid var(--input-border);
     border-radius: 10px;
     font-size: var(--text-md);
-    color: var(--Principal-text);
-    background: #ffffff;
+    color: var(--text);
+    background: var(--input-bg);
     outline: none;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
     font-family: inherit;
 }
 
 .form-group input:focus {
-    border-color: var(--Primary-faces);
-    box-shadow: 0 0 0 3px rgba(109, 53, 200, 0.1);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
 .form-group input.input-invalido {
-    border-color: var(--Error);
+    border-color: var(--danger);
 }
 
 .form-group select,
 .form-group textarea {
     padding: 10px 14px;
-    border: 1px solid var(--Border);
+    border: 1px solid var(--input-border);
     border-radius: 10px;
     font-size: var(--text-md);
-    color: var(--Principal-text);
-    background: #ffffff;
+    color: var(--text);
+    background: var(--input-bg);
     outline: none;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
     font-family: inherit;
@@ -202,13 +202,13 @@
 
 .form-group select:focus,
 .form-group textarea:focus {
-    border-color: var(--Primary-faces);
-    box-shadow: 0 0 0 3px rgba(109, 53, 200, 0.1);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
 .form-group select.input-invalido,
 .form-group textarea.input-invalido {
-    border-color: var(--Error);
+    border-color: var(--danger);
 }
 
 .form-group textarea {
@@ -228,10 +228,10 @@
     align-items: center;
     gap: 10px;
     padding: 12px 14px;
-    border: 1px solid var(--Border);
+    border: 1px solid var(--border);
     border-radius: 10px;
-    background: var(--backdrop);
-    color: var(--Principal-text);
+    background: var(--surface-tint);
+    color: var(--text);
     font-size: var(--text-sm);
     font-weight: 600;
     cursor: pointer;
@@ -241,7 +241,7 @@
 .form-check input {
     width: 16px;
     height: 16px;
-    accent-color: var(--Primary-faces);
+    accent-color: var(--primary);
 }
 
 .form-check span {
@@ -251,7 +251,7 @@
 }
 
 .form-check svg {
-    color: var(--Primary-faces);
+    color: var(--primary-text);
 }
 
 @media (max-width: 520px) {
@@ -262,7 +262,7 @@
 
 .field-error {
     font-size: var(--text-xs);
-    color: var(--Error);
+    color: var(--danger-text);
     margin-top: 2px;
     font-weight: 500;
 }
@@ -270,8 +270,8 @@
 .submit-btn {
     margin-top: 8px;
     padding: 12px 20px;
-    background: var(--Primary-faces);
-    color: #ffffff;
+    background: var(--primary);
+    color: var(--on-primary);
     border: none;
     border-radius: 10px;
     font-size: var(--text-md);
@@ -286,7 +286,7 @@
 }
 
 .submit-btn:hover:not(:disabled) {
-    background: var(--Primary-Hover);
+    background: var(--primary-hover);
     transform: translateY(-1px);
 }
 
@@ -332,20 +332,20 @@
     align-items: flex-start;
     gap: 10px;
     padding: 12px 14px;
-    border: 1px solid #e7ddf5;
+    border: 1px solid var(--border);
     border-radius: 10px;
-    background: #fbf7ff;
-    color: #6f6b78;
+    background: var(--primary-soft-subtle);
+    color: var(--text-muted);
     font-size: 13px;
     line-height: 1.45;
 }
 
 .servico-modal-note svg {
-    color: #6d35c8;
+    color: var(--primary-text);
     flex-shrink: 0;
     margin-top: 1px;
 }
 
 .servico-modal-note strong {
-    color: #4b2a80;
+    color: var(--primary-text);
 }

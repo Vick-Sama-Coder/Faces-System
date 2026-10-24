@@ -1,7 +1,14 @@
 import axios from 'axios';
 
 
-const BASE_API = "http://localhost:5000/";
+
+
+
+const DEFAULT_API_URL = import.meta.env.DEV ? "http://localhost:5000" : "";
+const BASE_API = (
+    import.meta.env.VITE_API_URL || DEFAULT_API_URL
+).replace(/\/+$/, "");
+
 
 const server = axios.create({
     baseURL: BASE_API,
@@ -39,6 +46,16 @@ export const resetPassword = (data) => {
 
 export const getMe = () => {
     return server.get("api/auth/me");
+};
+
+//actualizacao do proprio perfil (nome/telefone) — exige a senha actual
+export const updateMe = (data) => {
+    return server.patch("api/auth/me", data);
+};
+
+//troca de senha pelo proprio utilizador autenticado
+export const alterarSenha = (data) => {
+    return server.post("api/auth/alterar-senha", data);
 };
 
 export const logoutUser = () => {
@@ -99,6 +116,10 @@ export const getAtendimentos = (params) => {
 
 export const getAtendimento = (id) => {
     return server.get(`api/atendimentos/${id}`);
+};
+
+export const updateAtendimento = (id, data) => {
+    return server.put(`api/atendimentos/${id}`, data);
 };
 
 export const concluirAtendimento = (id) => {

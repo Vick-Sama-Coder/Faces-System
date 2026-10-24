@@ -1,7 +1,7 @@
 .fidelizacao-card {
-    border: 1px solid #ecdff8;
+    border: 1px solid var(--border);
     border-radius: 14px;
-    background: linear-gradient(135deg, #fbf7ff 0%, #f5edff 100%);
+    background: linear-gradient(135deg, var(--primary-soft-subtle) 0%, var(--surface-tint) 100%);
     padding: 16px;
     display: flex;
     flex-direction: column;
@@ -21,8 +21,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: var(--Primary-faces);
-    background: rgba(109, 53, 200, 0.12);
+    color: var(--primary-text);
+    background: var(--primary-soft);
     flex-shrink: 0;
 }
 
@@ -36,12 +36,12 @@
 
 .fidelizacao-card-header > div > strong {
     font-size: var(--text-sm);
-    color: var(--Principal-text);
+    color: var(--text);
 }
 
 .fidelizacao-card-header > div > span {
     font-size: var(--text-xs);
-    color: var(--Secundary-text);
+    color: var(--text-muted);
 }
 
 .fidelizacao-beneficio {
@@ -50,8 +50,8 @@
     gap: 5px;
     padding: 5px 9px;
     border-radius: 999px;
-    color: #8a4b00;
-    background: rgba(233, 154, 50, 0.18);
+    color: var(--warning-text);
+    background: var(--warning-soft);
     font-size: var(--text-xs);
     font-weight: 700;
     white-space: nowrap;
@@ -71,23 +71,23 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 1px dashed #cbb8ea;
-    background: #ffffff;
-    color: #c7b2e8;
+    border: 1px dashed var(--border-strong);
+    background: var(--surface);
+    color: var(--text-muted);
 }
 
 .fidelizacao-mark.filled {
     border-style: solid;
     border-color: transparent;
-    color: #ffffff;
-    background: linear-gradient(135deg, var(--Primary-faces), #9b6de3);
-    box-shadow: 0 4px 10px rgba(109, 53, 200, 0.22);
+    color: var(--on-primary);
+    background: var(--brand-gradient);
+    box-shadow: 0 4px 10px var(--primary-soft-strong);
 }
 
 .fidelizacao-hint {
     margin: 0;
     font-size: var(--text-xs);
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     line-height: 1.45;
 }
 

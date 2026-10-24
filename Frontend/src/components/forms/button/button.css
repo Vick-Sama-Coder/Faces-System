@@ -1,8 +1,8 @@
 .btnclass{
-    background-color: var(--Primary-faces);
+    background-color: var(--primary);
     padding: 10px;
     border: none;
-    color: var(--card);
+    color: var(--on-primary);
     font-weight: bold;
     font-size: var(--text-xs);
     cursor: pointer;

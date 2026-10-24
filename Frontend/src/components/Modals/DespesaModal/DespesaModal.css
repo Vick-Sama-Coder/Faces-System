@@ -3,10 +3,10 @@
 =========================== */
 
 .despesa-modal {
-    background: var(--card);
+    background: var(--surface);
     border-radius: 16px;
-    box-shadow: 0 4px 20px rgba(30, 15, 50, 0.15);
-    border: 1px solid var(--Border);
+    box-shadow: 0 4px 20px var(--shadow-color-strong);
+    border: 1px solid var(--border);
     width: 100%;
     max-width: 520px;
     max-height: 90vh;
@@ -24,8 +24,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 20px 24px;
-    border-bottom: 1px solid var(--Border);
-    background: #fbf7ff;
+    border-bottom: 1px solid var(--border);
+    background: var(--primary-soft-subtle);
 }
 
 .Modal-Icon {
@@ -35,8 +35,8 @@
     width: 40px;
     height: 40px;
     border-radius: 10px;
-    background: rgba(109, 53, 200, 0.1);
-    color: var(--Primary-faces);
+    background: var(--primary-soft);
+    color: var(--primary-text);
 }
 
 .header-text-modal {
@@ -53,23 +53,23 @@
 
 .headerer strong {
     font-size: var(--text-lg);
-    color: var(--Principal-text);
+    color: var(--text);
     font-family: "Manrope", sans-serif;
 }
 
 .headerer span {
     font-size: var(--text-sm);
-    color: var(--Secundary-text);
+    color: var(--text-muted);
 }
 
 .plusIcon {
     cursor: pointer;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     transition: color 0.2s;
 }
 
 .plusIcon:hover {
-    color: var(--Primary-faces);
+    color: var(--primary-text);
 }
 
 .error-banner {
@@ -77,11 +77,11 @@
     align-items: center;
     gap: 10px;
     padding: 12px 24px;
-    background: #fdecec;
-    color: var(--Error);
+    background: var(--danger-soft);
+    color: var(--danger-text);
     font-size: var(--text-sm);
     font-weight: 600;
-    border-left: 4px solid var(--Error);
+    border-left: 4px solid var(--danger);
 }
 
 .main-content {
@@ -107,7 +107,7 @@
     margin: 0;
     font-size: var(--text-xs);
     font-weight: 700;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.03em;
 }
@@ -115,7 +115,7 @@
 .form-group svg {
     width: 16px;
     height: 16px;
-    color: var(--Primary-faces);
+    color: var(--primary-text);
 }
 
 .form-group input,
@@ -123,10 +123,10 @@
     width: 100%;
     box-sizing: border-box;
     padding: 9px 11px;
-    border: 1px solid var(--Border);
+    border: 1px solid var(--input-border);
     border-radius: 9px;
-    background: #ffffff;
-    color: var(--Principal-text);
+    background: var(--input-bg);
+    color: var(--text);
     font-size: var(--text-sm);
     font-family: inherit;
     outline: none;
@@ -134,18 +134,18 @@
 
 .form-group input:focus,
 .form-group select:focus {
-    border-color: var(--Primary-faces);
-    box-shadow: 0 0 0 3px rgba(109, 53, 200, 0.1);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
 .form-group input.input-invalido,
 .form-group select.input-invalido {
-    border-color: var(--Error);
+    border-color: var(--danger);
 }
 
 .field-error {
     font-size: var(--text-xs);
-    color: var(--Error);
+    color: var(--danger-text);
     margin-top: 4px;
 }
 
@@ -160,8 +160,8 @@
     align-items: center;
     gap: 8px;
     padding: 12px 24px;
-    background: var(--Primary-faces);
-    color: #ffffff;
+    background: var(--primary);
+    color: var(--on-primary);
     border: none;
     border-radius: 10px;
     font-size: var(--text-md);
@@ -173,7 +173,7 @@
 }
 
 .submit-btn:hover:not(:disabled) {
-    background: var(--Primary-Hover);
+    background: var(--primary-hover);
     transform: translateY(-1px);
 }
 

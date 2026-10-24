@@ -55,13 +55,13 @@ const PRESETS = [
 ];
 
 const CORES_DESPESAS = [
-    "#6D35C8",
-    "#9B6DE3",
-    "#E99A32",
-    "#21A366",
-    "#E04B4B",
-    "#6F6B78",
-    "#B78AF3"
+    "var(--chart-1)",
+    "var(--chart-2)",
+    "var(--chart-3)",
+    "var(--chart-4)",
+    "var(--chart-5)",
+    "var(--chart-6)",
+    "var(--chart-7)"
 ];
 
 function formatarMoeda(valor) {
@@ -604,41 +604,45 @@ function Relatorio() {
                                             <div className="relatorio-chart" role="img" aria-label="Grafico de fluxo de caixa">
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <BarChart data={fluxo.itens} margin={{ top: 8, right: 8, left: -14, bottom: 0 }} barGap={2}>
-                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--Border)" />
+                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                                                         <XAxis
                                                             dataKey="label"
-                                                            tick={{ fontSize: 11, fill: "var(--Secundary-text)" }}
+                                                            tick={{ fontSize: 11, fill: "var(--text-muted)" }}
                                                             axisLine={false}
                                                             tickLine={false}
                                                             minTickGap={18}
                                                         />
                                                         <YAxis
                                                             tickFormatter={(valor) => Number(valor) >= 1000 ? `${Math.round(Number(valor) / 1000)}k` : String(valor)}
-                                                            tick={{ fontSize: 11, fill: "var(--Secundary-text)" }}
+                                                            tick={{ fontSize: 11, fill: "var(--text-muted)" }}
                                                             axisLine={false}
                                                             tickLine={false}
                                                             width={42}
                                                         />
                                                         <Tooltip
                                                             formatter={(valor) => formatarMoeda(valor)}
+                                                            cursor={{ fill: "var(--surface-tint)", fillOpacity: 0.55 }}
                                                             contentStyle={{
+                                                                background: "var(--surface)",
+                                                                color: "var(--text)",
                                                                 borderRadius: 10,
-                                                                border: "1px solid var(--Border)",
-                                                                boxShadow: "0 8px 24px rgba(30, 15, 50, 0.12)",
+                                                                border: "1px solid var(--border)",
+                                                                boxShadow: "var(--shadow-md)",
                                                                 fontSize: 12
                                                             }}
-                                                            labelStyle={{ color: "var(--Principal-text)", fontWeight: 700 }}
+                                                            itemStyle={{ color: "var(--text-muted)" }}
+                                                            labelStyle={{ color: "var(--text)", fontWeight: 700 }}
                                                         />
-                                                        <Bar dataKey="entradas" name="Entradas" fill="#21A366" radius={[4, 4, 0, 0]} />
-                                                        <Bar dataKey="saidas" name="Saidas" fill="#E04B4B" radius={[4, 4, 0, 0]} />
-                                                        <Bar dataKey="levantamentos" name="Levantamentos" fill="#E99A32" radius={[4, 4, 0, 0]} />
+                                                        <Bar dataKey="entradas" name="Entradas" fill="var(--success)" radius={[4, 4, 0, 0]} />
+                                                        <Bar dataKey="saidas" name="Saidas" fill="var(--danger)" radius={[4, 4, 0, 0]} />
+                                                        <Bar dataKey="levantamentos" name="Levantamentos" fill="var(--warning)" radius={[4, 4, 0, 0]} />
                                                     </BarChart>
                                                 </ResponsiveContainer>
                                             </div>
                                             <div className="relatorio-chart-legend">
-                                                <span><i style={{ background: "#21A366" }} /> Entradas</span>
-                                                <span><i style={{ background: "#E04B4B" }} /> Saidas</span>
-                                                <span><i style={{ background: "#E99A32" }} /> Levantamentos</span>
+                                                <span><i style={{ background: "var(--success)" }} /> Entradas</span>
+                                                <span><i style={{ background: "var(--danger)" }} /> Saidas</span>
+                                                <span><i style={{ background: "var(--warning)" }} /> Levantamentos</span>
                                             </div>
                                         </>
                                     )}
@@ -679,11 +683,15 @@ function Relatorio() {
                                                         <Tooltip
                                                             formatter={(valor) => formatarMoeda(valor)}
                                                             contentStyle={{
+                                                                background: "var(--surface)",
+                                                                color: "var(--text)",
                                                                 borderRadius: 10,
-                                                                border: "1px solid var(--Border)",
-                                                                boxShadow: "0 8px 24px rgba(30, 15, 50, 0.12)",
+                                                                border: "1px solid var(--border)",
+                                                                boxShadow: "var(--shadow-md)",
                                                                 fontSize: 12
                                                             }}
+                                                            itemStyle={{ color: "var(--text-muted)" }}
+                                                            labelStyle={{ color: "var(--text)", fontWeight: 700 }}
                                                         />
                                                     </PieChart>
                                                 </ResponsiveContainer>

@@ -1,10 +1,35 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-PT">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="./src/assets/logo/faces-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Faces-System</title>
+    <meta name="theme-color" content="#6D35C8" />
+    <script>
+      (function () {
+        var theme = "light";
+        try {
+          var stored = window.localStorage.getItem("faces.theme");
+          var preference = stored === "light" || stored === "dark" ? stored : "system";
+          var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+          theme = preference === "dark" || (preference === "system" && prefersDark) ? "dark" : "light";
+        } catch (error) {
+          var media = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)");
+          theme = media && media.matches ? "dark" : "light";
+        }
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute("content", theme === "dark" ? "#0D0B14" : "#6D35C8");
+      })();
+    </script>
+    <meta name="description" content="Sistema de gestão do salão Faces." />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Faces" />
+    <title>Faces System</title>
   </head>
   <body>
     <main id="root"></main>

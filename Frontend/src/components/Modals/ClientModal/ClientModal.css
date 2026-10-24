@@ -10,7 +10,7 @@
     justify-content: center;
 
     padding: 24px;
-    background: rgba(20, 16, 30, 0.45);
+    background: var(--overlay);
     backdrop-filter: blur(5px);
 }
 
@@ -23,11 +23,11 @@
     min-height: 420px;
 
     overflow: hidden;
-    background: #ffffff;
-    border: 1px solid #eee9f5;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 16px;
 
-    box-shadow: 0 20px 60px rgba(30, 15, 50, 0.18);
+    box-shadow: 0 20px 60px var(--shadow-color-strong);
 
     animation: modal-enter 0.2s ease-out;
 }
@@ -40,7 +40,7 @@
     gap: 14px;
 
     padding: 20px 24px;
-    border-bottom: 1px solid #eeeaf3;
+    border-bottom: 1px solid var(--border);
 }
 
 .Modal-Icon {
@@ -53,8 +53,8 @@
     height: 44px;
     margin: 0;
 
-    color: #7041c5;
-    background: #f2ecfc;
+    color: var(--primary-text);
+    background: var(--primary-soft);
     border-radius: 12px;
 }
 
@@ -77,13 +77,13 @@
 }
 
 .headerer strong {
-    color: #25212d;
+    color: var(--text);
     font-size: 17px;
     font-weight: 650;
 }
 
 .headerer span {
-    color: #898393;
+    color: var(--text-muted);
     font-size: 13px;
 }
 
@@ -97,15 +97,15 @@
     height: 36px;
     margin: 0;
 
-    color: #777080;
+    color: var(--text-muted);
     border-radius: 9px;
     cursor: pointer;
     transition: background 0.2s, color 0.2s;
 }
 
 .plusIcon:hover {
-    color: #5e35a7;
-    background: #f3eff9;
+    color: var(--primary-text);
+    background: var(--primary-soft-subtle);
 }
 
 .plusIcon svg {
@@ -137,7 +137,7 @@
 
     margin: 0 0 4px;
 
-    color: #342d40;
+    color: var(--text);
     font-size: 14px;
     font-weight: 600;
 }
@@ -145,7 +145,7 @@
 .form-group > p svg {
     width: 18px;
     height: 18px;
-    color: #7950c8;
+    color: var(--primary-text);
 }
 
 .form-group input {
@@ -156,9 +156,9 @@
 
     padding: 0 12px;
 
-    color: #302b39;
-    background: #ffffff;
-    border: 1px solid #e5e0ec;
+    color: var(--text);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
     border-radius: 9px;
     outline: none;
 
@@ -166,8 +166,9 @@
 }
 
 .form-group input:focus {
-    border-color: #7041c5;
-    outline-color: #7041c5;
+    border-color: var(--primary);
+    outline-color: var(--primary);
+    background: var(--input-bg);
 }
 
 /* error styles (reused from input.css conventions) */
@@ -175,17 +176,17 @@
 .field-error {
     display: block;
     margin: -8px 0 0;
-    color: var(--Error);
+    color: var(--danger-text);
     font-size: var(--text-sm);
     font-weight: 600;
 }
 
 .input-invalido {
-    border-color: var(--Error) !important;
+    border-color: var(--danger) !important;
 }
 
 .input-invalido:focus {
-    outline-color: var(--Error);
+    outline-color: var(--danger);
 }
 
 /* error banner */
@@ -195,11 +196,11 @@
     align-items: center;
     gap: 10px;
     padding: 12px 24px;
-    background: #fdecec;
-    color: var(--Error);
+    background: var(--danger-soft);
+    color: var(--danger-text);
     font-size: 13px;
     font-weight: 600;
-    border-bottom: 1px solid #fadede;
+    border-bottom: 1px solid var(--danger);
 }
 
 /* Submit button */
@@ -208,9 +209,9 @@
     margin-top: 4px;
     align-self: flex-start;
     padding: 10px 24px;
-    background-color: #6d35c8;
+    background-color: var(--primary);
     border: none;
-    color: #ffffff;
+    color: var(--on-primary);
     font-weight: bold;
     font-size: 14px;
     border-radius: 9px;
@@ -222,11 +223,12 @@
 }
 
 .submit-btn:hover:not(:disabled) {
-    background-color: #5825a8;
+    background-color: var(--primary-hover);
 }
 
 .submit-btn:disabled {
-    background-color: #a789d6;
+    background-color: var(--neutral-soft-strong);
+    color: var(--text-muted);
     cursor: not-allowed;
 }
 

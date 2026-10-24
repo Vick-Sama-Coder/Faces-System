@@ -9,39 +9,273 @@
     --text-2xl: 1.5rem;   /* 24px */
     --text-3xl: 1.875rem; /* 30px */
 
+    color-scheme: light;
 
-    /* Variables for Light Mode */
+    /* ------------------------------------------------------------------
+       Tokens semânticos - modo claro
+       As superfícies e a paleta de marca mantêm o aspeto atual. As únicas
+       diferenças deliberadas estão nos tokens de contraste (texto/status e
+       bordas de controlos).
+    ------------------------------------------------------------------ */
 
-    --Principal-Background: #F7F7F9;
-    --Secundary-Background: #F0F0F4;
-    --card: #ffffff;
-    --SideBar:#171525;
-    --Principal-text:#17151F;
-    --Secundary-text:#6F6B78;
-    --Primary-faces: #6D35C8;
-    --Primary-Hover: #5825A8;
-    --Accent:#9B6DE3;
-    --Border:#E5E3EA;
-    --Sucess:#21A366;
-    --Error:#E04B4b;
-    --Warning: #E99A32;
-    --backdrop: #F5F2FC;
+    /* Superfícies */
+    --bg-page: #F0F0F4;
+    --bg-subtle: #F7F7F9;
+    --surface: #FFFFFF;
+    --surface-muted: #FBFAFD;
+    --surface-hover: #FAF8FD;
+    --surface-tint: #F5F2FC;
+    --sidebar-bg: #FFFFFF;
+    --header-bg: linear-gradient(90deg, #FFFFFF 0%, #FCFAFF 100%);
+    --hero-bg:
+        radial-gradient(circle at 92% -10%, rgba(109, 53, 200, 0.16), transparent 40%),
+        linear-gradient(120deg, #FFFFFF 0%, #FCFAFF 58%, #F8F4FF 100%);
+    --welcome-bg:
+        radial-gradient(circle at 95% 0%, rgba(109, 53, 200, 0.12), transparent 34%),
+        #FFFFFF;
+    --fidelity-bg:
+        radial-gradient(circle at 100% 0%, rgba(109, 53, 200, 0.14), transparent 40%),
+        #FFFFFF;
+    --quick-bg:
+        radial-gradient(circle at 0% 100%, rgba(109, 53, 200, 0.08), transparent 45%),
+        #FFFFFF;
+    --primary-glow: rgba(109, 53, 200, 0.12);
+    --primary-glow-subtle: rgba(109, 53, 200, 0.06);
 
+    /* Texto */
+    --text: #17151F;
+    --text-muted: #6D6876;
+    --on-primary: #FFFFFF;
+    --on-primary-soft: rgba(255, 255, 255, 0.2);
+    --on-primary-track: rgba(255, 255, 255, 0.2);
+    --code-bg: #1F1B28;
+    --code-text: #E9E3F5;
 
-    /* Variables for Dark Mode  */
+    /* Bordas e controlos */
+    --border: #E5E3EA;
+    --border-subtle: #EEEAF3;
+    --border-strong: #D9C9F0;
+    --input-bg: #FFFFFF;
+    --input-bg-muted: #FBFAFD;
+    --input-border: #8F879D;
+    --overlay: rgba(20, 16, 30, 0.45);
+    --overlay-strong: rgba(23, 21, 31, 0.48);
 
-    --Dark-Background:#0D0B14;
-    --Dark-Secundary-bg: #14121D;
-    --Dark-cards: #1B1826;
-    --SideBar:#0A0910;
-    --Dark-input:#211D2C;
-    --Dark-main-text: #F5F3FA;
-    --Dark-secundary-text:#A8A3B5;
-    --Dark-Primary-faces:#8B4DE8;
-    --Dark-primary-hover:#A66BEF;
-    --Dark-Accent: #B78AF3;
-    --Dark-Border: #302A3D;
-    --Dark-Sucess: #35C983;
-    --Dark-Error: #F05B5B;
-    --Dark-Warning:#F0A33A;
-}    
+    /* Marca */
+    --primary: #6D35C8;
+    --primary-hover: #5825A8;
+    --primary-text: #6D35C8;
+    --primary-soft: rgba(109, 53, 200, 0.1);
+    --primary-soft-strong: rgba(109, 53, 200, 0.2);
+    --primary-soft-subtle: rgba(109, 53, 200, 0.06);
+    --primary-border: rgba(109, 53, 200, 0.3);
+    --primary-gradient: linear-gradient(135deg, #6D35C8, #8148DF);
+    --primary-gradient-hover: linear-gradient(135deg, #5825A8, #7A3ED6);
+    --brand-gradient: linear-gradient(135deg, #6D35C8, #9B6DE3);
+    --accent: #9B6DE3;
+
+    /* Estados */
+    --success: #21A366;
+    --success-text: #087443;
+    --success-soft: rgba(33, 163, 102, 0.1);
+    --success-soft-strong: rgba(33, 163, 102, 0.2);
+    --success-border: rgba(33, 163, 102, 0.25);
+    --success-solid: #087443;
+
+    --warning: #E99A32;
+    --warning-text: #B54708;
+    --warning-soft: rgba(233, 154, 50, 0.12);
+    --warning-soft-strong: rgba(233, 154, 50, 0.22);
+    --warning-solid: #9A5B00;
+
+    --danger: #E04B4B;
+    --danger-text: #B42318;
+    --danger-soft: rgba(224, 75, 75, 0.1);
+    --danger-soft-strong: rgba(224, 75, 75, 0.2);
+    --danger-solid: #C73535;
+
+    --info: #287B9F;
+    --info-text: #1D6A8A;
+    --info-soft: rgba(40, 123, 159, 0.1);
+
+    --pink: #B03A78;
+    --pink-text: #B03A78;
+    --pink-soft: rgba(176, 58, 120, 0.1);
+
+    --neutral-soft: rgba(111, 107, 120, 0.12);
+    --neutral-soft-strong: rgba(111, 107, 120, 0.24);
+
+    /* Foco, sombras e detalhes */
+    --focus-ring: #6D35C8;
+    --focus-ring-soft: rgba(109, 53, 200, 0.1);
+    --shadow-xs: 0 4px 20px rgba(30, 15, 50, 0.04);
+    --shadow-sm: 0 4px 20px rgba(30, 15, 50, 0.05);
+    --shadow-md: 0 8px 24px rgba(30, 15, 50, 0.1);
+    --shadow-lg: 0 20px 60px rgba(30, 15, 50, 0.18);
+    --shadow-xl: 0 26px 70px rgba(23, 15, 40, 0.28);
+    --shadow-color-soft: rgba(30, 15, 50, 0.06);
+    --shadow-color: rgba(30, 15, 50, 0.1);
+    --shadow-color-strong: rgba(23, 15, 40, 0.28);
+    --shadow-brand: 0 8px 18px rgba(109, 53, 200, 0.24);
+    --shadow-brand-strong: 0 10px 22px rgba(109, 53, 200, 0.3);
+    --shadow-pwa: 0 22px 60px rgba(23, 15, 40, 0.22);
+    --table-header-bg: #FAF9FC;
+    --table-row-hover: #FAF8FE;
+    --table-row-selected: #F5F2FC;
+    --scrollbar-thumb: #D7CBE8;
+
+    /* Gráficos */
+    --chart-1: #6D35C8;
+    --chart-2: #9B6DE3;
+    --chart-3: #E99A32;
+    --chart-4: #21A366;
+    --chart-5: #E04B4B;
+    --chart-6: #6F6B78;
+    --chart-7: #B78AF3;
+    --bar-gradient-primary: linear-gradient(180deg, #8B5BD6, #6D35C8);
+    --bar-gradient-danger: linear-gradient(180deg, #F0B4B4, #E07A7A);
+    --bar-gradient-warning: linear-gradient(90deg, #E99A32, #F6C56B);
+    --progress-gradient: linear-gradient(90deg, #9B6DE3, #6D35C8);
+
+    /* ------------------------------------------------------------------
+       Compatibilidade com os nomes antigos usados nos componentes.
+       Os componentes novos devem usar os tokens semânticos acima.
+    ------------------------------------------------------------------ */
+    --Principal-Background: var(--bg-subtle);
+    --Secundary-Background: var(--bg-page);
+    --card: var(--surface);
+    --SideBar: var(--sidebar-bg);
+    --Principal-text: var(--text);
+    --Secundary-text: var(--text-muted);
+    --Primary-faces: var(--primary);
+    --Primary-Hover: var(--primary-hover);
+    --Accent: var(--accent);
+    --Border: var(--border);
+    --Sucess: var(--success);
+    --Error: var(--danger);
+    --Warning: var(--warning);
+    --backdrop: var(--surface-tint);
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+
+    /* Superfícies */
+    --bg-page: #0D0B14;
+    --bg-subtle: #14121D;
+    --surface: #1B1826;
+    --surface-muted: #211D2C;
+    --surface-hover: #262033;
+    --surface-tint: #2A2140;
+    --sidebar-bg: #0A0910;
+    --header-bg: linear-gradient(90deg, #1B1826 0%, #171320 100%);
+    --hero-bg:
+        radial-gradient(circle at 92% -10%, rgba(139, 77, 232, 0.18), transparent 40%),
+        linear-gradient(120deg, #1B1826 0%, #191523 58%, #1E1730 100%);
+    --welcome-bg:
+        radial-gradient(circle at 95% 0%, rgba(139, 77, 232, 0.16), transparent 34%),
+        #1B1826;
+    --fidelity-bg:
+        radial-gradient(circle at 100% 0%, rgba(139, 77, 232, 0.16), transparent 40%),
+        #1B1826;
+    --quick-bg:
+        radial-gradient(circle at 0% 100%, rgba(139, 77, 232, 0.1), transparent 45%),
+        #1B1826;
+    --primary-glow: rgba(139, 77, 232, 0.18);
+    --primary-glow-subtle: rgba(139, 77, 232, 0.1);
+
+    /* Texto */
+    --text: #F5F3FA;
+    --text-muted: #A8A3B5;
+    --on-primary: #FFFFFF;
+    --on-primary-soft: rgba(255, 255, 255, 0.18);
+    --on-primary-track: rgba(0, 0, 0, 0.22);
+    --code-bg: #0A0910;
+    --code-text: #E9E3F5;
+
+    /* Bordas e controlos */
+    --border: #302A3D;
+    --border-subtle: #2A2537;
+    --border-strong: #4A405D;
+    --input-bg: #211D2C;
+    --input-bg-muted: #211D2C;
+    --input-border: #756C8C;
+    --overlay: rgba(0, 0, 0, 0.65);
+    --overlay-strong: rgba(0, 0, 0, 0.68);
+
+    /* Marca */
+    --primary: #8B4DE8;
+    --primary-hover: #7C3FD8;
+    --primary-text: #C4A0FA;
+    --primary-soft: rgba(139, 77, 232, 0.16);
+    --primary-soft-strong: rgba(183, 138, 243, 0.24);
+    --primary-soft-subtle: rgba(139, 77, 232, 0.1);
+    --primary-border: rgba(183, 138, 243, 0.35);
+    --primary-gradient: linear-gradient(135deg, #8B4DE8, #7C3FD8);
+    --primary-gradient-hover: linear-gradient(135deg, #7C3FD8, #6C2FC8);
+    --brand-gradient: linear-gradient(135deg, #8B4DE8, #7C3FD8);
+    --accent: #B78AF3;
+
+    /* Estados */
+    --success: #35C983;
+    --success-text: #35C983;
+    --success-soft: rgba(53, 201, 131, 0.14);
+    --success-soft-strong: rgba(53, 201, 131, 0.24);
+    --success-border: rgba(53, 201, 131, 0.35);
+    --success-solid: #087443;
+
+    --warning: #F0A33A;
+    --warning-text: #F0A33A;
+    --warning-soft: rgba(240, 163, 58, 0.14);
+    --warning-soft-strong: rgba(240, 163, 58, 0.24);
+    --warning-solid: #9A5B00;
+
+    --danger: #F05B5B;
+    --danger-text: #FF7A7A;
+    --danger-soft: rgba(240, 91, 91, 0.14);
+    --danger-soft-strong: rgba(240, 91, 91, 0.24);
+    --danger-solid: #C73535;
+
+    --info: #5CB8DB;
+    --info-text: #5CB8DB;
+    --info-soft: rgba(92, 184, 219, 0.14);
+
+    --pink: #F08FC4;
+    --pink-text: #F08FC4;
+    --pink-soft: rgba(240, 143, 196, 0.14);
+
+    --neutral-soft: rgba(168, 163, 181, 0.14);
+    --neutral-soft-strong: rgba(168, 163, 181, 0.24);
+
+    /* Foco, sombras e detalhes */
+    --focus-ring: #B78AF3;
+    --focus-ring-soft: rgba(183, 138, 243, 0.16);
+    --shadow-xs: 0 4px 20px rgba(0, 0, 0, 0.2);
+    --shadow-sm: 0 4px 20px rgba(0, 0, 0, 0.24);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.48);
+    --shadow-xl: 0 26px 70px rgba(0, 0, 0, 0.58);
+    --shadow-color-soft: rgba(0, 0, 0, 0.35);
+    --shadow-color: rgba(0, 0, 0, 0.45);
+    --shadow-color-strong: rgba(0, 0, 0, 0.62);
+    --shadow-brand: 0 8px 18px rgba(0, 0, 0, 0.38);
+    --shadow-brand-strong: 0 10px 22px rgba(0, 0, 0, 0.48);
+    --shadow-pwa: 0 22px 60px rgba(0, 0, 0, 0.55);
+    --table-header-bg: #211D2C;
+    --table-row-hover: #262033;
+    --table-row-selected: #2A2140;
+    --scrollbar-thumb: #4B3F62;
+
+    /* Gráficos */
+    --chart-1: #B78AF3;
+    --chart-2: #C9A7FF;
+    --chart-3: #F0A33A;
+    --chart-4: #35C983;
+    --chart-5: #F05B5B;
+    --chart-6: #A8A3B5;
+    --chart-7: #8B4DE8;
+    --bar-gradient-primary: linear-gradient(180deg, #C4A0FA, #8B4DE8);
+    --bar-gradient-danger: linear-gradient(180deg, rgba(240, 91, 91, 0.55), #F05B5B);
+    --bar-gradient-warning: linear-gradient(90deg, #F0A33A, #F6C56B);
+    --progress-gradient: linear-gradient(90deg, #B78AF3, #8B4DE8);
+}

@@ -34,7 +34,7 @@ const columnDefs = [
 ]
 
 createRoot(document.getElementById("root")).render(
-    <main style={{ height: "100vh", padding: 24, background: "#f5f3f8" }}>
+    <main style={{ height: "100vh", padding: 24, background: "var(--bg-page)" }}>
         <DataGrid rowData={rows} columnDefs={columnDefs} pageSize={10} />
     </main>
 )

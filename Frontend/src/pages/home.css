@@ -20,8 +20,10 @@
     padding: 14px 0px 14px 40px;
     font-size: 1em;
     border-radius: 10px;
-    outline-color: var(--Primary-faces) ;
-    border: 2px solid var(--Border);
+    outline-color: var(--focus-ring) ;
+    border: 2px solid var(--input-border);
+    background-color: var(--input-bg);
+    color: var(--text);
 
 }
 .input-section{
@@ -32,9 +34,9 @@
 .submit-btn{
     padding: 14px;
     width: 100%;
-    border-radius:5px ;
-    background-color: var(--Primary-faces);
-    color: var(--Principal-Background);
+    border-radius: 5px ;
+    background-color: var(--primary);
+    color: var(--on-primary);
     font-weight: bold;
     font-size: 1em;
     margin: 15px 0;
@@ -43,7 +45,7 @@
 }
 .link{
     text-decoration: none;
-    color:var(--Primary-faces);
+    color: var(--primary-text);
     
 }
 /* botao que se comporta como link (ex.: "Tentar novamente") */
@@ -99,9 +101,9 @@ label:hover{
     margin: 0 0 12px;
     padding: 10px 14px;
     border-radius: 8px;
-    border: 1px solid var(--Error);
-    background-color: rgba(224, 75, 75, 0.1);
-    color: var(--Error);
+    border: 1px solid var(--danger);
+    background-color: var(--danger-soft);
+    color: var(--danger-text);
     font-weight: 600;
     text-align: center;
 }
@@ -111,9 +113,9 @@ label:hover{
     margin: 0 0 12px;
     padding: 10px 14px;
     border-radius: 8px;
-    border: 1px solid var(--Sucess);
-    background-color: rgba(33, 163, 102, 0.1);
-    color: var(--Sucess);
+    border: 1px solid var(--success);
+    background-color: var(--success-soft);
+    color: var(--success-text);
     font-weight: 600;
     text-align: center;
 }

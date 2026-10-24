@@ -4,10 +4,10 @@
     gap: 12px;
     align-items: end;
     padding: 16px;
-    background: #ffffff;
-    border: 1px solid var(--Border);
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 14px;
-    box-shadow: 0 4px 20px rgba(30, 15, 50, 0.05);
+    box-shadow: 0 4px 20px var(--shadow-color-soft);
 }
 
 .logs-filter-field {
@@ -22,7 +22,7 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.03em;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
 }
 
 .logs-filter-field input,
@@ -30,10 +30,10 @@
     width: 100%;
     box-sizing: border-box;
     padding: 10px 12px;
-    border: 1px solid var(--Border);
+    border: 1px solid var(--input-border);
     border-radius: 9px;
-    background: #ffffff;
-    color: var(--Principal-text);
+    background: var(--input-bg);
+    color: var(--text);
     font-size: var(--text-sm);
     font-family: inherit;
     outline: none;
@@ -41,8 +41,8 @@
 
 .logs-filter-field input:focus,
 .logs-filter-field select:focus {
-    border-color: var(--Primary-faces);
-    box-shadow: 0 0 0 3px rgba(109, 53, 200, 0.1);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
 .logs-filter-actions {
@@ -63,7 +63,7 @@
 
 .logs-user-cell small {
     padding-left: 20px;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: var(--text-xs);
 }
 
@@ -75,7 +75,7 @@
 }
 
 .logs-user svg {
-    color: var(--Primary-faces);
+    color: var(--primary-text);
 }
 
 .logs-motivo-cell {
@@ -100,9 +100,9 @@
     flex-direction: column;
     gap: 3px;
     padding: 10px 12px;
-    border: 1px solid var(--Border);
+    border: 1px solid var(--border);
     border-radius: 10px;
-    background: var(--backdrop);
+    background: var(--surface-tint);
 }
 
 .logs-detail-grid span,
@@ -111,18 +111,18 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.03em;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
 }
 
 .logs-detail-grid strong {
     font-size: var(--text-sm);
-    color: var(--Principal-text);
+    color: var(--text);
 }
 
 .logs-detail-motivo p {
     margin: 4px 0 0;
     font-size: var(--text-sm);
-    color: var(--Principal-text);
+    color: var(--text);
 }
 
 .logs-json-grid {
@@ -138,7 +138,7 @@
 .logs-json-grid h3 {
     margin: 0 0 6px;
     font-size: var(--text-sm);
-    color: var(--Principal-text);
+    color: var(--text);
 }
 
 .logs-json-grid pre {
@@ -147,8 +147,8 @@
     max-height: 320px;
     overflow: auto;
     border-radius: 10px;
-    background: #1f1b28;
-    color: #e9e3f5;
+    background: var(--code-bg);
+    color: var(--code-text);
     font-family: "JetBrains Mono", monospace;
     font-size: 12px;
     line-height: 1.5;
