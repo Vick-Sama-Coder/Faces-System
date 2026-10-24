@@ -176,7 +176,7 @@ Legenda: ✅ implementado · ⚠️ implementado com desvio/lacuna · ❌ não i
 | **RF12 — Levantamentos** | ✅ | `services/caixa.js` | Valor, descrição/motivo, utilizador, sessão, data/hora e estado (`Ativo`). |
 | **RF13 — Despesas** | ✅ | `services/despesa.js` | Registo com itens ou total, categoria, método, caixa de origem e comprovativo; gera saída no caixa; audita. |
 | **RF14 — Funcionários** | ✅ | `controller/funcionario.js` | Dados, salário, comissão, conta associada e ativação/desativação sem apagar histórico. |
-| **RF15 — Horários** | ⚠️ | `controller/horario.js` | Programação semanal, substituição transacional e campos de vigência (`data_inicio_vigencia`/`data_fim_vigencia`) OK. **Não** guarda histórico das alterações (a substituição apaga as linhas anteriores); turnos rotativos ficam para decisão (§16.7). |
+| **RF15 — Horários** | ⚠️ | `controller/horario.js` | Programação semanal e substituição transacional OK. **Não** guarda histórico das alterações (a substituição apaga as linhas anteriores); turnos rotativos ficam para decisão (§16.7). |
 | **RF16 — Assiduidade** | ✅ | `controller/assiduidade.js` | Tipos de ocorrência, horas reais, correção com antes/depois na auditoria. |
 | **RF17 — Salários** | ✅ | `services/salario.js` | Base + comissões − deduções, estados `Preparado → Aprovado → Pago`, data de pagamento e só funcionários ativos. |
 | **RF18 — Comissões** | ✅ | `repository/comissao.js` | 30% por omissão (ou taxa do funcionário/serviço), sobre `valor_final` após desconto, só com pagamento liquidado; consulta por funcionário/período. |
@@ -549,15 +549,13 @@ configuração → `400` (`field: "servico_id"`).
 | PUT | `/funcionarios/:id/horarios` | `horarios:gerir` | `200` lista substituída |
 
 `dia_semana`: `0` = Domingo … `6` = Sábado. `hora_entrada`/`hora_saida` em `HH:MM`.
-Opcionalmente, `data_inicio_vigencia` e `data_fim_vigencia` (`AAAA-MM-DD`); se a data de
-início for omitida, assume a data atual.
 
 ```bash
 curl -s -b "$JAR" -X POST "$BASE/funcionarios/1/horarios" \
   -H 'Content-Type: application/json' \
   -d '{"dia_semana":1,"hora_entrada":"09:00","hora_saida":"17:00"}'
 # 201 {id, funcionario_id:1, dia_semana:1, hora_entrada:"09:00:00", hora_saida:"17:00:00",
-#      data_inicio_vigencia:"2026-10-18", data_fim_vigencia:null, estado:"Ativo"}
+#      estado:"Ativo"}
 
 curl -s -b "$JAR" -X PUT "$BASE/funcionarios/1/horarios" \
   -H 'Content-Type: application/json' -d '{

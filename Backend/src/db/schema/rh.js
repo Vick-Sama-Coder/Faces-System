@@ -36,8 +36,6 @@ export const horarioFuncionario = pgTable('horario_funcionario', {
     dia_semana: integer('dia_semana').notNull(),
     hora_entrada: time('hora_entrada').notNull(),
     hora_saida: time('hora_saida').notNull(),
-    data_inicio_vigencia: date('data_inicio_vigencia').notNull().default(sql`current_date`),
-    data_fim_vigencia: date('data_fim_vigencia'),
     estado: varchar('estado', { length: 20 }).notNull().default('Ativo')
 }, (table) => [
     check('horario_funcionario_dia_semana_check', sql`${table.dia_semana} between 0 and 6`)

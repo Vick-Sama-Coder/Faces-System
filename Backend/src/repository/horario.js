@@ -1,4 +1,4 @@
-import { asc, eq, sql } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import db from '../db/client.js';
 import { horarioFuncionario } from '../db/schema/index.js';
 
@@ -8,8 +8,6 @@ const campos = {
     dia_semana: horarioFuncionario.dia_semana,
     hora_entrada: horarioFuncionario.hora_entrada,
     hora_saida: horarioFuncionario.hora_saida,
-    data_inicio_vigencia: horarioFuncionario.data_inicio_vigencia,
-    data_fim_vigencia: horarioFuncionario.data_fim_vigencia,
     estado: horarioFuncionario.estado
 };
 
@@ -23,18 +21,14 @@ const findByFuncionario = async (funcionario_id) => {
 const create = async (funcionario_id, {
     dia_semana,
     hora_entrada,
-    hora_saida,
-    data_inicio_vigencia,
-    data_fim_vigencia
+    hora_saida
 }) => {
     const [linha] = await db.insert(horarioFuncionario)
         .values({
             funcionario_id,
             dia_semana,
             hora_entrada,
-            hora_saida,
-            data_inicio_vigencia: data_inicio_vigencia ?? sql`current_date`,
-            data_fim_vigencia: data_fim_vigencia ?? null
+            hora_saida
         })
         .returning(campos);
 
@@ -56,9 +50,7 @@ const substituir = async (funcionario_id, horarios) => {
                 funcionario_id,
                 dia_semana: horario.dia_semana,
                 hora_entrada: horario.hora_entrada,
-                hora_saida: horario.hora_saida,
-                data_inicio_vigencia: horario.data_inicio_vigencia ?? sql`current_date`,
-                data_fim_vigencia: horario.data_fim_vigencia ?? null
+                hora_saida: horario.hora_saida
             }))
         );
     });

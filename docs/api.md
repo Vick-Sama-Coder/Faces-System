@@ -361,7 +361,7 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 - `GET /api/funcionarios/:id/horarios` 🔒 — programação do funcionário (`404` se o
   funcionário não existir)
 - `POST /api/funcionarios/:id/horarios` 🔒(`horarios:gerir`) — corpo:
-  `{ dia_semana, hora_entrada, hora_saida, data_inicio_vigencia?, data_fim_vigencia? }`. `201`
+  `{ dia_semana, hora_entrada, hora_saida }`. `201`
   - `dia_semana`: `0` = Domingo … `6` = Sábado
 - `PUT /api/funcionarios/:id/horarios` 🔒(`horarios:gerir`) — corpo:
   `{ horarios: [{ dia_semana, hora_entrada, hora_saida, ... }] }` — **substitui** toda a

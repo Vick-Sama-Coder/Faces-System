@@ -683,8 +683,7 @@ e aprovação (RF15–RF19, RN14–RN15, HU relacionadas).
 **Migrações**
 
 - `031_create_horario_funcionario.sql` — `horario_funcionario (id, funcionario_id FK,
-  dia_semana int, hora_entrada time, hora_saida time, data_inicio_vigencia,
-  data_fim_vigencia, estado)`.
+  dia_semana int, hora_entrada time, hora_saida time, estado)`.
 - `032_create_assiduidade.sql` — `assiduidade (id, funcionario_id FK, data,
   hora_entrada_real, hora_saida_real, tipo_ocorrencia
   ('atraso'|'falta_justificada'|'falta_injustificada'|'saida_antecipada'|'ausencia'|'sem_registo'),

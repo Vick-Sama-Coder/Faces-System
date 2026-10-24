@@ -93,7 +93,7 @@ materializadas com `npm run db:generate`.
 | `028_create_cartao_fidelizacao.sql` | `cartao_fidelizacao` | Um cartão por cliente (FK → `cliente`) |
 | `029_create_movimento_fidelizacao.sql` | `movimento_fidelizacao` | Marcas/benefícios; índice único parcial por `(atendimento_servico_id, tipo_movimento)` |
 | `030_ligacoes_despesa.sql` | — | FKs diferidas: `despesa` → `categoria_despesa`, `caixa_sessao`, `usuario` |
-| `031_create_horario_funcionario.sql` | `horario_funcionario` | Programação semanal (FK → `funcionario`); `dia_semana` 0–6, horas, vigência, `estado` |
+| `031_create_horario_funcionario.sql` | `horario_funcionario` | Programação semanal (FK → `funcionario`); `dia_semana` 0–6, horas, `estado` |
 | `032_create_assiduidade.sql` | `assiduidade` | Registo diário (FK → `funcionario`, `usuario`); índice único `(funcionario_id, data)` |
 | `033_create_processamento_salarial.sql` | `processamento_salarial` | Base + comissões − deduções; FK → `funcionario`, `usuario`; índice único `(funcionario_id, periodo_inicio, periodo_fim)` |
 | `034_create_deducao_salarial.sql` | `deducao_salarial` | Deduções do processamento (FK → `processamento_salarial` `on delete cascade`, `usuario`) |
@@ -192,8 +192,7 @@ aplicacao   (sem uso actual)
   `ciclo`, `registado_por`, `observacao`. Índice único parcial por
   `(atendimento_servico_id, tipo_movimento)`.
 - **`horario_funcionario`** — `id`, `funcionario_id` (FK), `dia_semana int` (`check 0–6`,
-  0 = Domingo), `hora_entrada time`, `hora_saida time`, `data_inicio_vigencia date`,
-  `data_fim_vigencia date`, `estado`.
+  0 = Domingo), `hora_entrada time`, `hora_saida time`, `estado`.
 - **`assiduidade`** — `id`, `funcionario_id` (FK), `data date`, `hora_entrada_real time`,
   `hora_saida_real time`, `tipo_ocorrencia`
   (`atraso`/`falta_justificada`/`falta_injustificada`/`saida_antecipada`/`ausencia`/`sem_registo`),
