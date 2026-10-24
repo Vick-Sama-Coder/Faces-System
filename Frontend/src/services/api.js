@@ -333,6 +333,10 @@ export const substituirHorariosFuncionario = (funcionarioId, horarios) => {
     return server.put(`api/funcionarios/${funcionarioId}/horarios`, { horarios });
 };
 
+export const deleteHorarioFuncionario = (funcionarioId, horarioId) => {
+    return server.delete(`api/funcionarios/${funcionarioId}/horarios/${horarioId}`);
+};
+
 //---- assiduidade ----
 export const getAssiduidade = (params) => {
     return server.get("api/assiduidade", { params });
@@ -349,6 +353,12 @@ export const updateAssiduidade = (id, data) => {
 //---- salarios ----
 export const getProcessamentos = (params) => {
     return server.get("api/salarios/processamentos", { params });
+};
+
+
+
+export const getProcessamentosFuncionario = (funcionarioId, params) => {
+    return server.get("api/salarios/processamentos", { params: { funcionario: funcionarioId, ...params } });
 };
 
 export const getProcessamentoById = (id) => {
