@@ -346,13 +346,27 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 ## Fidelização — `/api/clientes/:id/fidelizacao`
 
 - `GET /api/clientes/:id/fidelizacao` 🔒 — progresso:
-  `{ ciclo_atual, meta, marcas_no_ciclo, beneficios_disponiveis, beneficios_utilizados, historico }`
+  `{ ciclo_atual, meta, marcas_no_ciclo, beneficios_disponiveis, beneficios_utilizados, historico }`.
+  Cada item do `historico` inclui `origem` (`atendimento` | `manual`).
 - `POST /api/clientes/:id/fidelizacao/correcao` 🔒(`fidelizacao:corrigir`) — corpo:
   `{ tipo_movimento?, ciclo?, observacao? }`
+- `POST /api/clientes/:id/fidelizacao/marcas` 🔒👑 — preenchimento manual de cartões físicos.
+  Corpo: `{ quantidade: 1..20, confirmar_beneficio?: boolean }`. Insere as marcas no ciclo
+  actual através do mesmo serviço usado pelo atendimento. Se a operação gerar benefícios e
+  `confirmar_beneficio` não for `true`, devolve `409` com
+  `{ requer_confirmacao: true, beneficios_a_gerar, marcas_no_ciclo, marcas_apos }`.
+- `DELETE /api/clientes/:id/fidelizacao/marcas/:movimentoId` 🔒👑 — remove uma marca manual.
+  Se a marca tiver completado um ciclo, o benefício manual correspondente é removido e as
+  marcas seguintes são recalculadas. É bloqueado (`409`) se o benefício já foi utilizado ou
+  se existirem marcas de atendimento no mesmo ciclo ou em ciclos posteriores.
+- `POST /api/clientes/:id/fidelizacao/beneficios/utilizar` 🔒👑 — corpo: `{ observacao? }`.
+  Consome um benefício disponível, sem criar marca. `409` se não existirem benefícios.
 
-> Só serviços com `elegivel_fidelizacao` contam. Uma marca por cliente por dia; ao 5.º
-> corte do ciclo gera-se um benefício (acumulam). Um corte gratuito consome um benefício
-> e conta para o ciclo seguinte. A geração é idempotente por `atendimento_servico_id`.
+> Só serviços com `elegivel_fidelizacao` contam. Marcas de atendimento contam uma vez por
+> dia (RN17); marcas manuais contam individualmente e entram no mesmo ciclo. Ao 5.º
+> movimento do ciclo gera-se um benefício (acumulam), seja a marca manual ou de
+> atendimento. Um corte gratuito consome um benefício e conta para o ciclo seguinte. A
+> geração é idempotente por `atendimento_servico_id`.
 
 ---
 

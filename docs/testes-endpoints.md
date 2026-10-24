@@ -919,6 +919,9 @@ categoria/produto inexistente → `400`; editar sem nenhum campo → `400`.
 | --- | --- | --- | --- |
 | GET | `/clientes/:id/fidelizacao` | autenticado | `200` progresso / `404` cliente |
 | POST | `/clientes/:id/fidelizacao/correcao` | `fidelizacao:corrigir` | `200` progresso + auditoria |
+| POST | `/clientes/:id/fidelizacao/marcas` | Administrador | `200` progresso + marcas / `409` se exigir confirmação |
+| DELETE | `/clientes/:id/fidelizacao/marcas/:movimentoId` | Administrador | `200` progresso / `409` se houver dependências |
+| POST | `/clientes/:id/fidelizacao/beneficios/utilizar` | Administrador | `200` progresso / `409` sem benefícios |
 
 ```bash
 curl -s -b "$JAR" "$BASE/clientes/1/fidelizacao"
@@ -936,7 +939,7 @@ Esperado `200`:
   "beneficios_disponiveis": 0,
   "beneficios_utilizados": 0,
   "historico": [
-    { "tipo_movimento": "marca", "ciclo": 1, "data_hora": "..." }
+    { "tipo_movimento": "marca", "origem": "atendimento", "ciclo": 1, "data_hora": "..." }
   ]
 }
 ```
@@ -964,6 +967,39 @@ curl -s -b "$JAR" -X POST "$BASE/clientes/1/fidelizacao/correcao" \
 curl -s -b "$JAR" "$BASE/auditoria?entidade=fidelizacao"
 # 200 [{tipo_operacao:"corrigir", ...}]
 ```
+
+**Preenchimento manual (Administrador)**
+
+```bash
+# 2 marcas manuais (sem gerar benefício)
+curl -s -b "$JAR" -X POST "$BASE/clientes/1/fidelizacao/marcas" \
+  -H 'Content-Type: application/json' \
+  -d '{"quantidade":2}'
+# 200 { marcas_no_ciclo:2, beneficios_gerados:0, ... }
+
+# mais 3 marcas: o 5.º movimento gera benefício -> 409 se não confirmar
+curl -s -b "$JAR" -X POST "$BASE/clientes/1/fidelizacao/marcas" \
+  -H 'Content-Type: application/json' \
+  -d '{"quantidade":3}'
+# 409 { requer_confirmacao:true, beneficios_a_gerar:1, marcas_no_ciclo:2, marcas_apos:5 }
+
+curl -s -b "$JAR" -X POST "$BASE/clientes/1/fidelizacao/marcas" \
+  -H 'Content-Type: application/json' \
+  -d '{"quantidade":3,"confirmar_beneficio":true}'
+# 200 { ciclo_atual:2, marcas_no_ciclo:0, beneficios_disponiveis:1, beneficios_gerados:1 }
+
+# remover uma marca manual (só funciona sem atendimentos/benefícios utilizados dependentes)
+curl -s -b "$JAR" -X DELETE "$BASE/clientes/1/fidelizacao/marcas/123"
+# 200 progresso actualizado
+
+# consumir um benefício disponível
+curl -s -b "$JAR" -X POST "$BASE/clientes/1/fidelizacao/beneficios/utilizar" \
+  -H 'Content-Type: application/json' -d '{}'
+# 200 { beneficios_disponiveis:0, ... }
+```
+
+> Um utilizador sem perfil `Administrador` recebe `403` nas três rotas de preenchimento
+> manual, mesmo que tenha `clientes:escrever`.
 
 ---
 

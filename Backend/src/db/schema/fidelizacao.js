@@ -24,6 +24,8 @@ export const movimentoFidelizacao = pgTable('movimento_fidelizacao', {
     cartao_id: integer('cartao_id').notNull().references(() => cartaoFidelizacao.id),
     atendimento_servico_id: integer('atendimento_servico_id').references(() => atendimentoServico.id),
     tipo_movimento: varchar('tipo_movimento', { length: 30 }).notNull(),
+    // 'atendimento' = marca gerada por um corte; 'manual' = preenchimento pelo administrador.
+    origem: varchar('origem', { length: 20 }).notNull().default('atendimento'),
     data_hora: timestamp('data_hora').notNull().defaultNow(),
     ciclo: integer('ciclo').notNull().default(1),
     registado_por: integer('registado_por').references(() => usuario.id),

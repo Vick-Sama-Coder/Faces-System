@@ -98,6 +98,9 @@ materializadas com `npm run db:generate`.
 | `033_create_processamento_salarial.sql` | `processamento_salarial` | Base + comissões − deduções; FK → `funcionario`, `usuario`; índice único `(funcionario_id, periodo_inicio, periodo_fim)` |
 | `034_create_deducao_salarial.sql` | `deducao_salarial` | Deduções do processamento (FK → `processamento_salarial` `on delete cascade`, `usuario`) |
 | `035_create_log_auditoria.sql` | `log_auditoria` | Registo auditável (append-only); FK → `usuario`; trigger bloqueia `UPDATE`/`DELETE` |
+| `036_usuario_nome_unico.sql` | — | Unicidade do nome de utilizador |
+| `037_create_recuperacao_senha.sql` | `recuperacao_senha` | Códigos de recuperação de senha |
+| `038_add_origem_movimento_fidelizacao.sql` | `movimento_fidelizacao` | `origem` (`atendimento`/`manual`) para distinguir marcas de atendimento das introduzidas pelo administrador |
 | `036_usuario_nome_unico.sql` | — | Índice único em `usuario (lower(nome))`: o nome de utilizador passa a ser único (identificador de acesso) |
 | `037_create_recuperacao_senha.sql` | `recuperacao_senha` | Códigos de recuperação (hash, validade, uso único, tentativas); FK → `usuario` |
 
@@ -188,9 +191,11 @@ aplicacao   (sem uso actual)
   `estado`.
 - **`cartao_fidelizacao`** — `id`, `cliente_id` (FK, único), `data_ativacao`, `estado`.
 - **`movimento_fidelizacao`** — `id`, `cartao_id` (FK), `atendimento_servico_id` (FK),
-  `tipo_movimento` (`marca`/`beneficio_ganho`/`beneficio_utilizado`/`correcao`), `data_hora`,
-  `ciclo`, `registado_por`, `observacao`. Índice único parcial por
-  `(atendimento_servico_id, tipo_movimento)`.
+  `tipo_movimento` (`marca`/`beneficio_ganho`/`beneficio_utilizado`/`correcao`),
+  `origem` (`atendimento`/`manual`), `data_hora`, `ciclo`, `registado_por`, `observacao`.
+  Índice único parcial por `(atendimento_servico_id, tipo_movimento)`.
+  Marcas de `origem = 'atendimento'` contam por dia; marcas `manual` contam
+  individualmente.
 - **`horario_funcionario`** — `id`, `funcionario_id` (FK), `dia_semana int` (`check 0–6`,
   0 = Domingo), `hora_entrada time`, `hora_saida time`, `estado`.
 - **`assiduidade`** — `id`, `funcionario_id` (FK), `data date`, `hora_entrada_real time`,

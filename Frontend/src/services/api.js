@@ -121,6 +121,19 @@ export const getFidelizacao = (clienteId) => {
     return server.get(`api/clientes/${clienteId}/fidelizacao`);
 };
 
+//fidelizacao: preenchimento manual do cartao (exclusivo do Administrador)
+export const marcarFidelizacaoManual = (clienteId, data) => {
+    return server.post(`api/clientes/${clienteId}/fidelizacao/marcas`, data);
+};
+
+export const removerMarcaFidelizacaoManual = (clienteId, movimentoId) => {
+    return server.delete(`api/clientes/${clienteId}/fidelizacao/marcas/${movimentoId}`);
+};
+
+export const registarBeneficioFidelizacaoManual = (clienteId, data = {}) => {
+    return server.post(`api/clientes/${clienteId}/fidelizacao/beneficios/utilizar`, data);
+};
+
 //clientes: listar todos
 export const getClientes = () => {
     return server.get("api/clientes");

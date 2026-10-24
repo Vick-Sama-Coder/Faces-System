@@ -649,6 +649,8 @@ O sistema deverá permitir consultar o progresso do cartão, os benefícios disp
 
 As correções de marcas e benefícios apenas poderão ser realizadas por utilizadores autorizados, ficando registadas na auditoria.
 
+O administrador poderá preencher manualmente o cartão de clientes que já possuíam um cartão físico antes da entrada em funcionamento do sistema. As marcas manuais entram no ciclo actual e contam individualmente; o 5.º movimento do ciclo gera o benefício, quer seja uma marca manual quer seja uma marca de atendimento. A remoção de marcas manuais fica limitada às que não tenham atendimentos ou benefícios utilizados dependentes.
+
 A implementação deverá distinguir o histórico real dos cortes, as marcas visíveis e o progresso interno do ciclo de fidelização. Essa separação é necessária para respeitar a regra de que um corte gratuito contribui para o ciclo seguinte sem produzir uma nova marca visível.
 
 ## RF21 — Relatórios operacionais e financeiros

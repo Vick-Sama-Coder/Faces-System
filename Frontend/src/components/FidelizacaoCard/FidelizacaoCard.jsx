@@ -1,7 +1,13 @@
 import { Heart, Gift, Sparkles } from "lucide-react"
 import "./FidelizacaoCard.css"
 
-function FidelizacaoCard({ fidelizacao, loading = false, compact = false, title = "Cartao de fidelizacao" }) {
+function FidelizacaoCard({
+    fidelizacao,
+    loading = false,
+    compact = false,
+    title = "Cartao de fidelizacao",
+    emptyHint = "O cartao e criado automaticamente no primeiro servico elegivel para fidelizacao."
+}) {
     const meta = Number(fidelizacao?.meta) || 5
     const marcas = Number(fidelizacao?.marcas_no_ciclo) || 0
     const beneficios = Number(fidelizacao?.beneficios_disponiveis) || 0
@@ -46,7 +52,7 @@ function FidelizacaoCard({ fidelizacao, loading = false, compact = false, title 
                         ? beneficios > 0
                             ? `Tem ${beneficios} beneficio${beneficios > 1 ? "s" : ""} disponivel${beneficios > 1 ? "eis" : ""} para utilizar no proximo corte.`
                             : `Faltam ${Math.max(meta - marcas, 0)} marca${meta - marcas === 1 ? "" : "s"} para ganhar um corte gratuito.`
-                        : "O cartao e criado automaticamente no primeiro servico elegivel para fidelizacao."}
+                        : emptyHint}
                 </p>
             )}
         </section>

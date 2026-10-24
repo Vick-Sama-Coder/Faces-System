@@ -647,8 +647,11 @@ saldo esperado, contagem física e fecho diário (RF10–RF13, RN09–RN13, HU-1
   data_ativacao, estado)`.
 - `029_create_movimento_fidelizacao.sql` — `movimento_fidelizacao (id, cartao_id FK,
   atendimento_servico_id null, tipo_movimento
-  ('marca'|'beneficio_ganho'|'beneficio_utilizado'|'correcao'), data_hora, ciclo int,
-  registado_por, observacao)`; índice único parcial `(atendimento_servico_id, tipo_movimento)`.
+  ('marca'|'beneficio_ganho'|'beneficio_utilizado'|'correcao'), origem
+  ('atendimento'|'manual'), data_hora, ciclo int, registado_por, observacao)`; índice único
+  parcial `(atendimento_servico_id, tipo_movimento)`.
+- `038_add_origem_movimento_fidelizacao.sql` — adiciona `origem` para distinguir as marcas
+  de atendimento das introduzidas manualmente pelo administrador.
 - `002_create_servico.sql` (editado) — `elegivel_fidelizacao boolean` marca os serviços
   que contam (cortes).
 
@@ -658,10 +661,15 @@ saldo esperado, contagem física e fecho diário (RF10–RF13, RN09–RN13, HU-1
 | --- | --- | --- | --- |
 | GET | `/api/clientes/:id/fidelizacao` | autenticado | Progresso + benefícios disponíveis/utilizados |
 | POST | `/api/clientes/:id/fidelizacao/correcao` | `fidelizacao:corrigir` | Correção autorizada |
+| POST | `/api/clientes/:id/fidelizacao/marcas` | Administrador | Preenchimento manual de cartões físicos (1–20 marcas) |
+| DELETE | `/api/clientes/:id/fidelizacao/marcas/:movimentoId` | Administrador | Remove marca manual e recalcula o trecho manual |
+| POST | `/api/clientes/:id/fidelizacao/beneficios/utilizar` | Administrador | Consome um benefício disponível |
 
 **Regras de negócio**
 
-- Uma marca por cliente por dia, mesmo com vários cortes (RN17).
+- Uma marca de atendimento por cliente por dia, mesmo com vários cortes (RN17).
+- Marcas manuais entram no mesmo ciclo e contam individualmente; o 5.º movimento do ciclo
+  gera benefício independentemente de ser manual ou de atendimento.
 - Ao 5.º corte elegível → 1 benefício gratuito (RN18); benefícios **acumulam** (RN19).
 - Corte gratuito conta para o ciclo seguinte **sem** gerar marca visível (RN20).
 - Distinguir histórico real de cortes, marcas visíveis e progresso do ciclo.

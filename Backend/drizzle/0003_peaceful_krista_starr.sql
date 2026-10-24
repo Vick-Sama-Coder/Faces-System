@@ -1,0 +1,1 @@
+ALTER TABLE "movimento_fidelizacao" ADD COLUMN "origem" varchar(20) DEFAULT 'atendimento' NOT NULL;

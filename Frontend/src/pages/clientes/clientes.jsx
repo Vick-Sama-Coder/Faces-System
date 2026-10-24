@@ -1,6 +1,7 @@
 import SideBar from "../../components/sidebar/siderbar"
 import Headers from "../../components/headers/header.jsx"
 import ClientModal from "../../components/Modals/ClientModal/ClientModal.jsx"
+import CartaoClienteModal from "../../components/Modals/CartaoClienteModal/CartaoClienteModal.jsx"
 import ConfirmDialog from "../../components/ConfirmDialog/ConfirmDialog.jsx"
 import DataGrid from "../../components/DataGrid/DataGrid.jsx"
 import "./clientes.css"
@@ -14,6 +15,7 @@ import {
     Clock,
     Download,
     Edit3,
+    Heart,
     Phone,
     Plus,
     Power,
@@ -95,10 +97,21 @@ function SaldoCell({ value }) {
     )
 }
 
-function AcoesCell({ data, onEditar, onAlternar }) {
+function AcoesCell({ data, onEditar, onAlternar, onCartao, podeCartao }) {
     const ativo = (data.estado || "Ativo") === "Ativo"
     return (
         <div className="mgmt-row-actions">
+            {podeCartao && (
+                <button
+                    type="button"
+                    className="mgmt-row-btn warning"
+                    onClick={() => onCartao(data)}
+                    title="Cartão de cliente"
+                    aria-label={`Abrir cartão de ${data.nome}`}
+                >
+                    <Heart size={16} />
+                </button>
+            )}
             <button
                 type="button"
                 className="mgmt-row-btn edit"
@@ -124,12 +137,15 @@ function AcoesCell({ data, onEditar, onAlternar }) {
 function Clientes() {
     const { user } = useAuthStore()
     const podeEscrever = user?.permissoes?.includes("clientes:escrever")
+    const isAdmin = user?.perfil === "Administrador"
+    const podeGerirCartao = podeEscrever && isAdmin
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [clientes, setClientes] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingCliente, setEditingCliente] = useState(null)
+    const [cartaoCliente, setCartaoCliente] = useState(null)
     const [searchTerm, setSearchTerm] = useState("")
     const [estadoFiltro, setEstadoFiltro] = useState("Todos")
     const [confirmacao, setConfirmacao] = useState(null)
@@ -175,6 +191,10 @@ function Clientes() {
     const handleEditarCliente = useCallback((cliente) => {
         setEditingCliente(cliente)
         setIsModalOpen(true)
+    }, [])
+
+    const handleCartaoCliente = useCallback((cliente) => {
+        setCartaoCliente(cliente)
     }, [])
 
     const handleAlternarEstado = useCallback((cliente) => {
@@ -275,9 +295,9 @@ function Clientes() {
                 headerName: "Ações",
                 colId: "acoes",
                 flex: 0,
-                width: 102,
-                minWidth: 102,
-                maxWidth: 102,
+                width: podeGerirCartao ? 138 : 102,
+                minWidth: podeGerirCartao ? 138 : 102,
+                maxWidth: podeGerirCartao ? 138 : 102,
                 pinned: "right",
                 sortable: false,
                 filter: false,
@@ -285,13 +305,15 @@ function Clientes() {
                 cellRenderer: AcoesCell,
                 cellRendererParams: {
                     onEditar: handleEditarCliente,
-                    onAlternar: handleAlternarEstado
+                    onAlternar: handleAlternarEstado,
+                    onCartao: handleCartaoCliente,
+                    podeCartao: podeGerirCartao
                 }
             })
         }
 
         return columns
-    }, [podeEscrever, handleEditarCliente, handleAlternarEstado])
+    }, [podeEscrever, podeGerirCartao, handleEditarCliente, handleAlternarEstado, handleCartaoCliente])
 
     function limparFiltros() {
         setSearchTerm("")
@@ -321,6 +343,14 @@ function Clientes() {
                     cliente={editingCliente}
                     onclose={() => setIsModalOpen(false)}
                     onSuccess={handleSucesso}
+                />
+            )}
+
+            {cartaoCliente && (
+                <CartaoClienteModal
+                    key={cartaoCliente.id}
+                    cliente={cartaoCliente}
+                    onclose={() => setCartaoCliente(null)}
                 />
             )}
 
