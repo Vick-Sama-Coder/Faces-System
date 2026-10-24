@@ -27,6 +27,8 @@ export async function authenticate(req, res, next){
             id_perfil: usuario.id_perfil,
             estado: usuario.estado,
             alteracao_obrigatoria_senha: usuario.alteracao_obrigatoria_senha,
+            ultimo_acesso: usuario.ultimo_acesso,
+            data_criacao: usuario.data_criacao,
             perfil: perfil.nome
         })
             .from(usuario)
@@ -53,6 +55,8 @@ export async function authenticate(req, res, next){
             perfil: user.perfil,
             estado: user.estado,
             alteracao_obrigatoria_senha: user.alteracao_obrigatoria_senha,
+            ultimo_acesso: user.ultimo_acesso,
+            data_criacao: user.data_criacao,
             permissoes
         };
 

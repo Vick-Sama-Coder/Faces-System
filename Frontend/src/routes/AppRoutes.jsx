@@ -14,14 +14,18 @@ import Categorias from "../pages/categorias/categorias.jsx"
 import Logs from "../pages/logs/logs.jsx"
 import GestaoUtilizadores from "../pages/admin/GestaoUtilizadores.jsx"
 import Permissoes from "../pages/admin/Permissoes.jsx"
+import Perfil from "../pages/perfil/Perfil.jsx"
 import { RequireAuth, RequirePermission, RedirectIfAuth } from "./RequireAuth.jsx"
 
 
 export default function AppRoutes(){
     return(
         <Routes>
-            {/* --- dashboard e o index: unica rota protegida por sessao --- */}
+            {/* --- dashboard e o index: rota protegida por sessao --- */}
             <Route path='/' element={<RequireAuth><DashBoard/></RequireAuth>}/>
+
+            {/* --- conta do utilizador autenticado --- */}
+            <Route path="/perfil" element={<RequireAuth><Perfil/></RequireAuth>}/>
 
             {/* --- rotas publicas de auth --- */}
             <Route path="/login" element={<RedirectIfAuth><Home/></RedirectIfAuth>}/>

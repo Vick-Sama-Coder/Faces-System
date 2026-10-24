@@ -8,9 +8,9 @@ header.app-header {
     min-height: 60px;
     gap: 18px;
     padding: 0 24px;
-    background: linear-gradient(90deg, #ffffff 0%, #fcfaff 100%);
-    border-bottom: 1px solid var(--Border);
-    box-shadow: 0 8px 24px rgba(23, 21, 31, 0.035);
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 8px 24px var(--shadow-color-soft);
     flex-shrink: 0;
     font-family: "Inter", sans-serif;
     margin-left: 20px;
@@ -25,7 +25,7 @@ header.app-header {
     gap: 12px;
     min-width: 0;
     padding: 0;
-    color: var(--Principal-text);
+    color: var(--text);
 }
 
 .app-header .app-header-menu {
@@ -36,17 +36,17 @@ header.app-header {
     width: 38px;
     height: 38px;
     padding: 0;
-    border: 1px solid var(--Border);
+    border: 1px solid var(--border);
     border-radius: 11px;
-    background: var(--backdrop);
-    color: var(--Primary-faces);
+    background: var(--surface-tint);
+    color: var(--primary-text);
     cursor: pointer;
     transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
 .app-header .app-header-menu:hover {
-    background: rgba(109, 53, 200, 0.12);
-    border-color: rgba(109, 53, 200, 0.25);
+    background: var(--primary-soft);
+    border-color: var(--primary-border);
 }
 
 .app-header .app-header-menu:active {
@@ -59,8 +59,8 @@ header.app-header {
     width: 4px;
     height: 30px;
     border-radius: 999px;
-    background: linear-gradient(180deg, var(--Primary-faces), var(--Accent));
-    box-shadow: 0 4px 12px rgba(109, 53, 200, 0.25);
+    background: linear-gradient(180deg, var(--primary), var(--accent));
+    box-shadow: 0 4px 12px var(--primary-border);
 }
 
 .app-header-title-text {
@@ -71,7 +71,7 @@ header.app-header {
 
 .app-header-kicker {
     margin-bottom: 2px;
-    color: var(--Primary-faces);
+    color: var(--primary-text);
     font-size: 0.58rem;
     font-weight: 800;
     line-height: 1;
@@ -82,7 +82,7 @@ header.app-header {
 .app-header-title h1 {
     margin: 0;
     overflow: hidden;
-    color: var(--Principal-text);
+    color: var(--text);
     font-family: "Manrope", sans-serif;
     font-size: var(--text-lg);
     font-weight: 800;
@@ -101,7 +101,7 @@ header.app-header {
     flex: 0 0 auto;
     margin: 0;
     padding: 0;
-    color: var(--Principal-text);
+    color: var(--text);
     cursor: default;
 }
 
@@ -112,10 +112,10 @@ header.app-header {
     flex: 0 0 auto;
     width: 38px;
     height: 38px;
-    border: 1px solid var(--Border);
+    border: 1px solid var(--border);
     border-radius: 11px;
-    background: #ffffff;
-    color: var(--Secundary-text);
+    background: var(--surface);
+    color: var(--text-muted);
 }
 
 .app-header-divider {
@@ -123,7 +123,7 @@ header.app-header {
     flex: 0 0 auto;
     width: 1px;
     height: 28px;
-    background: var(--Border);
+    background: var(--border);
 }
 
 .app-header .app-header-profile {
@@ -133,9 +133,26 @@ header.app-header {
     gap: 10px;
     min-width: 0;
     padding: 4px 12px 4px 4px;
-    border: 1px solid var(--Border);
+    border: 1px solid var(--border);
     border-radius: 999px;
-    background: #ffffff;
+    background: var(--surface);
+}
+
+.app-header .app-header-profile-link {
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.app-header .app-header-profile-link:hover {
+    border-color: var(--primary-border);
+    background: var(--surface-hover);
+}
+
+.app-header .app-header-profile-link:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
 }
 
 .app-header-avatar {
@@ -146,15 +163,15 @@ header.app-header {
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--Primary-faces), var(--Accent));
-    color: #ffffff;
+    background: var(--brand-gradient);
+    color: var(--on-primary);
     font-family: "Manrope", sans-serif;
     font-size: var(--text-sm);
     font-weight: 800;
     letter-spacing: 0.02em;
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.3),
-        0 4px 10px rgba(109, 53, 200, 0.22);
+        inset 0 1px 0 var(--on-primary-soft),
+        0 4px 10px var(--primary-soft-strong);
 }
 
 .app-header-identity {
@@ -167,7 +184,7 @@ header.app-header {
 
 .app-header-name {
     overflow: hidden;
-    color: var(--Principal-text);
+    color: var(--text);
     font-size: var(--text-sm);
     font-weight: 700;
     line-height: 1.15;
@@ -177,7 +194,7 @@ header.app-header {
 
 .app-header-role {
     overflow: hidden;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: 0.6rem;
     font-weight: 700;
     line-height: 1.2;
@@ -198,15 +215,15 @@ header.app-header {
     border: 1px solid transparent;
     border-radius: 11px;
     background: transparent;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     cursor: pointer;
     transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .app-header .app-header-logout:hover {
-    border-color: rgba(224, 75, 75, 0.18);
-    background: rgba(224, 75, 75, 0.08);
-    color: var(--Error);
+    border-color: var(--danger-soft-strong);
+    background: var(--danger-soft);
+    color: var(--danger-text);
 }
 
 .app-header .app-header-logout:active {
@@ -215,7 +232,7 @@ header.app-header {
 
 .app-header .app-header-menu:focus-visible,
 .app-header-logout:focus-visible {
-    outline: 2px solid var(--Primary-faces);
+    outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
 }
 
@@ -271,6 +288,7 @@ header.app-header {
 
 @media (prefers-reduced-motion: reduce) {
     .app-header .app-header-menu,
+    .app-header .app-header-profile-link,
     .app-header-logout {
         transition: none;
     }
@@ -280,12 +298,12 @@ header.app-header {
 
 .logout-icon{
     cursor: pointer;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     transition: color 0.2s;
 }
 .logout-icon:hover{
-    color: var(--Error);
+    color: var(--danger-text);
 }
 .txt-span{
-    padding-right:10px ;
+    padding-right: 10px ;
 }

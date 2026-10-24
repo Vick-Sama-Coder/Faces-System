@@ -2,36 +2,54 @@ import { useMemo } from "react"
 import { AgGridReact } from "ag-grid-react"
 import { AllCommunityModule, ModuleRegistry, themeQuartz } from "ag-grid-community"
 import { Inbox, Loader2 } from "lucide-react"
+import { useThemeStore } from "../../store/themeStore.js"
 import "./DataGrid.css"
 
 ModuleRegistry.registerModules([AllCommunityModule])
 
-const facesGridTheme = themeQuartz.withParams({
-    accentColor: "#6D35C8",
-    backgroundColor: "#FFFFFF",
-    foregroundColor: "#17151F",
-    borderColor: "#E5E3EA",
-    browserColorScheme: "light",
-    fontFamily: "Inter, sans-serif",
-    fontSize: 14,
-    headerBackgroundColor: "#FAF9FC",
-    headerTextColor: "#6F6B78",
-    headerFontFamily: "Manrope, sans-serif",
-    headerFontSize: 12,
-    headerFontWeight: 700,
-    rowHeight: 60,
-    headerHeight: 46,
-    wrapperBorderRadius: 16,
-    rowHoverColor: "#FAF8FE",
-    selectedRowBackgroundColor: "#F5F2FC",
-    oddRowBackgroundColor: "#FFFFFF",
-    cellHorizontalPadding: 16,
-    borderRadius: 10,
-    paginationPanelHeight: 54,
-    iconButtonColor: "#6F6B78",
-    iconButtonHoverColor: "#6D35C8",
-    iconButtonHoverBackgroundColor: "#F5F2FC"
-})
+const GRID_TOKEN_FALLBACKS = {
+    surface: "#FFFFFF",
+    text: "#17151F",
+    muted: "#6F6B78",
+    border: "#E5E3EA",
+    primary: "#6D35C8",
+    primaryText: "#6D35C8",
+    surfaceTint: "#F5F2FC",
+    tableHeader: "#FAF9FC",
+    rowHover: "#FAF8FE",
+    rowSelected: "#F5F2FC"
+}
+
+function getGridThemeParams() {
+    const styles = getComputedStyle(document.documentElement)
+    const token = (name, fallback) => styles.getPropertyValue(name).trim() || fallback
+
+    return {
+        accentColor: token("--primary", GRID_TOKEN_FALLBACKS.primary),
+        backgroundColor: token("--surface", GRID_TOKEN_FALLBACKS.surface),
+        foregroundColor: token("--text", GRID_TOKEN_FALLBACKS.text),
+        borderColor: token("--border", GRID_TOKEN_FALLBACKS.border),
+        fontFamily: "Inter, sans-serif",
+        fontSize: 14,
+        headerBackgroundColor: token("--table-header-bg", GRID_TOKEN_FALLBACKS.tableHeader),
+        headerTextColor: token("--text-muted", GRID_TOKEN_FALLBACKS.muted),
+        headerFontFamily: "Manrope, sans-serif",
+        headerFontSize: 12,
+        headerFontWeight: 700,
+        rowHeight: 60,
+        headerHeight: 46,
+        wrapperBorderRadius: 16,
+        rowHoverColor: token("--table-row-hover", GRID_TOKEN_FALLBACKS.rowHover),
+        selectedRowBackgroundColor: token("--table-row-selected", GRID_TOKEN_FALLBACKS.rowSelected),
+        oddRowBackgroundColor: token("--surface", GRID_TOKEN_FALLBACKS.surface),
+        cellHorizontalPadding: 16,
+        borderRadius: 10,
+        paginationPanelHeight: 54,
+        iconButtonColor: token("--text-muted", GRID_TOKEN_FALLBACKS.muted),
+        iconButtonHoverColor: token("--primary-text", GRID_TOKEN_FALLBACKS.primaryText),
+        iconButtonHoverBackgroundColor: token("--surface-tint", GRID_TOKEN_FALLBACKS.surfaceTint)
+    }
+}
 
 const defaultColDef = {
     flex: 1,
@@ -92,6 +110,14 @@ function DataGrid({
     pageSize = 10,
     className = ""
 }) {
+    const resolvedTheme = useThemeStore((state) => state.resolvedTheme)
+    const facesGridTheme = useMemo(
+        () => themeQuartz.withParams({
+            ...getGridThemeParams(),
+            browserColorScheme: resolvedTheme
+        }),
+        [resolvedTheme]
+    )
     const getRowId = useMemo(() => (params) => String(params.data?.id ?? params.rowIndex), [])
     const hasRows = rowData.length > 0
 

@@ -23,9 +23,10 @@ import {
     UserCheck,
     Users,
     UserX,
-    X
+    X,
+    Trash2
 } from "lucide-react"
-import { getClientes, updateClienteEstado, getApiError } from "../../services/api.js"
+import { getClientes, updateClienteEstado, getApiError, deleteCliente } from "../../services/api.js"
 import { useAuthStore } from "../../store/authStore.js"
 
 function formatarMoeda(valor) {
@@ -55,7 +56,7 @@ async function buscarClientes() {
 function ClienteCell({ data }) {
     return (
         <div className="mgmt-user-cell">
-            <span className="mgmt-avatar customer">{iniciais(data.nome, data.apelido)}</span>
+            <span className="mgmt-avatar customer name-icon">{iniciais(data.nome, data.apelido)}</span>
             <span className="mgmt-user-copy">
                 <strong>{data.nome} {data.apelido || ""}</strong>
                 <small>Cliente #{data.id}</small>
@@ -95,7 +96,7 @@ function SaldoCell({ value }) {
     )
 }
 
-function AcoesCell({ data, onEditar, onAlternar }) {
+function AcoesCell({ data, onEditar, onAlternar, onApagar }) {
     const ativo = (data.estado || "Ativo") === "Ativo"
     return (
         <div className="mgmt-row-actions">
@@ -116,6 +117,15 @@ function AcoesCell({ data, onEditar, onAlternar }) {
                 aria-label={ativo ? `Desactivar ${data.nome}` : `Reactivar ${data.nome}`}
             >
                 <Power size={16} />
+            </button>
+            <button
+                type="button"
+                className="mgmt-row-btn danger"
+                onClick={() => onApagar(data)}
+                title="Apagar cliente"
+                aria-label={`Apagar ${data.nome}`}
+            >
+                <Trash2 size={16} />
             </button>
         </div>
     )
@@ -180,6 +190,21 @@ function Clientes() {
     const handleAlternarEstado = useCallback((cliente) => {
         setConfirmacao(cliente)
     }, [])
+
+    const handleApagarCliente = useCallback(async (cliente) => {
+    const confirmar = window.confirm(
+        `Tens a certeza que desejas apagar o cliente ${cliente.nome}?`
+    )
+
+    if (!confirmar) return
+
+    try {
+        await deleteCliente(cliente.id)
+        await carregarClientes()
+    } catch (err) {
+        setError(getApiError(err))
+    }
+}, [carregarClientes])
 
     async function confirmarAlternarEstado() {
         if (!confirmacao) return
@@ -285,7 +310,8 @@ function Clientes() {
                 cellRenderer: AcoesCell,
                 cellRendererParams: {
                     onEditar: handleEditarCliente,
-                    onAlternar: handleAlternarEstado
+                    onAlternar: handleAlternarEstado,
+                    onApagar: handleApagarCliente
                 }
             })
         }

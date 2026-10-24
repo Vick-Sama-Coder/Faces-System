@@ -1,14 +1,15 @@
 .search-comp{
     padding: 15px 10px 15px 40px;
-    border: 2px 2px 2px solid var(--Secundary-text);
-    position:relative;
-    outline-color: var(--Primary-faces);
+    border: 2px solid var(--input-border);
+    background: var(--input-bg);
+    position: relative;
+    outline-color: var(--focus-ring);
     border-radius: 10px;
     width: 60vw;
-    color:var(--Primary-faces);
+    color: var(--text);
 }
 .search-icon{
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     position: relative;
     left: 43px;
     top: 1px;

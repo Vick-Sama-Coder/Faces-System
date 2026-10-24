@@ -8,17 +8,55 @@
 html{
     font-size: 1rem;
     height: 100vh;
+    background-color: var(--bg-page);
 }
 body{
     font-size: var(--text-sm);
     font-family: 'Inter',sans-serif;
-    color: var(--background);
-    background-color: var(--Secundary-Background);
+    color: var(--text);
+    background-color: var(--bg-page);
+    accent-color: var(--primary);
     overflow-x: hidden;
     overflow-y: visible;
-    height: 100vh;
+    height: 100%;
+    position: relative;
+}
+::selection{
+    color: var(--text);
+    background: var(--primary-soft-strong);
+}
+body > .heady{
+    position: sticky;
 }
 h1,h2,h3,h4,h5,h6{
     padding: 0;
     font-family: 'Manrope', sans-serif;
+}
+
+input,
+select,
+textarea{
+    color: var(--text);
+}
+
+input::placeholder,
+textarea::placeholder{
+    color: var(--text-muted);
+    opacity: 1;
+}
+
+select option{
+    background-color: var(--surface);
+    color: var(--text);
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill{
+    -webkit-text-fill-color: var(--text);
+    -webkit-box-shadow: 0 0 0 1000px var(--input-bg) inset;
+    caret-color: var(--text);
+    transition: background-color 9999s ease-out;
 }

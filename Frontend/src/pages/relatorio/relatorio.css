@@ -7,8 +7,8 @@
     max-width: 100%;
     padding: 8px 12px;
     border-radius: 999px;
-    background: var(--backdrop);
-    color: var(--Primary-faces);
+    background: var(--surface-tint);
+    color: var(--primary-text);
     font-size: var(--text-xs);
     font-weight: 700;
     white-space: nowrap;
@@ -31,10 +31,10 @@
     gap: 14px;
     flex-wrap: wrap;
     padding: 14px 16px;
-    border: 1px solid var(--Border);
+    border: 1px solid var(--border);
     border-radius: 14px;
-    background: #ffffff;
-    box-shadow: 0 4px 20px rgba(30, 15, 50, 0.04);
+    background: var(--surface);
+    box-shadow: 0 4px 20px var(--shadow-color-soft);
 }
 
 .relatorio-presets {
@@ -46,10 +46,10 @@
 
 .relatorio-preset {
     padding: 8px 12px;
-    border: 1px solid var(--Border);
+    border: 1px solid var(--border);
     border-radius: 999px;
-    background: #ffffff;
-    color: var(--Secundary-text);
+    background: var(--surface);
+    color: var(--text-muted);
     font-family: inherit;
     font-size: var(--text-xs);
     font-weight: 600;
@@ -58,16 +58,16 @@
 }
 
 .relatorio-preset:hover {
-    border-color: rgba(109, 53, 200, 0.3);
-    background: var(--backdrop);
-    color: var(--Primary-faces);
+    border-color: var(--primary-border);
+    background: var(--surface-tint);
+    color: var(--primary-text);
 }
 
 .relatorio-preset.active {
-    border-color: var(--Primary-faces);
-    background: var(--Primary-faces);
-    color: #ffffff;
-    box-shadow: 0 4px 12px rgba(109, 53, 200, 0.22);
+    border-color: var(--primary);
+    background: var(--primary);
+    color: var(--on-primary);
+    box-shadow: 0 4px 12px var(--primary-soft-strong);
 }
 
 .relatorio-datas {
@@ -85,7 +85,7 @@
 }
 
 .relatorio-datas label span {
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.04em;
@@ -96,10 +96,10 @@
     width: 100%;
     box-sizing: border-box;
     padding: 9px 10px;
-    border: 1px solid var(--Border);
+    border: 1px solid var(--input-border);
     border-radius: 9px;
-    background: #ffffff;
-    color: var(--Principal-text);
+    background: var(--input-bg);
+    color: var(--text);
     font-family: inherit;
     font-size: var(--text-sm);
     outline: none;
@@ -107,8 +107,8 @@
 }
 
 .relatorio-datas input:focus {
-    border-color: var(--Primary-faces);
-    box-shadow: 0 0 0 3px rgba(109, 53, 200, 0.1);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
 .relatorio-apply {
@@ -126,15 +126,15 @@
     gap: 8px;
     min-height: 340px;
     padding: 32px;
-    border: 1px solid var(--Border);
+    border: 1px solid var(--border);
     border-radius: 16px;
-    background: #ffffff;
-    color: var(--Secundary-text);
+    background: var(--surface);
+    color: var(--text-muted);
     text-align: center;
 }
 
 .relatorio-loading-card strong {
-    color: var(--Principal-text);
+    color: var(--text);
     font-family: "Manrope", sans-serif;
     font-size: var(--text-lg);
 }
@@ -153,8 +153,8 @@
     width: 38px;
     height: 38px;
     margin-bottom: 6px;
-    border: 3px solid var(--Border);
-    border-top-color: var(--Primary-faces);
+    border: 3px solid var(--border);
+    border-top-color: var(--primary);
     border-radius: 50%;
     animation: relatorio-spin 0.8s linear infinite;
 }
@@ -173,18 +173,18 @@
     gap: 13px;
     min-width: 0;
     padding: 17px 18px;
-    border: 1px solid var(--Border);
-    border-top: 3px solid var(--Primary-faces);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--primary);
     border-radius: 14px;
-    background: #ffffff;
-    box-shadow: 0 4px 20px rgba(30, 15, 50, 0.05);
+    background: var(--surface);
+    box-shadow: 0 4px 20px var(--shadow-color-soft);
 }
 
-.relatorio-kpi.receita { border-top-color: #21A366; }
-.relatorio-kpi.despesa { border-top-color: var(--Error); }
-.relatorio-kpi.resultado { border-top-color: var(--Accent); }
-.relatorio-kpi.margem { border-top-color: var(--Warning); }
-.relatorio-kpi.negativo { border-top-color: var(--Error); }
+.relatorio-kpi.receita { border-top-color: var(--success); }
+.relatorio-kpi.despesa { border-top-color: var(--danger); }
+.relatorio-kpi.resultado { border-top-color: var(--accent); }
+.relatorio-kpi.margem { border-top-color: var(--warning); }
+.relatorio-kpi.negativo { border-top-color: var(--danger); }
 
 .relatorio-kpi-icon {
     width: 42px;
@@ -194,24 +194,24 @@
     justify-content: center;
     flex-shrink: 0;
     border-radius: 11px;
-    color: var(--Primary-faces);
-    background: rgba(109, 53, 200, 0.1);
+    color: var(--primary-text);
+    background: var(--primary-soft);
 }
 
 .relatorio-kpi.receita .relatorio-kpi-icon {
-    color: #1f7a4a;
-    background: rgba(33, 163, 102, 0.12);
+    color: var(--success-text);
+    background: var(--success-soft);
 }
 
 .relatorio-kpi.despesa .relatorio-kpi-icon,
 .relatorio-kpi.resultado.negativo .relatorio-kpi-icon {
-    color: var(--Error);
-    background: rgba(224, 75, 75, 0.11);
+    color: var(--danger-text);
+    background: var(--danger-soft);
 }
 
 .relatorio-kpi.margem .relatorio-kpi-icon {
-    color: var(--Warning);
-    background: rgba(233, 154, 50, 0.13);
+    color: var(--warning-text);
+    background: var(--warning-soft);
 }
 
 .relatorio-kpi > div {
@@ -223,7 +223,7 @@
 }
 
 .relatorio-kpi-label {
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: var(--text-xs);
     font-weight: 700;
     letter-spacing: 0.03em;
@@ -232,7 +232,7 @@
 
 .relatorio-kpi strong {
     overflow: hidden;
-    color: var(--Principal-text);
+    color: var(--text);
     font-family: "Manrope", sans-serif;
     font-size: var(--text-xl);
     text-overflow: ellipsis;
@@ -240,12 +240,12 @@
 }
 
 .relatorio-kpi.resultado.negativo strong {
-    color: var(--Error);
+    color: var(--danger-text);
 }
 
 .relatorio-kpi small {
     overflow: hidden;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: var(--text-xs);
     font-weight: 500;
     text-overflow: ellipsis;
@@ -257,19 +257,19 @@
     overflow: hidden;
     margin-top: 4px;
     border-radius: 999px;
-    background: var(--Secundary-Background);
+    background: var(--bg-page);
 }
 
 .relatorio-margin-bar span {
     display: block;
     height: 100%;
     border-radius: inherit;
-    background: linear-gradient(90deg, var(--Warning), #f6c56b);
+    background: var(--bar-gradient-warning);
     transition: width 0.3s ease;
 }
 
 .relatorio-kpi.negativo .relatorio-margin-bar span {
-    background: var(--Error);
+    background: var(--danger-solid);
 }
 
 /* Separadores / abas */
@@ -281,10 +281,10 @@
     min-height: 54px;
     overflow-x: auto;
     padding: 6px;
-    border: 1px solid var(--Border);
+    border: 1px solid var(--border);
     border-radius: 12px;
-    background: #ffffff;
-    box-shadow: 0 4px 20px rgba(30, 15, 50, 0.04);
+    background: var(--surface);
+    box-shadow: 0 4px 20px var(--shadow-color-soft);
     scrollbar-width: none;
 }
 
@@ -300,7 +300,7 @@
     border: 0;
     border-radius: 9px;
     background: transparent;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-family: inherit;
     font-size: var(--text-sm);
     font-weight: 600;
@@ -310,29 +310,29 @@
 }
 
 .relatorio-tab:hover {
-    background: var(--backdrop);
-    color: var(--Primary-faces);
+    background: var(--surface-tint);
+    color: var(--primary-text);
 }
 
 .relatorio-tab.active {
-    background: var(--Primary-faces);
-    color: #ffffff;
+    background: var(--primary);
+    color: var(--on-primary);
 }
 
 .relatorio-tab-count {
     min-width: 20px;
     padding: 1px 6px;
     border-radius: 999px;
-    background: rgba(109, 53, 200, 0.1);
-    color: var(--Primary-faces);
+    background: var(--primary-soft);
+    color: var(--primary-text);
     font-size: 10px;
     line-height: 16px;
     text-align: center;
 }
 
 .relatorio-tab.active .relatorio-tab-count {
-    background: rgba(255, 255, 255, 0.2);
-    color: #ffffff;
+    background: var(--on-primary-track);
+    color: var(--on-primary);
 }
 
 /* Cartoes */
@@ -362,10 +362,10 @@
     gap: 18px;
     min-width: 0;
     padding: 22px;
-    border: 1px solid var(--Border);
+    border: 1px solid var(--border);
     border-radius: 16px;
-    background: #ffffff;
-    box-shadow: 0 4px 20px rgba(30, 15, 50, 0.05);
+    background: var(--surface);
+    box-shadow: 0 4px 20px var(--shadow-color-soft);
 }
 
 .relatorio-card-header {
@@ -377,29 +377,29 @@
 
 .relatorio-card-header h2 {
     margin: 0;
-    color: var(--Principal-text);
+    color: var(--text);
     font-family: "Manrope", sans-serif;
     font-size: var(--text-lg);
 }
 
 .relatorio-card-header p {
     margin: 3px 0 0;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: var(--text-xs);
     line-height: 1.4;
 }
 
 .relatorio-card-mark {
     flex-shrink: 0;
-    color: var(--Primary-faces);
+    color: var(--primary-text);
 }
 
 .relatorio-card-chip {
     flex-shrink: 0;
     padding: 4px 9px;
     border-radius: 999px;
-    background: var(--backdrop);
-    color: var(--Primary-faces);
+    background: var(--surface-tint);
+    color: var(--primary-text);
     font-size: 10px;
     font-weight: 700;
     white-space: nowrap;
@@ -429,7 +429,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: var(--text-xs);
     font-weight: 600;
 }
@@ -468,7 +468,7 @@
 }
 
 .relatorio-pie-center span {
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.04em;
@@ -478,7 +478,7 @@
 .relatorio-pie-center strong {
     overflow: hidden;
     max-width: 86%;
-    color: var(--Principal-text);
+    color: var(--text);
     font-family: "Manrope", sans-serif;
     font-size: 11px;
     text-overflow: ellipsis;
@@ -510,13 +510,13 @@
 .relatorio-pie-name {
     flex: 1;
     overflow: hidden;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .relatorio-pie-legend-item strong {
-    color: var(--Principal-text);
+    color: var(--text);
     font-size: 10px;
     white-space: nowrap;
 }
@@ -531,7 +531,7 @@
     overflow-y: auto;
     padding-right: 3px;
     scrollbar-width: thin;
-    scrollbar-color: var(--Border) transparent;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 .relatorio-rank-row {
@@ -543,7 +543,7 @@
 
 .relatorio-rank-index {
     padding-top: 1px;
-    color: var(--Accent);
+    color: var(--primary-text);
     font-family: "Manrope", sans-serif;
     font-size: 11px;
     font-weight: 800;
@@ -565,7 +565,7 @@
 
 .relatorio-rank-line span {
     overflow: hidden;
-    color: var(--Principal-text);
+    color: var(--text);
     font-size: var(--text-sm);
     font-weight: 600;
     text-overflow: ellipsis;
@@ -573,7 +573,7 @@
 }
 
 .relatorio-rank-line strong {
-    color: var(--Principal-text);
+    color: var(--text);
     font-family: "Manrope", sans-serif;
     font-size: var(--text-xs);
     white-space: nowrap;
@@ -583,19 +583,19 @@
     height: 5px;
     overflow: hidden;
     border-radius: 999px;
-    background: var(--Secundary-Background);
+    background: var(--bg-page);
 }
 
 .relatorio-rank-bar span {
     display: block;
     height: 100%;
     border-radius: inherit;
-    background: linear-gradient(90deg, var(--Accent), var(--Primary-faces));
+    background: linear-gradient(90deg, var(--accent), var(--primary));
     transition: width 0.3s ease;
 }
 
 .relatorio-rank-main small {
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: 10px;
 }
 
@@ -613,11 +613,11 @@
     gap: 2px;
     padding: 10px;
     border-radius: 10px;
-    background: var(--backdrop);
+    background: var(--surface-tint);
 }
 
 .relatorio-loyalty-item span {
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.04em;
@@ -625,13 +625,13 @@
 }
 
 .relatorio-loyalty-item strong {
-    color: var(--Principal-text);
+    color: var(--text);
     font-family: "Manrope", sans-serif;
     font-size: var(--text-lg);
 }
 
 .relatorio-loyalty-item small {
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: 9px;
     line-height: 1.3;
 }
@@ -651,12 +651,12 @@
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: var(--text-xs);
 }
 
 .relatorio-loyalty-progress-line strong {
-    color: var(--Primary-faces);
+    color: var(--primary-text);
     font-family: "Manrope", sans-serif;
     font-size: var(--text-xs);
 }
@@ -666,20 +666,20 @@
     height: 5px;
     overflow: hidden;
     border-radius: 999px;
-    background: var(--Secundary-Background);
+    background: var(--bg-page);
 }
 
 .relatorio-mini-bar span {
     display: block;
     height: 100%;
     border-radius: inherit;
-    background: linear-gradient(90deg, var(--Accent), var(--Primary-faces));
+    background: linear-gradient(90deg, var(--accent), var(--primary));
     transition: width 0.3s ease;
 }
 
 .relatorio-loyalty-list {
     overflow: hidden;
-    border: 1px solid var(--Border);
+    border: 1px solid var(--border);
     border-radius: 12px;
 }
 
@@ -689,7 +689,7 @@
     justify-content: space-between;
     gap: 10px;
     padding: 12px;
-    border-bottom: 1px solid var(--Border);
+    border-bottom: 1px solid var(--border);
 }
 
 .relatorio-loyalty-row:last-child {
@@ -700,24 +700,24 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: var(--text-sm);
 }
 
 .relatorio-loyalty-row svg {
     flex-shrink: 0;
-    color: var(--Primary-faces);
+    color: var(--primary-text);
 }
 
 .relatorio-loyalty-row strong {
-    color: var(--Principal-text);
+    color: var(--text);
     font-family: "Manrope", sans-serif;
     font-size: var(--text-md);
 }
 
 .relatorio-note {
     margin: 0;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: var(--text-xs);
     line-height: 1.5;
 }
@@ -745,23 +745,23 @@
     justify-content: center;
     flex-shrink: 0;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--Accent), var(--Primary-faces));
-    color: #ffffff;
+    background: var(--brand-gradient);
+    color: var(--on-primary);
     font-size: 11px;
     font-weight: 800;
     letter-spacing: 0.02em;
 }
 
 .relatorio-avatar.posicao-1 {
-    box-shadow: 0 0 0 3px rgba(233, 154, 50, 0.18);
+    box-shadow: 0 0 0 3px var(--warning-soft);
 }
 
 .relatorio-avatar.posicao-2 {
-    box-shadow: 0 0 0 3px rgba(155, 109, 227, 0.16);
+    box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
 .relatorio-avatar.posicao-3 {
-    box-shadow: 0 0 0 3px rgba(33, 163, 102, 0.14);
+    box-shadow: 0 0 0 3px var(--success-soft);
 }
 
 .relatorio-team-info {
@@ -774,7 +774,7 @@
 
 .relatorio-team-info strong {
     overflow: hidden;
-    color: var(--Principal-text);
+    color: var(--text);
     font-size: var(--text-sm);
     font-weight: 600;
     text-overflow: ellipsis;
@@ -782,12 +782,12 @@
 }
 
 .relatorio-team-info small {
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: 10px;
 }
 
 .relatorio-team-value {
-    color: var(--Principal-text);
+    color: var(--text);
     font-family: "Manrope", sans-serif;
     font-size: var(--text-xs);
     white-space: nowrap;
@@ -809,7 +809,7 @@
 
 .relatorio-person strong {
     overflow: hidden;
-    color: var(--Principal-text);
+    color: var(--text);
     font-size: var(--text-sm);
     font-weight: 600;
     text-overflow: ellipsis;
@@ -817,7 +817,7 @@
 }
 
 .relatorio-person small {
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: 10px;
 }
 
@@ -838,11 +838,11 @@
     gap: 2px;
     padding: 10px 12px;
     border-radius: 10px;
-    background: var(--backdrop);
+    background: var(--surface-tint);
 }
 
 .relatorio-client-stats span {
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.04em;
@@ -850,7 +850,7 @@
 }
 
 .relatorio-client-stats strong {
-    color: var(--Principal-text);
+    color: var(--text);
     font-family: "Manrope", sans-serif;
     font-size: var(--text-lg);
 }
@@ -862,7 +862,7 @@
     max-height: 460px;
     overflow: auto;
     scrollbar-width: thin;
-    scrollbar-color: var(--Border) transparent;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 .relatorio-table-scroll-tall {
@@ -883,12 +883,12 @@
 
 .relatorio-motivo {
     max-width: 280px;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
 }
 
 .relatorio-footnote {
     margin: 0;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: var(--text-xs);
 }
 
@@ -907,18 +907,18 @@
     gap: 6px;
     min-width: 0;
     padding: 14px 16px;
-    border: 1px solid var(--Border);
-    border-left: 4px solid var(--Primary-faces);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--primary);
     border-radius: 12px;
-    background: #ffffff;
-    box-shadow: 0 4px 20px rgba(30, 15, 50, 0.04);
+    background: var(--surface);
+    box-shadow: 0 4px 20px var(--shadow-color-soft);
 }
 
 .relatorio-stat-mini span {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.03em;
@@ -931,23 +931,23 @@
 
 .relatorio-stat-mini strong {
     overflow: hidden;
-    color: var(--Principal-text);
+    color: var(--text);
     font-family: "Manrope", sans-serif;
     font-size: var(--text-xl);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.relatorio-stat-mini.success { border-left-color: #21A366; }
-.relatorio-stat-mini.success svg { color: #1f7a4a; }
-.relatorio-stat-mini.danger { border-left-color: var(--Error); }
-.relatorio-stat-mini.danger svg { color: var(--Error); }
-.relatorio-stat-mini.warning { border-left-color: var(--Warning); }
-.relatorio-stat-mini.warning svg { color: var(--Warning); }
-.relatorio-stat-mini.primary { border-left-color: var(--Primary-faces); }
-.relatorio-stat-mini.primary svg { color: var(--Primary-faces); }
-.relatorio-stat-mini.neutral { border-left-color: var(--Secundary-text); }
-.relatorio-stat-mini.neutral svg { color: var(--Secundary-text); }
+.relatorio-stat-mini.success { border-left-color: var(--success); }
+.relatorio-stat-mini.success svg { color: var(--success-text); }
+.relatorio-stat-mini.danger { border-left-color: var(--danger); }
+.relatorio-stat-mini.danger svg { color: var(--danger-text); }
+.relatorio-stat-mini.warning { border-left-color: var(--warning); }
+.relatorio-stat-mini.warning svg { color: var(--warning-text); }
+.relatorio-stat-mini.primary { border-left-color: var(--primary); }
+.relatorio-stat-mini.primary svg { color: var(--primary-text); }
+.relatorio-stat-mini.neutral { border-left-color: var(--text-muted); }
+.relatorio-stat-mini.neutral svg { color: var(--text-muted); }
 
 /* Etiquetas de estado */
 
@@ -963,38 +963,38 @@
 }
 
 .relatorio-pill.success {
-    color: #1f7a4a;
-    background: rgba(33, 163, 102, 0.12);
+    color: var(--success-text);
+    background: var(--success-soft);
 }
 
 .relatorio-pill.warning {
-    color: #b9770e;
-    background: rgba(233, 154, 50, 0.14);
+    color: var(--warning-text);
+    background: var(--warning-soft);
 }
 
 .relatorio-pill.danger {
-    color: var(--Error);
-    background: rgba(224, 75, 75, 0.12);
+    color: var(--danger-text);
+    background: var(--danger-soft);
 }
 
 .relatorio-pill.neutral {
-    color: var(--Secundary-text);
-    background: rgba(111, 107, 120, 0.12);
+    color: var(--text-muted);
+    background: var(--neutral-soft);
 }
 
 .relatorio-pill.tipo-entrada {
-    color: #1f7a4a;
-    background: rgba(33, 163, 102, 0.12);
+    color: var(--success-text);
+    background: var(--success-soft);
 }
 
 .relatorio-pill.tipo-saida {
-    color: var(--Error);
-    background: rgba(224, 75, 75, 0.12);
+    color: var(--danger-text);
+    background: var(--danger-soft);
 }
 
 .relatorio-pill.tipo-levantamento {
-    color: #b9770e;
-    background: rgba(233, 154, 50, 0.14);
+    color: var(--warning-text);
+    background: var(--warning-soft);
 }
 
 /* Estados vazios */
@@ -1007,17 +1007,17 @@
     gap: 6px;
     min-height: 220px;
     padding: 32px 16px;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     text-align: center;
 }
 
 .relatorio-empty svg {
     margin-bottom: 3px;
-    color: var(--Accent);
+    color: var(--primary-text);
 }
 
 .relatorio-empty strong {
-    color: var(--Principal-text);
+    color: var(--text);
     font-size: var(--text-sm);
 }
 
@@ -1028,7 +1028,7 @@
 }
 
 .relatorio-empty-success svg {
-    color: var(--Sucess);
+    color: var(--success-text);
 }
 
 @media (max-width: 1500px) {

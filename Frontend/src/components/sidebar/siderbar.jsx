@@ -10,7 +10,10 @@ import {
     ShieldCheck,
     LogOut,
     Tag,
-    X } from "lucide-react"
+    UserCircle,
+    X,
+    LogsIcon
+} from "lucide-react"
 import { NavLink, useNavigate } from "react-router"
 import Photo from '../../assets/logo/faces-logo.png'
 import { useAuthStore } from '../../store/authStore.js';
@@ -41,6 +44,7 @@ const GRUPOS = [
             { nome: "Funcionarios",           path: "/funcionarios",        Icone: Users,  perfis: [], title: "Funcionarios"        },
             { nome: "Gestao de Utilizadores", path: "/gestao-utilizadores", Icone: UserCog,       perfis: [], title: "Gestao de Utilizadores" },
             { nome: "Permissoes",             path: "/permissoes",          Icone: ShieldCheck,   perfis: [], title: "Permissoes" },
+            { nome: "Logs",             path: "/logs",          Icone: LogsIcon,   perfis: [], title: "logs" }
         ]
     },
 ];
@@ -183,6 +187,18 @@ function SideBar({ isOpen, setIsOpen }){
         ))}
     </nav>
 ))}
+
+                <NavLink
+                    to="/perfil"
+                    onClick={fechar}
+                    className={({ isActive }) => `side-link sidebar-account-link${isActive ? " active" : ""}`}
+                    aria-label="Abrir o meu perfil"
+                >
+                    <span className="p" title="O Meu Perfil">
+                        <span className="icon"><UserCircle /></span>
+                        <span className="info">O Meu Perfil</span>
+                    </span>
+                </NavLink>
 
                 <button className="side-link logout-btn" onClick={handleLogout} aria-label="Sair da conta">
                     <span className="p">

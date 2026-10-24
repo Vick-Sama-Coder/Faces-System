@@ -52,6 +52,11 @@ export const useAuthStore = create((set) => ({
         }
     },
 
+    //actualiza apenas os dados do utilizador em memoria (ex.: apos editar o perfil)
+    updateUser: (dados) => set((state) => ({
+        user: state.user ? { ...state.user, ...dados } : state.user
+    })),
+
     //recuperacao de senha (passo 1): pede o codigo por SMS; devolve { ok, codigo }
     //(o codigo so vem preenchido em desenvolvimento, para testes sem SMS real)
     recuperarSenha: async (data) => {

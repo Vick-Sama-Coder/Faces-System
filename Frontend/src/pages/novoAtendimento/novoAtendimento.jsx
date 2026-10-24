@@ -18,6 +18,7 @@ import {
     Clock3,
     CreditCard,
     Download,
+    Edit3,
     Eye,
     Heart,
     Phone,
@@ -26,6 +27,7 @@ import {
     ScissorsIcon,
     Search,
     Sparkles,
+    Trash2,
     UserRound,
     Wallet,
     X
@@ -33,6 +35,8 @@ import {
 import {
     getAtendimentos,
     getAtendimento,
+    getClientes,
+    updateAtendimento,
     anularAtendimento,
     registrarPagamento,
     getApiError
@@ -114,7 +118,7 @@ async function buscarAtendimentos() {
 function ClienteAtendimentoCell({ data }) {
     return (
         <div className="mgmt-user-cell">
-            <span className="mgmt-avatar customer">{iniciais(data.cliente_nome, data.cliente_apelido)}</span>
+            <span className="mgmt-avatar customer name-icon ">{iniciais(data.cliente_nome, data.cliente_apelido)}</span>
             <span className="mgmt-user-copy">
                 <strong>{data.cliente_nome} {data.cliente_apelido || ""}</strong>
                 <small>{data.cliente_telefone || `Atendimento #${data.id}`}</small>
@@ -161,7 +165,7 @@ function TotalAtendimentoCell({ value }) {
     return <span className="mgmt-money">{formatarMoeda(value)}</span>
 }
 
-function AcoesAtendimentoCell({ data, podeAnular, onVer, onAnular }) {
+function AcoesAtendimentoCell({ data, podeEditar, podeAnular, onVer, onEditar, onAnular }) {
     return (
         <div className="mgmt-row-actions">
             <button
@@ -173,15 +177,26 @@ function AcoesAtendimentoCell({ data, podeAnular, onVer, onAnular }) {
             >
                 <Eye size={16} />
             </button>
-            {podeAnular && data.estado !== "Anulado" && data.estado !== "Pago" && (
+            {podeEditar && data.estado !== "Anulado" && (
+                <button
+                    type="button"
+                    className="mgmt-row-btn edit"
+                    onClick={() => onEditar(data)}
+                    title="Editar atendimento"
+                    aria-label={`Editar atendimento ${data.id}`}
+                >
+                    <Edit3 size={16} />
+                </button>
+            )}
+            {podeAnular && data.estado !== "Anulado" && (
                 <button
                     type="button"
                     className="mgmt-row-btn danger"
                     onClick={() => onAnular(data)}
-                    title="Anular atendimento"
-                    aria-label={`Anular atendimento ${data.id}`}
+                    title="Apagar atendimento"
+                    aria-label={`Apagar atendimento ${data.id}`}
                 >
-                    <Ban size={16} />
+                    <Trash2 size={16} />
                 </button>
             )}
         </div>
@@ -191,6 +206,7 @@ function AcoesAtendimentoCell({ data, podeAnular, onVer, onAnular }) {
 function NovoAtendimento() {
     const { user } = useAuthStore()
     const podePagar = user?.permissoes?.includes("pagamentos:registar")
+    const podeEditar = user?.permissoes?.includes("atendimentos:escrever")
     const podeAnular = user?.permissoes?.includes("atendimentos:anular")
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -207,6 +223,12 @@ function NovoAtendimento() {
     const [savingPagamento, setSavingPagamento] = useState(false)
     const [anulacao, setAnulacao] = useState(null)
     const [aAnular, setAAnular] = useState(false)
+    const [atendimentoEmEdicao, setAtendimentoEmEdicao] = useState(null)
+    const [clientesEdicao, setClientesEdicao] = useState([])
+    const [clienteEdicaoId, setClienteEdicaoId] = useState("")
+    const [carregandoClientesEdicao, setCarregandoClientesEdicao] = useState(false)
+    const [salvandoEdicao, setSalvandoEdicao] = useState(false)
+    const [erroEdicao, setErroEdicao] = useState(null)
     const [pagamentoForm, setPagamentoForm] = useState({
         metodo: "Dinheiro",
         valor: ""
@@ -244,6 +266,41 @@ function NovoAtendimento() {
 
         return () => { activo = false }
     }, [])
+
+    useEffect(() => {
+        if (!atendimentoEmEdicao) return undefined
+
+        let activo = true
+
+        getClientes()
+            .then((res) => {
+                if (!activo) return
+                const lista = Array.isArray(res.data) ? res.data : (res.data?.clientes || [])
+                setClientesEdicao(lista)
+            })
+            .catch((err) => {
+                if (activo) setErroEdicao(getApiError(err))
+            })
+            .finally(() => {
+                if (activo) setCarregandoClientesEdicao(false)
+            })
+
+        return () => { activo = false }
+    }, [atendimentoEmEdicao])
+
+    useEffect(() => {
+        if (!atendimentoEmEdicao) return undefined
+
+        function fecharComEscape(event) {
+            if (event.key === "Escape" && !salvandoEdicao) {
+                setAtendimentoEmEdicao(null)
+                setErroEdicao(null)
+            }
+        }
+
+        window.addEventListener("keydown", fecharComEscape)
+        return () => window.removeEventListener("keydown", fecharComEscape)
+    }, [atendimentoEmEdicao, salvandoEdicao])
 
     const atendimentosFiltrados = useMemo(() => {
         const termo = searchTerm.trim().toLowerCase()
@@ -294,6 +351,32 @@ function NovoAtendimento() {
         return data ? isToday(data) : false
     }).length
     const temFiltros = Boolean(searchTerm.trim() || filtro !== "Todos" || periodo !== "Todos")
+
+    const clientesEdicaoDisponiveis = useMemo(() => {
+        const idAtual = String(atendimentoEmEdicao?.cliente_id ?? "")
+        const lista = clientesEdicao.filter((cliente) => (
+            cliente.estado === "Ativo" || String(cliente.id) === idAtual
+        ))
+
+        if (idAtual && !lista.some((cliente) => String(cliente.id) === idAtual)) {
+            return [{
+                id: atendimentoEmEdicao.cliente_id,
+                nome: atendimentoEmEdicao.cliente_nome,
+                apelido: atendimentoEmEdicao.cliente_apelido,
+                telefone: atendimentoEmEdicao.cliente_telefone
+            }, ...lista]
+        }
+
+        return lista
+    }, [atendimentoEmEdicao, clientesEdicao])
+
+    const handleEditar = useCallback((atendimento) => {
+        setAtendimentoEmEdicao(atendimento)
+        setClienteEdicaoId(String(atendimento.cliente_id ?? ""))
+        setClientesEdicao([])
+        setCarregandoClientesEdicao(true)
+        setErroEdicao(null)
+    }, [])
 
     const handleAnular = useCallback((atendimento) => {
         setAnulacao(atendimento)
@@ -346,6 +429,42 @@ function NovoAtendimento() {
             setAnulacao(null)
         } finally {
             setAAnular(false)
+        }
+    }
+
+    function fecharEdicao() {
+        if (salvandoEdicao) return
+        setAtendimentoEmEdicao(null)
+        setErroEdicao(null)
+    }
+
+    async function guardarEdicao(event) {
+        event.preventDefault()
+        if (!atendimentoEmEdicao || salvandoEdicao) return
+
+        if (!clienteEdicaoId) {
+            setErroEdicao("Selecione o cliente do atendimento.")
+            return
+        }
+
+        if (String(clienteEdicaoId) === String(atendimentoEmEdicao.cliente_id)) {
+            setErroEdicao("Selecione um cliente diferente do atual.")
+            return
+        }
+
+        setSalvandoEdicao(true)
+        setErroEdicao(null)
+
+        try {
+            await updateAtendimento(atendimentoEmEdicao.id, {
+                cliente_id: Number(clienteEdicaoId)
+            })
+            setAtendimentoEmEdicao(null)
+            await carregarAtendimentos()
+        } catch (err) {
+            setErroEdicao(getApiError(err))
+        } finally {
+            setSalvandoEdicao(false)
         }
     }
 
@@ -462,21 +581,23 @@ function NovoAtendimento() {
             headerName: "Ações",
             colId: "acoes",
             flex: 0,
-            width: 102,
-            minWidth: 102,
-            maxWidth: 102,
+            width: 142,
+            minWidth: 142,
+            maxWidth: 142,
             pinned: "right",
             sortable: false,
             filter: false,
             resizable: false,
             cellRenderer: AcoesAtendimentoCell,
             cellRendererParams: {
+                podeEditar,
                 podeAnular,
                 onVer: handleVerDetalhe,
+                onEditar: handleEditar,
                 onAnular: handleAnular
             }
         }
-    ], [podeAnular, handleVerDetalhe, handleAnular])
+    ], [podeEditar, podeAnular, handleVerDetalhe, handleEditar, handleAnular])
 
     const mensagemVazia = temFiltros
         ? "Nenhum atendimento corresponde aos filtros aplicados."
@@ -494,11 +615,11 @@ function NovoAtendimento() {
             {anulacao && (
                 <ConfirmDialog
                     open
-                    title="Anular atendimento?"
-                    description={`O atendimento #${anulacao.id} de ${anulacao.cliente_nome} será anulado e deixará de contar para o movimento. Indique o motivo para manter o histórico.`}
+                    title="Apagar atendimento?"
+                    description={`O atendimento #${anulacao.id} de ${anulacao.cliente_nome} deixará de contar para o movimento. O histórico e os pagamentos associados são mantidos. Indique o motivo da anulação.`}
                     tone="danger"
-                    icon={Ban}
-                    confirmLabel="Anular atendimento"
+                    icon={Trash2}
+                    confirmLabel="Apagar atendimento"
                     withReason
                     reasonLabel="Motivo da anulação"
                     reasonPlaceholder="Ex.: cliente desistiu, serviço registado por engano..."
@@ -506,6 +627,94 @@ function NovoAtendimento() {
                     onConfirm={confirmarAnulacao}
                     onClose={() => !aAnular && setAnulacao(null)}
                 />
+            )}
+
+            {atendimentoEmEdicao && (
+                <div className="appointment-modal-backdrop" onClick={fecharEdicao}>
+                    <section
+                        className="appointment-detail appointment-edit"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="editar-atendimento-titulo"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <header className="appointment-detail-header">
+                            <div>
+                                <h2 id="editar-atendimento-titulo">Editar atendimento #{atendimentoEmEdicao.id}</h2>
+                                <p>{atendimentoEmEdicao.cliente_nome} {atendimentoEmEdicao.cliente_apelido || ""} · {formatarData(atendimentoEmEdicao.data_hora)}</p>
+                            </div>
+                            <button
+                                type="button"
+                                className="appointment-close"
+                                onClick={fecharEdicao}
+                                disabled={salvandoEdicao}
+                                aria-label="Fechar edição"
+                            >
+                                <X size={20} />
+                            </button>
+                        </header>
+
+                        <form className="appointment-edit-form" onSubmit={guardarEdicao} aria-busy={salvandoEdicao}>
+                            <div className="appointment-detail-body">
+                                {erroEdicao && <div className="appointment-alert" role="alert">{erroEdicao}</div>}
+
+                                <div className="appointment-detail-section">
+                                    <h3><UserRound size={16} /> Cliente</h3>
+                                    <div className="appointment-edit-field">
+                                        <label htmlFor="cliente-edicao">Cliente do atendimento</label>
+                                        {carregandoClientesEdicao ? (
+                                            <p className="appointment-empty">A carregar clientes...</p>
+                                        ) : (
+                                            <select
+                                                id="cliente-edicao"
+                                                value={clienteEdicaoId}
+                                                onChange={(event) => {
+                                                    setClienteEdicaoId(event.target.value)
+                                                    if (erroEdicao) setErroEdicao(null)
+                                                }}
+                                                disabled={salvandoEdicao}
+                                                aria-describedby="edicao-cliente-hint"
+                                            >
+                                                <option value="">Selecione o cliente...</option>
+                                                {clientesEdicaoDisponiveis.map((cliente) => (
+                                                    <option key={cliente.id} value={cliente.id}>
+                                                        {cliente.nome} {cliente.apelido || ""}{cliente.telefone ? ` — ${cliente.telefone}` : ""}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        )}
+                                        <p id="edicao-cliente-hint" className="appointment-payment-hint">
+                                            A edição altera apenas o cliente associado. Serviços, valores e pagamentos permanecem inalterados.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <footer className="appointment-detail-footer">
+                                <button
+                                    type="button"
+                                    className="appointment-close-btn"
+                                    onClick={fecharEdicao}
+                                    disabled={salvandoEdicao}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="appointment-edit-submit"
+                                    disabled={
+                                        salvandoEdicao
+                                        || carregandoClientesEdicao
+                                        || !clienteEdicaoId
+                                        || String(clienteEdicaoId) === String(atendimentoEmEdicao.cliente_id)
+                                    }
+                                >
+                                    {salvandoEdicao ? "A guardar..." : "Guardar alterações"}
+                                </button>
+                            </footer>
+                        </form>
+                    </section>
+                </div>
             )}
 
             {detalhe && (
@@ -689,7 +898,7 @@ function NovoAtendimento() {
                         </div>
 
                         <footer className="appointment-detail-footer">
-                            {podeAnular && detalhe.estado !== "Anulado" && detalhe.estado !== "Pago" && (
+                            {podeAnular && detalhe.estado !== "Anulado" && (
                                 <button
                                     type="button"
                                     className="appointment-cancel-btn"
