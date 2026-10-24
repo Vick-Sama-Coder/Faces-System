@@ -6,6 +6,7 @@ import {
     getHorariosFuncionario,
     createHorarioFuncionario,
     deleteHorarioFuncionario,
+    substituirHorariosFuncionario,
     getAssiduidade,
     createAssiduidade,
     getProcessamentos,
@@ -30,6 +31,7 @@ function RhPage() {
     const [horarios, setHorarios] = useState([])
     const [loadingHorarios, setLoadingHorarios] = useState(true)
     const [errorHorarios, setErrorHorarios] = useState(null)
+    const [substituindo, setSubstituindo] = useState(false)
     const [formHorario, setFormHorario] = useState({
         dia_semana: null,
         hora_entrada: "",
@@ -82,6 +84,20 @@ function RhPage() {
             await carregarHorarios()
         } catch (err) {
             setErrorHorarios(getApiError(err))
+        }
+    }
+
+    async function handleSubstituirHorarios() {
+        if (!window.confirm("Substituir toda a programação semanal deste funcionário pelos horários listados?")) return
+        try {
+            setSubstituindo(true)
+            setErrorHorarios(null)
+            await substituirHorariosFuncionario(funcId, horarios)
+            await carregarHorarios()
+        } catch (err) {
+            setErrorHorarios(getApiError(err))
+        } finally {
+            setSubstituindo(false)
         }
     }
 
@@ -263,12 +279,28 @@ function RhPage() {
                                         <Button tipo="primary" onClick={handleCreateHorario}>
                                             <span>Registar</span>
                                         </Button>
+                                        {podeEscrever && (
+                                            <Button
+                                                onClick={handleSubstituirHorarios}
+                                                disabled={substituindo}
+                                            >
+                                                <span>{substituindo ? "A substituir..." : "Substituir programação"}</span>
+                                            </Button>
+                                        )}
                                     </div>
 
                                     <DataGrid
                                         rowData={horarios}
                                         columnDefs={[
-                                            { headerName: "Dia", field: "dia_semana", flex: 1 },
+                                            {
+                                                headerName: "Dia",
+                                                field: "dia_semana",
+                                                flex: 1,
+                                                cellRenderer: (params) => {
+                                                    const dias = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"]
+                                                    return dias[params.data?.dia_semana ?? 0] || "—"
+                                                },
+                                            },
                                             { headerName: "Entrada", field: "hora_entrada", flex: 1 },
                                             { headerName: "Saída", field: "hora_saida", flex: 1 },
                                             { headerName: "Ações", flex: 80, cellRenderer: (params) =>
