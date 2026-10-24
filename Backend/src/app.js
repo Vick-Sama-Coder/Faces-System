@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import dotnev from 'dotenv';
+import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import cookieParser from 'cookie-parser';
@@ -30,7 +30,7 @@ import dashboardRoutes from './routes/dashboard.js'
 //Carregando as variaveis de ambiente
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename)
-dotnev.config({
+dotenv.config({
   path: path.join(__dirname, '../.env')
 });
 

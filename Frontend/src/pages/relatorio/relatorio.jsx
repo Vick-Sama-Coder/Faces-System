@@ -161,6 +161,8 @@ function Relatorio() {
     const [error, setError] = useState(null);
     const [tabAtiva, setTabAtiva] = useState("resumo");
     const [recarregar, setRecarregar] = useState(0);
+    const [funcionarioSelecionado, setFuncionarioSelecionado] = useState(null);
+    const [salarioDetalhe, setSalarioDetalhe] = useState(null);
 
     useEffect(() => {
         let activo = true;
@@ -222,6 +224,61 @@ function Relatorio() {
         carregar();
         return () => { activo = false; };
     }, [periodo.de, periodo.ate, recarregar]);
+
+    useEffect(() => {
+        let activo = true;
+
+        async function carregarSalario() {
+            if (!funcionarioSelecionado) {
+                setSalarioDetalhe(null);
+                return;
+            }
+
+            setLoading(true);
+            setError(null);
+
+            try {
+                // Converter periodo para formato YYYY-MM baseado nos filtros atuais
+                const periodoFmt = filtros.de 
+                    ? `${filtros.de.slice(0, 4)}-${filtros.de.slice(5, 7)}` 
+                    : undefined;
+
+                const { data } = await getProcessamentosFuncionario(funcionarioSelecionado.id, {
+                    periodo: periodoFmt
+                });
+
+                if (!activo) return;
+
+                const processamentos = data.rows || data || [];
+                const ultimoProcessamento = processamentos[0];
+
+                if (!ultimoProcessamento) {
+                    setSalarioDetalhe(null);
+                    return;
+                }
+
+                const periodoTexto = `${ultimoProcessamento.periodo_inicio} a ${ultimoProcessamento.periodo_fim}`;
+                const salarioBase = ultimoProcessamento.salario_base || 0;
+                const totalComissoes = ultimoProcessamento.total_comissoes || 0;
+                const totalAPagar = ultimoProcessamento.total_a_pagar || 0;
+
+                setSalarioDetalhe({
+                    periodo: periodoTexto,
+                    salario_base: salarioBase,
+                    total_comissoes: totalComissoes,
+                    total_a_pagar: totalAPagar,
+                    estado: ultimoProcessamento.estado
+                });
+            } catch (err) {
+                if (activo) setError(getApiError(err));
+            } finally {
+                if (activo) setLoading(false);
+            }
+        }
+
+        carregarSalario();
+        return () => { activo = false; };
+    }, [funcionarioSelecionado, filtros.de, filtros.ate]);
 
     function escolherPreset(preset) {
         const novoPeriodo = periodoDoPreset(preset);
@@ -788,7 +845,7 @@ function Relatorio() {
                                                 </thead>
                                                 <tbody>
                                                     {funcionariosVisiveis.map((funcionario) => (
-                                                        <tr key={funcionario.funcionario_id}>
+                                                        <tr key={funcionario.funcionario_id} onClick={() => setFuncionarioSelecionado(funcionario)}>
                                                             <td>
                                                                 <div className="relatorio-person">
                                                                     <span className="relatorio-avatar">
@@ -819,6 +876,44 @@ function Relatorio() {
                                         </p>
                                     )}
                                 </article>
+
+                                {/* Painel de detalhes do salário */}
+                                {funcionarioSelecionado && (
+                                    <div className="salario-detalhe-panel">
+                                        <div className="salario-detalhe-header">
+                                            <h3>Detalhes Salariais - {funcionarioSelecionado.nome}</h3>
+                                            <button
+                                                onClick={() => setFuncionarioSelecionado(null)}
+                                                className="btn-fechar-detalhe"
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                        <div className="salario-detalhe-conteudo">
+                                            {salarioDetalhe ? (
+                                                <div className="salario-detalhe-grid">
+                                                    <div className="salario-detalhe-item">
+                                                        <strong>Mês Referente:</strong> {salarioDetalhe.periodo}
+                                                    </div>
+                                                    <div className="salario-detalhe-item">
+                                                        <strong>Salário Base:</strong> {formatarMoeda(salarioDetalhe.salario_base)}
+                                                    </div>
+                                                    <div className="salario-detalhe-item">
+                                                        <strong>Comissões Acumuladas:</strong> {formatarMoeda(salarioDetalhe.total_comissoes)}
+                                                    </div>
+                                                    <div className="salario-detalhe-item total">
+                                                        <strong>Total a Pagar:</strong> {formatarMoeda(salarioDetalhe.total_a_pagar)}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <p>Carregando detalhes salariais...</p>
+                                            )}
+                                            <div className="salario-detalhe-status">
+                                                <strong>Estado:</strong> {salarioDetalhe?.estado === 'Pago' ? 'Pago' : salarioDetalhe?.estado === 'Aprovado' ? 'Aprovado' : 'Preparado'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 <article className="relatorio-card">
                                     <header className="relatorio-card-header">

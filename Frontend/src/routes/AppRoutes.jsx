@@ -14,6 +14,7 @@ import Categorias from "../pages/categorias/categorias.jsx"
 import Logs from "../pages/logs/logs.jsx"
 import GestaoUtilizadores from "../pages/admin/GestaoUtilizadores.jsx"
 import Permissoes from "../pages/admin/Permissoes.jsx"
+import RhPage from "../pages/rh/RhPage.jsx"
 import { RequireAuth, RequirePermission, RedirectIfAuth } from "./RequireAuth.jsx"
 
 
@@ -57,6 +58,9 @@ export default function AppRoutes(){
             }/>
             <Route path="/permissoes" element={
                 <RequirePermission permissoes={["contas:gerir"]}><Permissoes/></RequirePermission>
+            }/>
+            <Route path="/rh" element={
+                <RequirePermission permissoes={["funcionarios:ler", "funcionarios:escrever"]}><RhPage/></RequirePermission>
             }/>
             <Route path="/logs" element={
                 <RequirePermission permissoes={["auditoria:ler"]}><Logs/></RequirePermission>
