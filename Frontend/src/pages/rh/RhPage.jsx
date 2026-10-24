@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from "react"
 import SideBar from "../../components/sidebar/siderbar.jsx"
 import Headers from "../../components/headers/header.jsx"
 import DataGrid from "../../components/DataGrid/DataGrid.jsx"
+import "../admin/admin.css"
+import "./rh.css"
 import {
     getHorariosFuncionario,
     createHorarioFuncionario,
