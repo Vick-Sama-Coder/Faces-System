@@ -73,6 +73,7 @@ const servicos = async ({ de, ate } = {}) => {
 const funcionarios = async ({ de, ate } = {}) => {
     const resultado = await db.execute(sql`
         select f.id as funcionario_id, f.nome as funcionario_nome,
+               f.salario as salario_base,
                coalesce(t.servicos, 0)::int as servicos,
                coalesce(t.total_servicos, 0)::int as total_servicos,
                coalesce((select sum(co.valor_comissao)

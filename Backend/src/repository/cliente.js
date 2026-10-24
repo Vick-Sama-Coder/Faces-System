@@ -10,6 +10,7 @@ const campos = {
     telefone: cliente.telefone,
     endereco: cliente.endereco,
     data_nascimento: sql`to_char(${cliente.data_nascimento}, 'YYYY-MM-DD')`,
+    sexo: cliente.sexo,
     data_registo: cliente.data_registo,
     saldo_pendente: cliente.saldo_pendente,
     estado: cliente.estado
@@ -57,14 +58,15 @@ const existeTelefone = async (telefone, exceptoId = null) => {
     return linhas.length > 0;
 };
 
-const create = async ({ nome, apelido, telefone, endereco, data_nascimento }) => {
+const create = async ({ nome, apelido, telefone, endereco, data_nascimento, sexo }) => {
     const [linha] = await db.insert(cliente)
         .values({
             nome,
             apelido: apelido ?? null,
             telefone,
             endereco: endereco ?? null,
-            data_nascimento: data_nascimento ?? null
+            data_nascimento: data_nascimento ?? null,
+            sexo: sexo ?? null
         })
         .returning(campos);
 
@@ -72,7 +74,7 @@ const create = async ({ nome, apelido, telefone, endereco, data_nascimento }) =>
 };
 
 //atualizacao parcial: campos nao enviados mantem o valor atual
-const update = async (id, { nome, apelido, telefone, endereco, data_nascimento, estado }) => {
+const update = async (id, { nome, apelido, telefone, endereco, data_nascimento, sexo, estado }) => {
     const valores = {};
 
     if (nome !== undefined && nome !== null) valores.nome = nome;
@@ -80,6 +82,7 @@ const update = async (id, { nome, apelido, telefone, endereco, data_nascimento, 
     if (telefone !== undefined && telefone !== null) valores.telefone = telefone;
     if (endereco !== undefined && endereco !== null) valores.endereco = endereco;
     if (data_nascimento !== undefined && data_nascimento !== null) valores.data_nascimento = data_nascimento;
+    if (sexo !== undefined && sexo !== null) valores.sexo = sexo;
     if (estado !== undefined && estado !== null) valores.estado = estado;
 
     if (Object.keys(valores).length === 0) {

@@ -58,6 +58,12 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
     const [error, setError] = useState(null)
     const [sucesso, setSucesso] = useState(null)
 
+    //verifica se o cliente e masculino (apenas homens podem ter cartao)
+    const clienteMasculino = cliente?.sexo === 'M'
+    const mensagemGenero = !clienteMasculino && cliente?.sexo
+        ? "Apenas clientes do sexo masculino podem ter cartão de fidelização."
+        : null
+
     useEffect(() => {
         let activo = true
 
@@ -263,6 +269,23 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
                             <div className="cartao-cliente-loading">
                                 <Loader2 size={22} className="cartao-cliente-spin" />
                                 <span>A carregar o cartão...</span>
+                            </div>
+                        ) : !clienteMasculino ? (
+                            <div className="cartao-cliente-genero-bloqueio">
+                                <AlertCircle size={32} />
+                                <p>
+                                    {mensagemGenero || "Apenas clientes do sexo masculino podem ter cartão de fidelização."}
+                                </p>
+                                {cliente?.sexo === 'F' && (
+                                    <p className="cartao-cliente-genero-detalhe">
+                                        Este cliente está registado como Feminino. Atualize o sexo no cadastro do cliente para ativar o cartão.
+                                    </p>
+                                )}
+                                {!cliente?.sexo && (
+                                    <p className="cartao-cliente-genero-detalhe">
+                                        O sexo do cliente não está definido. Atualize o cadastro do cliente para ativar o cartão.
+                                    </p>
+                                )}
                             </div>
                         ) : (
                             <>

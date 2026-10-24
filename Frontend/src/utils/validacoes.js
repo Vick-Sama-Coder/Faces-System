@@ -93,8 +93,15 @@ export function validarLogin({nome, senha}){
 }
 
 
-//valida campos do cliente (nome, apelido, telefone); devolve {campo: mensagem}
-export function validarCliente({nome, apelido, telefone}) {
+//valida sexo: apenas 'M' ou 'F'
+export function validarSexo(sexo) {
+    if (sexo === undefined || sexo === null || sexo === '') return null;
+    if (!['M', 'F'].includes(sexo)) return "Sexo invalido: use 'M' ou 'F'";
+    return null;
+}
+
+//valida campos do cliente (nome, apelido, telefone, sexo); devolve {campo: mensagem}
+export function validarCliente({nome, apelido, telefone, sexo}) {
     const erros = {};
 
     const erroNome = validarNome(nome);
@@ -105,6 +112,9 @@ export function validarCliente({nome, apelido, telefone}) {
 
     const erroTel = validarTelefone(telefone);
     if (erroTel) erros.telefone = erroTel;
+
+    const erroSexo = validarSexo(sexo);
+    if (erroSexo) erros.sexo = erroSexo;
 
     return erros;
 }

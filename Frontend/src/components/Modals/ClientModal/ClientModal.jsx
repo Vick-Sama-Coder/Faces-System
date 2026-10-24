@@ -11,6 +11,7 @@ function ClientModal({ onclose, cliente = null, onSuccess }) {
         nome: cliente ? cliente.nome : "",
         apelido: cliente ? cliente.apelido : "",
         telefone: cliente ? cliente.telefone : "",
+        sexo: cliente ? cliente.sexo : "",
     });
 
     const [errors, setErrors] = useState({});
@@ -154,6 +155,31 @@ function ClientModal({ onclose, cliente = null, onSuccess }) {
                             {errors.telefone && (
                                 <span className="field-error" id="telefone-erro" role="alert">
                                     {errors.telefone}
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="form-group">
+                            <p>
+                                <User />
+                                <span>Sexo</span>
+                            </p>
+                            <select
+                                name="sexo"
+                                id="sexo"
+                                value={formData.sexo}
+                                onChange={(e) => handleChange("sexo", e.target.value)}
+                                className={errors.sexo ? "input-invalido" : ""}
+                                aria-invalid={errors.sexo ? "true" : undefined}
+                                aria-describedby={errors.sexo ? "sexo-erro" : undefined}
+                            >
+                                <option value="">Selecione...</option>
+                                <option value="M">Masculino</option>
+                                <option value="F">Feminino</option>
+                            </select>
+                            {errors.sexo && (
+                                <span className="field-error" id="sexo-erro" role="alert">
+                                    {errors.sexo}
                                 </span>
                             )}
                         </div>

@@ -1,0 +1,1 @@
+ALTER TABLE "cliente" ADD COLUMN "sexo" varchar(1);

@@ -783,6 +783,7 @@ function Relatorio() {
                                                         <th>Servicos</th>
                                                         <th>Receita</th>
                                                         <th>Comissoes</th>
+                                                        <th>Salario</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -804,6 +805,7 @@ function Relatorio() {
                                                             <td>{formatarNumero(funcionario.servicos)}</td>
                                                             <td>{formatarMoeda(funcionario.total_servicos)}</td>
                                                             <td>{formatarMoeda(funcionario.total_comissoes)}</td>
+                                                            <td>{formatarMoeda(funcionario.salario_base)}</td>
                                                         </tr>
                                                     ))}
                                                 </tbody>

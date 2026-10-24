@@ -121,6 +121,35 @@
     animation: cartao-cliente-rotate 0.9s linear infinite;
 }
 
+.cartao-cliente-genero-bloqueio {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-height: 200px;
+    padding: 24px;
+    text-align: center;
+    color: var(--Error);
+}
+
+.cartao-cliente-genero-bloqueio svg {
+    flex-shrink: 0;
+}
+
+.cartao-cliente-genero-bloqueio p {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.cartao-cliente-genero-detalhe {
+    color: var(--Secundary-text) !important;
+    font-weight: 400 !important;
+    font-size: 13px !important;
+}
+
 @keyframes cartao-cliente-rotate {
     to { transform: rotate(360deg); }
 }

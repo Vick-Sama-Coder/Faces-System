@@ -2,6 +2,14 @@ import db from '../db/client.js';
 import Fidelizacao from '../repository/fidelizacao.js';
 import AuditoriaService from './auditoria.js';
 import { criarErro } from '../utils/erro.js';
+import Cliente from '../repository/cliente.js';
+
+//verifica se o cliente e do sexo masculino (apenas homens podem ter cartao)
+const verificarSexoMasculino = async (cliente_id) => {
+    const cliente = await Cliente.findById(cliente_id);
+    if (!cliente) return false;
+    return cliente.sexo === 'M';
+};
 
 //numero de marcas que gera um beneficio
 const META = 5;
@@ -21,6 +29,10 @@ const registarCorte = async (executor, {
     origem = 'atendimento',
     observacao
 }) => {
+    if (!(await verificarSexoMasculino(cliente_id))) {
+        return { marca: false, beneficio: false, ciclo: null, erro: "Apenas clientes do sexo masculino podem ter cartão de fidelização" };
+    }
+
     const cartao = await Fidelizacao.getOrCreateCartao(executor, cliente_id);
     const ganhos = await Fidelizacao.countPorTipo(executor, cartao.id, "beneficio_ganho");
     const utilizados = await Fidelizacao.countPorTipo(executor, cartao.id, "beneficio_utilizado");
@@ -86,6 +98,20 @@ const registarCorte = async (executor, {
 
 //progresso do cliente: ciclo atual, marcas, beneficios e historico
 const progresso = async (cliente_id) => {
+    if (!(await verificarSexoMasculino(cliente_id))) {
+        return {
+            cliente_id,
+            cartao: null,
+            ciclo_atual: 1,
+            meta: META,
+            marcas_no_ciclo: 0,
+            beneficios_disponiveis: 0,
+            beneficios_utilizados: 0,
+            historico: [],
+            erro: "Apenas clientes do sexo masculino podem ter cartão de fidelização"
+        };
+    }
+
     const cartao = await Fidelizacao.findCartao(db, cliente_id);
 
     if (!cartao) {
@@ -119,6 +145,10 @@ const progresso = async (cliente_id) => {
 
 //correcao manual autorizada (fidelizacao:corrigir)
 const corrigir = async (cliente_id, { tipo_movimento, ciclo, observacao }, registado_por) => {
+    if (!(await verificarSexoMasculino(cliente_id))) {
+        throw criarErro(403, "Apenas clientes do sexo masculino podem ter cartão de fidelização");
+    }
+
     const cartao = await Fidelizacao.getOrCreateCartao(db, cliente_id);
 
     await Fidelizacao.insertMovimento(db, {
@@ -143,6 +173,10 @@ const corrigir = async (cliente_id, { tipo_movimento, ciclo, observacao }, regis
 //Cada marca passa por registarCorte, pelo que contribui para o ciclo e pode
 //gerar beneficio exactamente como uma marca de atendimento.
 const marcarManual = async (cliente_id, { quantidade, confirmar_beneficio }, registado_por) => {
+    if (!(await verificarSexoMasculino(cliente_id))) {
+        throw criarErro(403, "Apenas clientes do sexo masculino podem ter cartão de fidelização");
+    }
+
     const total = Number(quantidade);
 
     if (!Number.isInteger(total) || total < 1 || total > MAX_MARCAS_MANUAIS) {
@@ -214,6 +248,10 @@ const marcarManual = async (cliente_id, { quantidade, confirmar_beneficio }, reg
 //operacao e bloqueada se existirem atendimentos ou beneficios utilizados no
 //mesmo ciclo ou em ciclos posteriores.
 const removerMarcaManual = async (cliente_id, movimento_id, registado_por) => {
+    if (!(await verificarSexoMasculino(cliente_id))) {
+        throw criarErro(403, "Apenas clientes do sexo masculino podem ter cartão de fidelização");
+    }
+
     await db.transaction(async (tx) => {
         const cartao = await Fidelizacao.getOrCreateCartao(tx, cliente_id);
         const movimentos = await Fidelizacao.findMovimentos(tx, cartao.id);
@@ -293,6 +331,10 @@ const removerMarcaManual = async (cliente_id, movimento_id, registado_por) => {
 //regista a utilizacao de um beneficio que ja existe no cartao.
 //Nao cria marca: serve para corrigir o saldo de beneficios disponiveis.
 const utilizarBeneficioManual = async (cliente_id, { observacao } = {}, registado_por) => {
+    if (!(await verificarSexoMasculino(cliente_id))) {
+        throw criarErro(403, "Apenas clientes do sexo masculino podem ter cartão de fidelização");
+    }
+
     await db.transaction(async (tx) => {
         const cartao = await Fidelizacao.getOrCreateCartao(tx, cliente_id);
         const ganhos = await Fidelizacao.countPorTipo(tx, cartao.id, "beneficio_ganho");

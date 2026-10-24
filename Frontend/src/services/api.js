@@ -320,3 +320,54 @@ export const getAuditoriaRegisto = (id) => {
     return server.get(`api/auditoria/${id}`);
 };
 
+//---- horarios ----
+export const getHorariosFuncionario = (funcionarioId) => {
+    return server.get(`api/funcionarios/${funcionarioId}/horarios`);
+};
+
+export const createHorarioFuncionario = (funcionarioId, data) => {
+    return server.post(`api/funcionarios/${funcionarioId}/horarios`, data);
+};
+
+export const substituirHorariosFuncionario = (funcionarioId, horarios) => {
+    return server.put(`api/funcionarios/${funcionarioId}/horarios`, { horarios });
+};
+
+//---- assiduidade ----
+export const getAssiduidade = (params) => {
+    return server.get("api/assiduidade", { params });
+};
+
+export const createAssiduidade = (data) => {
+    return server.post("api/assiduidade", data);
+};
+
+export const updateAssiduidade = (id, data) => {
+    return server.put(`api/assiduidade/${id}`, data);
+};
+
+//---- salarios ----
+export const getProcessamentos = (params) => {
+    return server.get("api/salarios/processamentos", { params });
+};
+
+export const getProcessamentoById = (id) => {
+    return server.get(`api/salarios/processamentos/${id}`);
+};
+
+export const processarSalarios = (periodo) => {
+    return server.post("api/salarios/processar", { periodo });
+};
+
+export const atualizarDeducoes = (id, deducoes) => {
+    return server.put(`api/salarios/processamentos/${id}/deducoes`, { deducoes });
+};
+
+export const aprovarProcessamento = (id) => {
+    return server.patch(`api/salarios/processamentos/${id}/aprovar`);
+};
+
+export const pagarProcessamento = (id) => {
+    return server.patch(`api/salarios/processamentos/${id}/pagar`);
+};
+

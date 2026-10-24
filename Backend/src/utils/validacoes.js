@@ -32,6 +32,13 @@ export function validarTelefone(telefone){
     return null;
 }
 
+//sexo: apenas 'M' ou 'F'
+export function validarSexo(sexo){
+    if(sexo === undefined || sexo === null || sexo === '') return null;
+    if(!['M', 'F'].includes(sexo)) return "Sexo invalido: use 'M' ou 'F'";
+    return null;
+}
+
 //senha: 8 a 72 caracteres (limite do bcrypt), pelo menos 1 letra e 1 numero
 export function validarSenha(senha){
     if(!senha){
