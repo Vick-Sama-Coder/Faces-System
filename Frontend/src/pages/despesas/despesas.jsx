@@ -78,9 +78,9 @@ function Despesas() {
     const [categoriaError, setCategoriaError] = useState(null);
 
     const [carregarStock, setCarregarStock] = useState(false);
-    const [produtosStock, setProdutosStock] = useState([]);
-    const [movimentosStock, setMovimentosStock] = useState([]);
-    const [stockError, setStockError] = useState(null);
+    const [produtosStock, setProdutosStock] = useState([]); // eslint-disable-line no-unused-vars
+    const [movimentosStock, setMovimentosStock] = useState([]); // eslint-disable-line no-unused-vars
+    const [stockError, setStockError] = useState(null); // eslint-disable-line no-unused-vars
 
     useEffect(() => {
         carregarDados();
