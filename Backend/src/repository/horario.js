@@ -56,10 +56,17 @@ const substituir = async (funcionario_id, horarios) => {
     });
 };
 
+const deletar = async (funcionario_id, dia_semana) => {
+    await db.delete(horarioFuncionario)
+        .where(eq(horarioFuncionario.funcionario_id, funcionario_id))
+        .where(eq(horarioFuncionario.dia_semana, dia_semana));
+};
+
 const Horario = {
     findByFuncionario,
     create,
-    substituir
+    substituir,
+    deletar
 };
 
 export default Horario;

@@ -8,5 +8,6 @@ const router = express.Router();
 router.get('/funcionarios/:id/horarios', authenticate, HorarioController.getHorarios);
 router.post('/funcionarios/:id/horarios', authenticate, authorizePermission('horarios:gerir'), HorarioController.createHorario);
 router.put('/funcionarios/:id/horarios', authenticate, authorizePermission('horarios:gerir'), HorarioController.substituirHorarios);
+router.delete('/funcionarios/:id/horarios/:dia_semana', authenticate, authorizePermission('horarios:gerir'), HorarioController.deletarHorario);
 
 export default router;

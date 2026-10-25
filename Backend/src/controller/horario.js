@@ -54,10 +54,26 @@ const substituirHorarios = async (req, res, next) => {
     }
 };
 
+const deletarHorario = async (req, res, next) => {
+    try {
+        const funcionario = await Funcionario.findById(req.params.id);
+
+        if (!funcionario) {
+            return res.status(404).json({ message: "Funcionario nao encontrado" });
+        }
+
+        await Horario.delete(funcionario.id, req.params.dia_semana);
+        res.status(200).json({ message: "Horario deletado com sucesso" });
+    } catch (error) {
+        next(error);
+    }
+};
+
 const HorarioController = {
     getHorarios,
     createHorario,
-    substituirHorarios
+    substituirHorarios,
+    deletarHorario
 };
 
 export default HorarioController;

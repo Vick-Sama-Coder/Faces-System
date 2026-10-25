@@ -51,7 +51,7 @@ export default function AppRoutes(){
             }/>
             <Route path="/despesas" element={
                 <RequirePermission permissoes={["despesas:escrever"]}><Despesas/></RequirePermission>
-            }/
+            }/>
 
             {/* --- administracao: permissao de gestao de contas --- */}
             <Route path="/funcionarios" element={
