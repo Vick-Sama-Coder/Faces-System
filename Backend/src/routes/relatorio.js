@@ -6,6 +6,7 @@ const router = express.Router();
 
 //Relatorios operacionais e financeiros (requer "relatorios:ler")
 router.get('/relatorios/resumo', authenticate, authorizePermission('relatorios:ler'), RelatorioController.resumo);
+router.get('/relatorios/financeiro', authenticate, authorizePermission('relatorios:ler'), RelatorioController.financeiro);
 router.get('/relatorios/caixa', authenticate, authorizePermission('relatorios:ler'), RelatorioController.caixa);
 router.get('/relatorios/servicos', authenticate, authorizePermission('relatorios:ler'), RelatorioController.servicos);
 router.get('/relatorios/funcionarios', authenticate, authorizePermission('relatorios:ler'), RelatorioController.funcionarios);
