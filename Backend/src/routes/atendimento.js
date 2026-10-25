@@ -14,4 +14,7 @@ router.delete('/atendimentos/:id/servicos/:itemId', authenticate, authorizePermi
 router.patch('/atendimentos/:id/concluir', authenticate, authorizePermission('atendimentos:escrever'), AtendimentoController.concluirAtendimento);
 router.post('/atendimentos/:id/anular', authenticate, authorizePermission('atendimentos:anular'), AtendimentoController.anularAtendimento);
 
+// Descontos - operacao independente
+router.post('/atendimentos/:id/descontos', authenticate, authorizePermission('atendimentos:escrever'), AtendimentoController.aplicarDesconto);
+
 export default router;

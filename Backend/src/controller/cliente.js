@@ -27,10 +27,14 @@ const getClienteById = async (req, res, next) => {
 
 const createCliente = async (req, res, next) => {
     try {
-        const { nome, apelido, telefone, endereco, data_nascimento, sexo } = req.body;
+        const { nome, apelido, telefone, endereco, data_nascimento, idade, sexo } = req.body;
 
         if (!nome || !telefone) {
             return res.status(400).json({ message: "Os campos nome e telefone sao obrigatorios" });
+        }
+
+        if (idade !== undefined && idade !== null && (Number(idade) < 0 || Number(idade) > 120)) {
+            return res.status(400).json({ field: "idade", message: "Idade invalida: deve estar entre 0 e 120" });
         }
 
         if (sexo !== undefined && sexo !== null && !['M', 'F'].includes(sexo)) {
@@ -43,7 +47,7 @@ const createCliente = async (req, res, next) => {
             return res.status(409).json({ field: "telefone", message: "Ja existe um cliente com este telefone" });
         }
 
-        const cliente = await Cliente.create({ nome, apelido, telefone: telefoneLimpo, endereco, data_nascimento, sexo });
+        const cliente = await Cliente.create({ nome, apelido, telefone: telefoneLimpo, endereco, data_nascimento, idade, sexo });
 
         res.status(201).json(cliente);
     } catch (error) {
@@ -54,11 +58,15 @@ const createCliente = async (req, res, next) => {
 const updateCliente = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { nome, apelido, telefone, endereco, data_nascimento, sexo, estado } = req.body;
+        const { nome, apelido, telefone, endereco, data_nascimento, idade, sexo, estado } = req.body;
 
         if (nome === undefined && apelido === undefined && telefone === undefined &&
-            endereco === undefined && data_nascimento === undefined && sexo === undefined && estado === undefined) {
+            endereco === undefined && data_nascimento === undefined && idade === undefined && sexo === undefined && estado === undefined) {
             return res.status(400).json({ message: "Nenhum campo para atualizar foi enviado" });
+        }
+
+        if (idade !== undefined && idade !== null && (Number(idade) < 0 || Number(idade) > 120)) {
+            return res.status(400).json({ field: "idade", message: "Idade invalida: deve estar entre 0 e 120" });
         }
 
         if (sexo !== undefined && sexo !== null && !['M', 'F'].includes(sexo)) {
@@ -79,6 +87,7 @@ const updateCliente = async (req, res, next) => {
             telefone: telefoneLimpo,
             endereco,
             data_nascimento,
+            idade,
             sexo,
             estado
         });

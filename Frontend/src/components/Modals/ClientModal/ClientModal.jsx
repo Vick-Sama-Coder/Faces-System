@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, User, Phone, Edit2, Save } from "lucide-react";
+import { X, User, Phone, Edit2, Save, Cake } from "lucide-react";
 import { createCliente, updateCliente, getApiError, getApiErrorField } from "../../../services/api.js";
 import { validarCliente } from "../../../utils/validacoes.js";
 import './ClientModal.css'
@@ -11,6 +11,7 @@ function ClientModal({ onclose, cliente = null, onSuccess }) {
         nome: cliente ? cliente.nome : "",
         apelido: cliente ? cliente.apelido : "",
         telefone: cliente ? cliente.telefone : "",
+        idade: cliente ? (cliente.idade !== undefined && cliente.idade !== null ? String(cliente.idade) : "") : "",
         sexo: cliente ? cliente.sexo : "",
     });
 
@@ -28,6 +29,13 @@ function ClientModal({ onclose, cliente = null, onSuccess }) {
 
     const validate = () => {
         const erros = validarCliente(formData);
+        // Validar idade se preenchida
+        if (formData.idade !== "") {
+            const idadeNum = Number(formData.idade);
+            if (isNaN(idadeNum) || idadeNum < 0 || idadeNum > 120) {
+                erros.idade = "Idade inválida: deve estar entre 0 e 120";
+            }
+        }
         setErrors(erros);
         return Object.keys(erros).length === 0;
     };
@@ -155,6 +163,31 @@ function ClientModal({ onclose, cliente = null, onSuccess }) {
                             {errors.telefone && (
                                 <span className="field-error" id="telefone-erro" role="alert">
                                     {errors.telefone}
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="form-group">
+                            <p>
+                                <Cake />
+                                <span>Idade</span>
+                            </p>
+                            <input
+                                type="number"
+                                name="idade"
+                                id="idade"
+                                placeholder="Ex.: 25"
+                                value={formData.idade}
+                                onChange={(e) => handleChange("idade", e.target.value)}
+                                className={errors.idade ? "input-invalido" : ""}
+                                aria-invalid={errors.idade ? "true" : undefined}
+                                aria-describedby={errors.idade ? "idade-erro" : undefined}
+                                min="0"
+                                max="120"
+                            />
+                            {errors.idade && (
+                                <span className="field-error" id="idade-erro" role="alert">
+                                    {errors.idade}
                                 </span>
                             )}
                         </div>

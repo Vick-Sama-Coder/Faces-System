@@ -113,8 +113,8 @@ export function validarSexo(sexo) {
     return null;
 }
 
-//valida campos do cliente (nome, apelido, telefone, sexo); devolve {campo: mensagem}
-export function validarCliente({nome, apelido, telefone, sexo}) {
+//valida campos do cliente (nome, apelido, telefone, idade, sexo); devolve {campo: mensagem}
+export function validarCliente({nome, apelido, telefone, idade, sexo}) {
     const erros = {};
 
     const erroNome = validarNome(nome);
@@ -125,6 +125,14 @@ export function validarCliente({nome, apelido, telefone, sexo}) {
 
     const erroTel = validarTelefone(telefone);
     if (erroTel) erros.telefone = erroTel;
+
+    // Validar idade se fornecida
+    if (idade !== undefined && idade !== null && idade !== '') {
+        const idadeNum = Number(idade);
+        if (isNaN(idadeNum) || idadeNum < 0 || idadeNum > 120) {
+            erros.idade = "Idade inválida: deve estar entre 0 e 120";
+        }
+    }
 
     const erroSexo = validarSexo(sexo);
     if (erroSexo) erros.sexo = erroSexo;

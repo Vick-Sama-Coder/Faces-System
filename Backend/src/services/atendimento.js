@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import db from '../db/client.js';
 import Atendimento from '../repository/atendimento.js';
 import Servico from '../repository/servico.js';
@@ -119,7 +120,11 @@ const criar = async ({ cliente_id, servicos, registado_por }) => {
             const item_id = await Atendimento.insertServico(tx, {
                 atendimento_id,
                 servico_id: servicos[i].servico_id,
+                servico_principal_id: servicos[i].servico_principal_id ?? null,
                 funcionario_id: servicos[i].funcionario_id,
+                modalidade_id: servicos[i].modalidade_id ?? null,
+                modalidade_nome: servicos[i].modalidade_nome ?? null,
+                tipo_servico: servicos[i].tipo_servico ?? 'Servico',
                 preco_original: preco,
                 tipo_preco: servicos[i].tipo_preco,
                 valor_desconto: desconto,
@@ -216,7 +221,11 @@ const adicionarServico = async (atendimento_id, dados, registado_por) => {
         const item_id = await Atendimento.insertServico(tx, {
             atendimento_id,
             servico_id: dados.servico_id,
+            servico_principal_id: dados.servico_principal_id ?? null,
             funcionario_id: dados.funcionario_id,
+            modalidade_id: dados.modalidade_id ?? null,
+            modalidade_nome: dados.modalidade_nome ?? null,
+            tipo_servico: dados.tipo_servico ?? 'Servico',
             preco_original: preco,
             tipo_preco: dados.tipo_preco,
             valor_desconto: desconto,
@@ -253,10 +262,70 @@ const removerServico = async (item_id) => {
     });
 };
 
+// Aplicar desconto a um servico ou atendimento
+const aplicarDesconto = async (atendimento_id, dados, registado_por) => {
+    const atendimento = await Atendimento.findById(atendimento_id);
+
+    if (!atendimento) {
+        throw criarErro(404, "Atendimento nao encontrado");
+    }
+    if (atendimento.estado === "Anulado") {
+        throw criarErro(409, "Um atendimento anulado nao pode receber desconto");
+    }
+
+    const { atendimento_servico_id, escopo, tipo, percentagem, valor_bruto, valor_desconto, valor_final } = dados;
+
+    // Validacoes
+    if (valor_desconto < 0) {
+        throw criarErro(400, "O valor do desconto nao pode ser negativo");
+    }
+    if (valor_desconto > valor_bruto) {
+        throw criarErro(400, "O desconto nao pode exceder o valor elegivel");
+    }
+    if (tipo === 'Percentagem' && (percentagem === undefined || percentagem < 0 || percentagem > 100)) {
+        throw criarErro(400, "Percentagem invalida: deve estar entre 0 e 100");
+    }
+
+    return db.transaction(async (tx) => {
+        // Registar o desconto no historico
+        await Atendimento.insertDesconto(tx, {
+            atendimento_id,
+            atendimento_servico_id,
+            escopo,
+            tipo,
+            percentagem: percentagem ?? null,
+            valor_bruto,
+            valor_desconto,
+            valor_final,
+            aplicado_por: registado_por
+        });
+
+        // Aplicar o desconto na linha do servico correspondente
+        await tx.execute(sql`
+            update atendimento_servico
+               set valor_desconto = valor_desconto + ${valor_desconto},
+                   valor_final = valor_final - ${valor_desconto}
+             where id = ${atendimento_servico_id}
+        `);
+
+        // Recalcular totais do atendimento
+        await Atendimento.recalcular(tx, atendimento_id);
+
+        await AuditoriaService.registar({
+            id_utilizador: registado_por,
+            entidade: "desconto",
+            id_registo: atendimento_id,
+            operacao: "aplicar",
+            depois: { atendimento_servico_id, escopo, tipo, percentagem, valor_bruto, valor_desconto, valor_final }
+        }, tx);
+    });
+};
+
 const AtendimentoService = {
     criar,
     adicionarServico,
-    removerServico
+    removerServico,
+    aplicarDesconto
 };
 
 export default AtendimentoService;

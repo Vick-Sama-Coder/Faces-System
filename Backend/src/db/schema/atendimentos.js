@@ -7,10 +7,11 @@ import {
     date,
     numeric,
     uniqueIndex,
+    index,
     check
 } from 'drizzle-orm/pg-core';
 import { cliente } from './clientes.js';
-import { servico } from './catalogo.js';
+import { servico, servicoModalidade } from './catalogo.js';
 import { funcionario } from './rh.js';
 import { usuario } from './acesso.js';
 
@@ -27,12 +28,18 @@ export const atendimento = pgTable('atendimento', {
     motivo_anulacao: varchar('motivo_anulacao', { length: 255 })
 });
 
-// Servicos realizados num atendimento. O preco fica gravado na transacao.
+// Servicos e aplicacoes realizados num atendimento. O preco fica gravado na
+// transacao, para que alteracoes futuras ao catalogo nao reescrevam o historico.
+// servico_principal_id liga uma aplicacao ao servico principal correspondente.
 export const atendimentoServico = pgTable('atendimento_servico', {
     id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
     atendimento_id: integer('atendimento_id').notNull().references(() => atendimento.id),
     servico_id: integer('servico_id').notNull().references(() => servico.id),
+    servico_principal_id: integer('servico_principal_id').references(() => atendimentoServico.id),
     funcionario_id: integer('funcionario_id').notNull().references(() => funcionario.id),
+    modalidade_id: integer('modalidade_id').references(() => servicoModalidade.id),
+    modalidade_nome: varchar('modalidade_nome', { length: 100 }),
+    tipo_servico: varchar('tipo_servico', { length: 20 }).notNull().default('Servico'),
     preco_original: integer('preco_original').notNull(),
     tipo_preco: varchar('tipo_preco', { length: 20 }),
     valor_desconto: integer('valor_desconto').notNull().default(0),
@@ -42,7 +49,34 @@ export const atendimentoServico = pgTable('atendimento_servico', {
     criado_em: timestamp('criado_em').notNull().defaultNow()
 }, (table) => [
     check('atendimento_servico_preco_original_check', sql`${table.preco_original} >= 0`),
-    check('atendimento_servico_valor_desconto_check', sql`${table.valor_desconto} >= 0`)
+    check('atendimento_servico_valor_desconto_check', sql`${table.valor_desconto} >= 0`),
+    check('atendimento_servico_tipo_check', sql`${table.tipo_servico} in ('Servico', 'Aplicacao')`),
+    index('atendimento_servico_atendimento_idx').on(table.atendimento_id)
+]);
+
+// Registo das operacoes de desconto aplicadas a um atendimento.
+// O estado financeiro continua nas linhas de atendimento_servico; esta tabela
+// preserva o historico de cada operacao (tipo, base, valor efetivo e autor).
+export const descontoAtendimento = pgTable('desconto_atendimento', {
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    atendimento_id: integer('atendimento_id').notNull().references(() => atendimento.id),
+    atendimento_servico_id: integer('atendimento_servico_id').notNull().references(() => atendimentoServico.id),
+    escopo: varchar('escopo', { length: 20 }).notNull().default('Servico'),
+    tipo: varchar('tipo', { length: 20 }).notNull(),
+    percentagem: numeric('percentagem', { precision: 5, scale: 2 }),
+    valor_bruto: integer('valor_bruto').notNull(),
+    valor_desconto: integer('valor_desconto').notNull(),
+    valor_final: integer('valor_final').notNull(),
+    aplicado_por: integer('aplicado_por').references(() => usuario.id),
+    criado_em: timestamp('criado_em').notNull().defaultNow()
+}, (table) => [
+    check('desconto_atendimento_tipo_check', sql`${table.tipo} in ('Percentagem', 'Valor')`),
+    check('desconto_atendimento_escopo_check', sql`${table.escopo} in ('Servico', 'Atendimento')`),
+    check('desconto_atendimento_valor_check', sql`${table.valor_desconto} >= 0`),
+    check('desconto_atendimento_bruto_check', sql`${table.valor_bruto} >= 0`),
+    check('desconto_atendimento_final_check', sql`${table.valor_final} >= 0`),
+    check('desconto_atendimento_percentagem_check', sql`${table.percentagem} is null or ${table.percentagem} between 0 and 100`),
+    index('desconto_atendimento_atendimento_idx').on(table.atendimento_id)
 ]);
 
 // Pagamento de um atendimento (1 atendimento -> n pagamentos).

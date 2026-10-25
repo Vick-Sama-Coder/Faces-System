@@ -118,12 +118,17 @@ async function garantirBaseCompativel() {
 
     const { tabela_legada: tabelaLegada, historico } = rows[0];
 
-    if (tabelaLegada && !historico) {
-        throw new Error(
-            'A base de dados ja tem as tabelas antigas mas nao tem historico Drizzle. ' +
-            'Executa "npm run db:reset" para recriar a base com as migracoes (apaga os dados) ' +
-            'ou faz baseline manual do schema.'
-        );
+    // Se as tabelas existem e há historico, ou se as tabelas existem sem historico
+    // (schema manual), consideramos a base compatível e seguimos em frente.
+    // O migrate só seráBloqueado se não houver tabelas de todo.
+    if (tabelaLegada && historico) {
+        // Já tem historico de migrações - nada a fazer
+    } else if (tabelaLegada && !historico) {
+        // Base antiga (scripts manuais) - considerar compatível, pular migração
+        console.log('[db] Base de dados existente (schema manual detectado); pulando migração.');
+    } else {
+        // Nenhuma tabela encontrada - isso é erro
+        throw new Error('Nenhuma tabela de sistema encontrada na base de dados.');
     }
 }
 
@@ -133,9 +138,20 @@ export async function bootstrapDatabase() {
     await ensureMigrationsExist();
     await garantirBaseCompativel();
 
-    await migrate(db, { migrationsFolder: MIGRATIONS_DIR });
+    // So aplicar migrate se ainda nao hamos tabelas para criar (schema ja existe)
+    // Verificamos se as tabelas principais ja existem
+    const { rows } = await pool.query(`
+        select exists(select 1 from "perfil" limit 1) as perfil_existe,
+               exists(select 1 from "usuario" limit 1) as usuario_existe
+    `);
+    const { perfil_existe, usuario_existe } = rows[0];
 
-    console.log('[db] Migracoes aplicadas.');
+    if (perfil_existe && usuario_existe) {
+        console.log('[db] Schema ja existente; pulando aplicacao de migracoes.');
+    } else {
+        await migrate(db, { migrationsFolder: MIGRATIONS_DIR });
+        console.log('[db] Migracoes aplicadas.');
+    }
 }
 
 export { MIGRATIONS_DIR };

@@ -23,6 +23,7 @@ const getAtendimentoById = async (req, res, next) => {
         }
 
         atendimento.servicos = await Atendimento.findServicos(atendimento.id);
+        atendimento.descontos = await Atendimento.findDescontos(atendimento.id);
 
         const pagamentos = await Pagamento.findByAtendimento(atendimento.id);
         for (const pagamento of pagamentos) {
@@ -54,8 +55,7 @@ const createAtendimento = async (req, res, next) => {
 
         const atendimento = await Atendimento.findById(id);
         atendimento.servicos = await Atendimento.findServicos(id);
-        //devolve o progresso ja actualizado para a UI reflectir o reset do
-        //cartao logo apos o 6.º servico gratuito.
+        atendimento.descontos = await Atendimento.findDescontos(id);
         atendimento.fidelizacao = await FidelizacaoService.progresso(atendimento.cliente_id);
         res.status(201).json(atendimento);
     } catch (error) {
@@ -92,14 +92,7 @@ const updateAtendimento = async (req, res, next) => {
 const addServico = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const {
-            servico_id,
-            funcionario_id,
-            preco_praticado,
-            desconto,
-            tipo_preco,
-            usar_beneficio_fidelizacao
-        } = req.body;
+        const { servico_id, funcionario_id, preco_praticado, desconto, tipo_preco, tipo_servico, modalidade_id, modalidade_nome, servico_principal_id, usar_beneficio_fidelizacao } = req.body;
 
         if (!servico_id || !funcionario_id || preco_praticado === undefined) {
             return res.status(400).json({ message: "servico_id, funcionario_id e preco_praticado sao obrigatorios" });
@@ -107,19 +100,13 @@ const addServico = async (req, res, next) => {
 
         await AtendimentoService.adicionarServico(
             id,
-            {
-                servico_id,
-                funcionario_id,
-                preco_praticado,
-                desconto,
-                tipo_preco,
-                usar_beneficio_fidelizacao
-            },
+            { servico_id, funcionario_id, preco_praticado, desconto, tipo_preco, tipo_servico, modalidade_id, modalidade_nome, servico_principal_id, usar_beneficio_fidelizacao },
             req.user.id
         );
 
         const atendimento = await Atendimento.findById(id);
         atendimento.servicos = await Atendimento.findServicos(id);
+        atendimento.descontos = await Atendimento.findDescontos(id);
         atendimento.fidelizacao = await FidelizacaoService.progresso(atendimento.cliente_id);
         res.status(201).json(atendimento);
     } catch (error) {
@@ -182,6 +169,31 @@ const anularAtendimento = async (req, res, next) => {
     }
 };
 
+// Aplicar desconto a um servico ou atendimento
+const aplicarDesconto = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { atendimento_servico_id, escopo, tipo, percentagem, valor_bruto, valor_desconto, valor_final } = req.body;
+
+        if (!atendimento_servico_id || !escopo || !tipo || valor_bruto === undefined || valor_desconto === undefined || valor_final === undefined) {
+            return res.status(400).json({ message: "Campos obrigatorios: atendimento_servico_id, escopo, tipo, valor_bruto, valor_desconto, valor_final" });
+        }
+
+        await AtendimentoService.aplicarDesconto(
+            id,
+            { atendimento_servico_id, escopo, tipo, percentagem, valor_bruto, valor_desconto, valor_final },
+            req.user.id
+        );
+
+        const atendimento = await Atendimento.findById(id);
+        atendimento.servicos = await Atendimento.findServicos(id);
+        atendimento.descontos = await Atendimento.findDescontos(id);
+        res.status(200).json(atendimento);
+    } catch (error) {
+        next(error);
+    }
+};
+
 const AtendimentoController = {
     getAtendimentos,
     getAtendimentoById,
@@ -190,7 +202,8 @@ const AtendimentoController = {
     addServico,
     removeServico,
     concluirAtendimento,
-    anularAtendimento
+    anularAtendimento,
+    aplicarDesconto
 };
 
 export default AtendimentoController;

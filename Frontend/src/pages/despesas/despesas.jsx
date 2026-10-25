@@ -24,6 +24,7 @@ import {
     getCategoriasDespesa,
     createCategoriaDespesa,
     deleteDespesa,
+    getMovimentosEstoque,
     getApiError
 } from "../../services/api.js";
 import { useAuthStore } from "../../store/authStore.js";
@@ -76,8 +77,32 @@ function Despesas() {
     const [savingCategoria, setSavingCategoria] = useState(false);
     const [categoriaError, setCategoriaError] = useState(null);
 
+    const [carregarStock, setCarregarStock] = useState(false);
+    const [produtosStock, setProdutosStock] = useState([]);
+    const [movimentosStock, setMovimentosStock] = useState([]);
+    const [stockError, setStockError] = useState(null);
+
     useEffect(() => {
         carregarDados();
+    }, []);
+
+    useEffect(() => {
+        async function carregarStock() {
+            setCarregarStock(true);
+            setStockError(null);
+
+            try {
+                const resMovimentos = await getMovimentosEstoque({});
+
+                setMovimentosStock(Array.isArray(resMovimentos.data) ? resMovimentos.data : []);
+            } catch (err) {
+                setStockError(getApiError(err));
+            } finally {
+                setCarregarStock(false);
+            }
+        }
+
+        carregarStock();
     }, []);
 
     async function carregarDados() {
@@ -615,6 +640,30 @@ function Despesas() {
                                     <p className="despesas-panel-hint">
                                         Maior peso: <strong>{categoriaPrincipal.nome}</strong> com {formatarMoeda(categoriaPrincipal.total)}.
                                     </p>
+                                )}
+                            </article>
+
+                            <article className="despesas-panel">
+                                <header className="despesas-panel-header">
+                                    <div className="despesas-panel-title">
+                                        <Tag size={17} />
+                                        <div>
+                                            <strong>Stock do salao</strong>
+                                            <span>Consultar quantidades e ajustes</span>
+                                        </div>
+                                    </div>
+                                </header>
+
+                                {carregarStock ? (
+                                    <p className="despesas-panel-empty">A carregar informações de stock...</p>
+                                ) : produtosStock.length === 0 ? (
+                                    <p className="despesas-panel-empty">Ainda nao ha produtos com stock registado. Registe uma compra de produtos para comecar a acompanhar o stock.</p>
+                                ) : (
+                                    <div className="despesas-stock-info">
+                                        <p>Produto com stock abaixo do minimo: <strong style={{ color: 'red' }}>ATENCAO</strong></p>
+                                        <p>Total de produtos: {produtosStock.length}</p>
+                                        <p>Total de movimentos: {movimentosStock.length}</p>
+                                    </div>
                                 )}
                             </article>
 
