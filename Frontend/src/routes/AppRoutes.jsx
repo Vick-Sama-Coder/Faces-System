@@ -15,6 +15,7 @@ import Logs from "../pages/logs/logs.jsx"
 import GestaoUtilizadores from "../pages/admin/GestaoUtilizadores.jsx"
 import Permissoes from "../pages/admin/Permissoes.jsx"
 import Perfil from "../pages/perfil/Perfil.jsx"
+import HorarioPage from "../pages/horario/HorarioPage.jsx"
 import { RequireAuth, RequirePermission, RedirectIfAuth } from "./RequireAuth.jsx"
 
 
@@ -64,6 +65,9 @@ export default function AppRoutes(){
             }/>
             <Route path="/logs" element={
                 <RequirePermission permissoes={["auditoria:ler"]}><Logs/></RequirePermission>
+            }/>
+            <Route path="/horarios" element={
+                <RequirePermission permissoes={["funcionarios:ler", "funcionarios:escrever"]}><HorarioPage/></RequirePermission>
             }/>
             <Route path="*" element={<h1>Not Found</h1>}/>
         </Routes>
