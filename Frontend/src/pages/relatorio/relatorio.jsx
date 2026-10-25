@@ -18,7 +18,20 @@ import {
     Ban,
     RotateCcw,
     ChartNoAxesCombinedIcon,
-    Tag
+    Tag,
+    ChevronDown,
+    ChevronUp,
+    ArrowUpRight,
+    ArrowDownRight,
+    Download,
+    Printer,
+    HandCoins,
+    Landmark,
+    PiggyBank,
+    TriangleAlert,
+    Banknote,
+    CreditCard,
+    Percent
 } from "lucide-react";
 import {
     ResponsiveContainer,
@@ -42,6 +55,7 @@ import {
     getRelatorioFidelizacao,
     getRelatorioAnulacoes,
     getRelatorioMovimentos,
+    getRelatorioFinanceiro,
     getDespesas,
     getApiError
 } from "../../services/api.js";
@@ -77,6 +91,14 @@ function formatarDataHora(valor) {
     const data = new Date(valor);
     if (Number.isNaN(data.getTime())) return "-";
     return data.toLocaleString("pt-MZ", { dateStyle: "short", timeStyle: "short" });
+}
+
+function formatarPercentual(valor) {
+    if (valor === null || valor === undefined || Number.isNaN(Number(valor))) {
+        return "Nao calculavel";
+    }
+    const numero = Number(valor);
+    return `${numero > 0 ? "+" : ""}${numero.toFixed(1)}%`;
 }
 
 function formatarDataCurta(valor) {
@@ -161,8 +183,10 @@ function Relatorio() {
     const [error, setError] = useState(null);
     const [tabAtiva, setTabAtiva] = useState("resumo");
     const [recarregar, setRecarregar] = useState(0);
-    const [funcionarioSelecionado, setFuncionarioSelecionado] = useState(null);
-    const [salarioDetalhe, setSalarioDetalhe] = useState(null);
+    const [mostrarSalarios, setMostrarSalarios] = useState(false);
+    const [funcionarioExpandido, setFuncionarioExpandido] = useState(null);
+    const [filtroFuncionario, setFiltroFuncionario] = useState("");
+    const [filtroMetodo, setFiltroMetodo] = useState("");
 
     useEffect(() => {
         let activo = true;
@@ -178,6 +202,7 @@ function Relatorio() {
 
                 const [
                     resResumo,
+                    resFinanceiro,
                     resCaixa,
                     resServicos,
                     resFuncionarios,
@@ -189,6 +214,7 @@ function Relatorio() {
                     resDespesas
                 ] = await Promise.all([
                     getRelatorioResumo(params),
+                    getRelatorioFinanceiro(params),
                     getRelatorioCaixa(params),
                     getRelatorioServicos(params),
                     getRelatorioFuncionarios(params),
@@ -204,6 +230,7 @@ function Relatorio() {
 
                 setDados({
                     resumo: resResumo.data || {},
+                    financeiro: resFinanceiro.data || {},
                     caixa: resCaixa.data || {},
                     servicos: Array.isArray(resServicos.data) ? resServicos.data : [],
                     funcionarios: Array.isArray(resFuncionarios.data) ? resFuncionarios.data : [],
@@ -224,61 +251,6 @@ function Relatorio() {
         carregar();
         return () => { activo = false; };
     }, [periodo.de, periodo.ate, recarregar]);
-
-    useEffect(() => {
-        let activo = true;
-
-        async function carregarSalario() {
-            if (!funcionarioSelecionado) {
-                setSalarioDetalhe(null);
-                return;
-            }
-
-            setLoading(true);
-            setError(null);
-
-            try {
-                // Converter periodo para formato YYYY-MM baseado nos filtros atuais
-                const periodoFmt = filtros.de 
-                    ? `${filtros.de.slice(0, 4)}-${filtros.de.slice(5, 7)}` 
-                    : undefined;
-
-                const { data } = await getProcessamentosFuncionario(funcionarioSelecionado.id, {
-                    periodo: periodoFmt
-                });
-
-                if (!activo) return;
-
-                const processamentos = data.rows || data || [];
-                const ultimoProcessamento = processamentos[0];
-
-                if (!ultimoProcessamento) {
-                    setSalarioDetalhe(null);
-                    return;
-                }
-
-                const periodoTexto = `${ultimoProcessamento.periodo_inicio} a ${ultimoProcessamento.periodo_fim}`;
-                const salarioBase = ultimoProcessamento.salario_base || 0;
-                const totalComissoes = ultimoProcessamento.total_comissoes || 0;
-                const totalAPagar = ultimoProcessamento.total_a_pagar || 0;
-
-                setSalarioDetalhe({
-                    periodo: periodoTexto,
-                    salario_base: salarioBase,
-                    total_comissoes: totalComissoes,
-                    total_a_pagar: totalAPagar,
-                    estado: ultimoProcessamento.estado
-                });
-            } catch (err) {
-                if (activo) setError(getApiError(err));
-            } finally {
-                if (activo) setLoading(false);
-            }
-        }
-
-        carregarSalario();
-        return () => { activo = false; };
-    }, [funcionarioSelecionado, filtros.de, filtros.ate]);
 
     function escolherPreset(preset) {
         const novoPeriodo = periodoDoPreset(preset);
@@ -309,7 +281,30 @@ function Relatorio() {
         setRecarregar((valor) => valor + 1);
     }
 
+    function imprimirRelatorio() {
+        const tituloOriginal = document.title;
+        document.title = `Relatorio financeiro ${periodo.de || "inicio"}-${periodo.ate || "hoje"}`;
+        window.print();
+        document.title = tituloOriginal;
+    }
+
     const resumo = dados?.resumo || {};
+    const financeiro = dados?.financeiro || {};
+    const resumoFinanceiro = financeiro.resumo || {};
+    const comparacao = financeiro.comparacao || {};
+    const receitasFinanceiro = financeiro.receitas || {};
+    const despesasFinanceiro = financeiro.despesas || {};
+    const fluxoFinanceiro = financeiro.fluxo || {};
+    const salarios = financeiro.salarios || {};
+    const salarioResumo = salarios.resumo || {};
+    const salariosFuncionarios = Array.isArray(salarios.funcionarios) ? salarios.funcionarios : [];
+    const dividas = financeiro.dividas || {};
+    const dividasReceber = Array.isArray(dividas.a_receber) ? dividas.a_receber : [];
+    const dividasPagar = Array.isArray(dividas.a_pagar) ? dividas.a_pagar : [];
+    const receitasMetodo = Array.isArray(receitasFinanceiro.por_metodo) ? receitasFinanceiro.por_metodo : [];
+    const despesasMetodo = Array.isArray(despesasFinanceiro.por_metodo) ? despesasFinanceiro.por_metodo : [];
+    const despesasDetalhe = Array.isArray(despesasFinanceiro.detalhe) ? despesasFinanceiro.detalhe : [];
+
     const caixa = dados?.caixa || {};
     const sessoes = Array.isArray(caixa.sessoes) ? caixa.sessoes : [];
     const servicos = dados?.servicos || [];
@@ -318,13 +313,28 @@ function Relatorio() {
     const clientes = dados?.clientes || [];
     const fidelizacao = dados?.fidelizacao || {};
     const anulacoes = dados?.anulacoes || [];
-    const movimentos = dados?.movimentos || [];
-    const despesas = dados?.despesas || [];
+    const movimentos = useMemo(() => dados?.movimentos || [], [dados]);
+    const despesas = useMemo(() => dados?.despesas || [], [dados]);
 
-    const receita = Number(resumo.receita) || 0;
-    const despesasTotal = Number(resumo.despesas) || 0;
-    const resultado = Number(resumo.resultado) || 0;
-    const margem = receita > 0 ? (resultado / receita) * 100 : 0;
+    const receita = Number(resumoFinanceiro.receitas_recebidas ?? resumo.receita) || 0;
+    const receitaGerada = Number(resumoFinanceiro.receitas_geradas) || 0;
+    const despesasTotal = Number(resumoFinanceiro.despesas ?? resumo.despesas) || 0;
+    const resultado = Number(resumoFinanceiro.resultado ?? resumo.resultado) || 0;
+    const margem = Number(resumoFinanceiro.margem) || (receita > 0 ? (resultado / receita) * 100 : 0);
+    const valoresReceber = Number(resumoFinanceiro.valores_a_receber) || 0;
+    const valoresPagar = Number(resumoFinanceiro.valores_a_pagar) || 0;
+    const saldoInicial = Number(resumoFinanceiro.saldo_inicial ?? fluxoFinanceiro.saldo_inicial) || 0;
+    const saldoFinal = Number(resumoFinanceiro.saldo_final ?? fluxoFinanceiro.saldo_final) || 0;
+    const outrasReceitas = Number(receitasFinanceiro.outras) || 0;
+    const descontosTotal = Number(receitasFinanceiro.descontos) || 0;
+    const salarioFixo = Number(salarioResumo.salario_fixo) || 0;
+    const comissoesEquipa = Number(salarioResumo.comissoes) || 0;
+    const deducoesEquipa = Number(salarioResumo.deducoes) || 0;
+    const totalAPagarEquipa = Number(salarioResumo.total_a_pagar) || 0;
+    const totalPagoEquipa = Number(salarioResumo.total_pago) || 0;
+    const saldoPendenteEquipa = Number(salarioResumo.saldo_pendente) || 0;
+    const geradoPor = financeiro.gerado_por || "";
+    const geradoEm = financeiro.gerado_em || "";
     const totalServicos = servicos.reduce((soma, servico) => soma + Number(servico.quantidade || 0), 0);
 
     const fluxo = useMemo(() => {
@@ -393,13 +403,56 @@ function Relatorio() {
     const totalDespesasCategoria = despesasCategoria.reduce((soma, item) => soma + item.value, 0);
     const maxServico = Math.max(1, ...servicos.map((servico) => Number(servico.total) || 0));
     const servicosVisiveis = servicos.slice(0, 8);
-    const funcionariosVisiveis = funcionarios.slice(0, 12);
-    const maxFuncionario = Math.max(1, ...funcionarios.map((funcionario) => Number(funcionario.total_servicos) || 0));
+    const totalReceitaServicos = servicos.reduce((soma, servico) => soma + Number(servico.total || 0), 0);
+
+    //filtros de equipa e metodo aplicam-se as listas sem obrigar a recarregar o relatorio
+    const funcionariosFiltrados = funcionarios.filter((funcionario) => (
+        !filtroFuncionario || String(funcionario.funcionario_id) === String(filtroFuncionario)
+    ));
+    const salariosFiltrados = salariosFuncionarios.filter((funcionario) => (
+        !filtroFuncionario || String(funcionario.funcionario_id) === String(filtroFuncionario)
+    ));
+    const funcionariosVisiveis = funcionariosFiltrados.slice(0, 50);
+    const maxFuncionario = Math.max(1, ...funcionariosFiltrados.map((funcionario) => Number(funcionario.total_servicos) || 0));
+    const receitasFuncionario = salariosFiltrados.filter((funcionario) => Number(funcionario.receita) > 0);
+    const receitasMetodoFiltradas = receitasMetodo.filter((metodo) => (
+        !filtroMetodo || metodo.metodo === filtroMetodo
+    ));
+    const despesasDetalheFiltradas = despesasDetalhe.filter((despesa) => (
+        !filtroMetodo || despesa.metodo_pagamento === filtroMetodo
+    ));
+    const despesasPorCategoria = Array.isArray(despesasFinanceiro.por_categoria)
+        ? despesasFinanceiro.por_categoria
+        : [];
+    const despesasPorMetodo = despesasMetodo.filter((metodo) => (
+        !filtroMetodo || metodo.metodo === filtroMetodo
+    ));
+    const maxReceitaMetodo = Math.max(1, ...receitasMetodoFiltradas.map((metodo) => Number(metodo.total) || 0));
+    const maxDespesaCategoria = Math.max(1, ...despesasPorCategoria.map((categoria) => Number(categoria.total) || 0));
+    const maxDespesaMetodo = Math.max(1, ...despesasPorMetodo.map((metodo) => Number(metodo.total) || 0));
+    const despesasMedia = despesas.length > 0 ? despesasTotal / despesas.length : 0;
+    const despesasMaiorCategoria = despesasPorCategoria[0] || null;
     const clientesComAtendimentos = clientes.filter((cliente) => Number(cliente.atendimentos) > 0);
     const clientesVisiveis = clientesComAtendimentos.slice(0, 12);
-    const funcionariosDestaque = funcionarios
+    const funcionariosDestaque = funcionariosFiltrados
         .filter((funcionario) => Number(funcionario.total_servicos) > 0)
         .slice(0, 3);
+    const funcionarioSalarioExpandido = salariosFuncionarios.find((funcionario) => (
+        String(funcionario.funcionario_id) === String(funcionarioExpandido)
+    )) || null;
+    const salariosPendentes = salariosFiltrados.filter((funcionario) => Number(funcionario.saldo_pendente) > 0);
+
+    const opcoesFuncionarios = [...new Map(
+        [...salariosFuncionarios, ...funcionarios].map((funcionario) => [
+            String(funcionario.funcionario_id),
+            { id: String(funcionario.funcionario_id), nome: funcionario.funcionario_nome }
+        ])
+    ).values()].sort((a, b) => a.nome.localeCompare(b.nome));
+
+    const opcoesMetodos = [...new Set([
+        ...receitasMetodo.map((metodo) => metodo.metodo),
+        ...despesasMetodo.map((metodo) => metodo.metodo)
+    ].filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
     const marcas = Number(fidelizacao.marcas) || 0;
     const beneficiosGanhos = Number(fidelizacao.beneficios_ganhos) || 0;
@@ -409,7 +462,6 @@ function Relatorio() {
     const totalAnulacoes = anulacoes.reduce((soma, item) => soma + Number(item.valor || 0), 0);
     const atendimentosAnulados = anulacoes.filter((item) => item.tipo === "atendimento").length;
     const pagamentosAnulados = anulacoes.filter((item) => item.tipo === "pagamento").length;
-    const saldoCaixa = (Number(caixa.entradas) || 0) - (Number(caixa.saidas) || 0) - (Number(caixa.levantamentos) || 0);
 
     const rotuloPeriodo = periodo.de || periodo.ate
         ? `${periodo.de ? formatarDataCurta(periodo.de) : "Inicio"} — ${periodo.ate ? formatarDataCurta(periodo.ate) : "Hoje"}`
@@ -417,11 +469,150 @@ function Relatorio() {
 
     const tabs = [
         { id: "resumo", label: "Resumo", Icone: ChartNoAxesCombinedIcon },
+        { id: "receitas", label: "Receitas", Icone: TrendingUp, badge: receitasMetodo.length },
+        { id: "despesas", label: "Despesas", Icone: Receipt, badge: despesas.length },
+        { id: "caixa", label: "Fluxo de caixa", Icone: Wallet, badge: movimentos.length },
         { id: "equipa", label: "Equipa", Icone: Users, badge: funcionarios.length },
+        { id: "dividas", label: "Dividas", Icone: HandCoins, badge: dividasReceber.length + dividasPagar.length },
         { id: "clientes", label: "Clientes", Icone: UserRound, badge: clientesComAtendimentos.length },
-        { id: "caixa", label: "Caixa", Icone: Wallet, badge: movimentos.length },
         { id: "anulacoes", label: "Anulacoes", Icone: Ban, badge: anulacoes.length }
     ];
+
+    function exportarCsv() {
+        const linhas = [];
+        const adicionar = (...campos) => linhas.push(campos);
+        const escapar = (valor) => {
+            let texto = String(valor ?? "");
+            //evita que texto livre seja interpretado como formula ao abrir no Excel
+            if (typeof valor === "string" && /^[=+\-@]/.test(texto)) {
+                texto = `'${texto}`;
+            }
+            return `"${texto.replace(/"/g, '""')}"`;
+        };
+
+        adicionar("Relatorio financeiro - Salao Faces");
+        adicionar("Periodo", rotuloPeriodo);
+        adicionar("Gerado por", geradoPor || "-", "em", formatarDataHora(geradoEm));
+        adicionar();
+        adicionar("RESUMO FINANCEIRO");
+        adicionar("Indicador", "Valor");
+        adicionar("Receitas recebidas", receita);
+        adicionar("Receitas geradas", receitaGerada);
+        adicionar("Despesas pagas", despesasTotal);
+        adicionar("Resultado operacional", resultado);
+        adicionar("Saldo inicial de caixa", saldoInicial);
+        adicionar("Saldo final de caixa", saldoFinal);
+        adicionar("Valores a receber", valoresReceber);
+        adicionar("Valores a pagar a equipa", valoresPagar);
+        adicionar("Salario fixo da equipa", salarioFixo);
+        adicionar("Comissoes acumuladas", comissoesEquipa);
+        adicionar("Descontos concedidos", descontosTotal);
+        adicionar("Outras receitas", outrasReceitas);
+        adicionar();
+        adicionar("COMPARACAO COM PERIODO ANTERIOR");
+        if (comparacao.disponivel) {
+            adicionar("Indicador", "Periodo atual", "Periodo anterior", "Variacao");
+            adicionar("Receitas", comparacao.atual.receitas, comparacao.anterior.receitas, formatarPercentual(comparacao.variacao.receitas));
+            adicionar("Despesas", comparacao.atual.despesas, comparacao.anterior.despesas, formatarPercentual(comparacao.variacao.despesas));
+            adicionar("Resultado", comparacao.atual.resultado, comparacao.anterior.resultado, formatarPercentual(comparacao.variacao.resultado));
+        } else {
+            adicionar("Sem periodo anterior para comparar");
+        }
+        adicionar();
+        adicionar("RECEITAS POR METODO");
+        adicionar("Metodo", "Quantidade", "Total");
+        receitasMetodo.forEach((metodo) => adicionar(metodo.metodo, metodo.quantidade, metodo.total));
+        adicionar();
+        adicionar("RECEITAS POR SERVICO");
+        adicionar("Servico", "Quantidade", "Valor bruto", "Descontos", "Receita liquida", "Comissoes");
+        servicos.forEach((servico) => adicionar(
+            servico.servico_nome,
+            servico.quantidade,
+            servico.valor_bruto ?? servico.total,
+            servico.descontos,
+            servico.total,
+            servico.comissoes
+        ));
+        adicionar();
+        adicionar("DESPESAS POR CATEGORIA");
+        adicionar("Categoria", "Quantidade", "Total");
+        despesasPorCategoria.forEach((categoria) => adicionar(categoria.categoria, categoria.quantidade, categoria.total));
+        adicionar();
+        adicionar("DETALHE DE DESPESAS");
+        adicionar("Data", "Categoria", "Descricao", "Metodo", "Responsavel", "Valor");
+        despesasDetalhe.forEach((despesa) => adicionar(
+            despesa.data_compra,
+            despesa.categoria,
+            despesa.descricao,
+            despesa.metodo_pagamento,
+            despesa.responsavel,
+            despesa.valor_total
+        ));
+        adicionar();
+        adicionar("FLUXO DE CAIXA");
+        adicionar("Saldo inicial", saldoInicial);
+        adicionar("Entradas", fluxoFinanceiro.entradas || 0);
+        adicionar("Saidas", fluxoFinanceiro.saidas || 0);
+        adicionar("Levantamentos", fluxoFinanceiro.levantamentos || 0);
+        adicionar("Saldo final", saldoFinal);
+        adicionar();
+        adicionar("FECHOS DE CAIXA");
+        adicionar("Abertura", "Fecho", "Saldo inicial", "Esperado", "Contado", "Diferenca", "Fechado por");
+        sessoes.forEach((sessao) => adicionar(
+            formatarDataHora(sessao.data_abertura),
+            formatarDataHora(sessao.data_fecho),
+            sessao.saldo_inicial,
+            sessao.valor_esperado,
+            sessao.valor_contado,
+            sessao.diferenca,
+            sessao.fechado_por_nome
+        ));
+        adicionar();
+        adicionar("SALARIOS E COMISSOES");
+        adicionar("Funcionario", "Salario fixo", "Comissoes", "Deducoes", "Total a pagar", "Total pago", "Saldo pendente");
+        salariosFuncionarios.forEach((funcionario) => adicionar(
+            funcionario.funcionario_nome,
+            funcionario.salario_fixo,
+            funcionario.comissoes,
+            funcionario.deducoes,
+            funcionario.total_a_pagar,
+            funcionario.total_pago,
+            funcionario.saldo_pendente
+        ));
+        adicionar();
+        adicionar("VALORES A RECEBER");
+        adicionar("Cliente", "Data", "Servicos", "Valor original", "Pago", "Pendente", "Dias em atraso");
+        dividasReceber.forEach((divida) => adicionar(
+            divida.cliente_nome,
+            formatarDataHora(divida.data_hora),
+            divida.servicos,
+            divida.valor_total,
+            divida.pago,
+            divida.pendente,
+            divida.dias_atraso
+        ));
+        adicionar();
+        adicionar("VALORES A PAGAR");
+        adicionar("Beneficiario", "Periodo inicio", "Periodo fim", "Valor", "Estado");
+        dividasPagar.forEach((divida) => adicionar(
+            divida.beneficiario,
+            divida.periodo_inicio,
+            divida.periodo_fim,
+            divida.valor,
+            divida.estado
+        ));
+
+        const csv = linhas.map((linha) => linha.map(escapar).join(";")).join("\r\n");
+        const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `relatorio-financeiro-${periodo.de || "inicio"}-${periodo.ate || "hoje"}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
 
     return (
         <div className="admin-main">
@@ -437,19 +628,33 @@ function Relatorio() {
             />
 
             <main className="admin-content">
+                <div className="relatorio-print-only">
+                    <h1>Relatorio financeiro</h1>
+                    <p>{rotuloPeriodo}</p>
+                    <p>Gerado por {geradoPor || "-"} em {formatarDataHora(geradoEm)}.</p>
+                </div>
+
                 <header className="admin-page-header">
                     <div className="admin-page-header-inner">
                         <div>
-                            <h1 className="admin-page-title">Relatorios</h1>
+                            <h1 className="admin-page-title">Relatorio financeiro</h1>
                             <p className="admin-page-subtitle">
-                                Leia o pulso do salao: receita, despesas, equipa, clientes e caixa num unico painel.
+                                Receitas, despesas, caixa, dividas e o que a equipa tem a receber no periodo.
                             </p>
                         </div>
-                        <div className="admin-page-actions">
+                        <div className="admin-page-actions relatorio-acoes">
                             <span className="relatorio-periodo-badge">
                                 <CalendarDays size={15} />
                                 {rotuloPeriodo}
                             </span>
+                            <button type="button" className="admin-btn secondary" onClick={exportarCsv} disabled={!dados}>
+                                <Download size={16} />
+                                Exportar Excel (CSV)
+                            </button>
+                            <button type="button" className="admin-btn secondary" onClick={imprimirRelatorio} disabled={!dados}>
+                                <Printer size={16} />
+                                Imprimir / PDF
+                            </button>
                             <button type="button" className="admin-btn secondary" onClick={atualizar} disabled={loading}>
                                 <RotateCcw size={16} className={loading ? "relatorio-spin" : ""} />
                                 {loading ? "A atualizar..." : "Atualizar"}
@@ -497,6 +702,43 @@ function Relatorio() {
                             Aplicar
                         </button>
                     </div>
+
+                    <div className="relatorio-filtros">
+                        <label>
+                            <span>Funcionario</span>
+                            <select value={filtroFuncionario} onChange={(e) => setFiltroFuncionario(e.target.value)}>
+                                <option value="">Todos os funcionarios</option>
+                                {opcoesFuncionarios.map((funcionario) => (
+                                    <option key={funcionario.id} value={funcionario.id}>{funcionario.nome}</option>
+                                ))}
+                            </select>
+                        </label>
+                        <label>
+                            <span>Metodo de pagamento</span>
+                            <select value={filtroMetodo} onChange={(e) => setFiltroMetodo(e.target.value)}>
+                                <option value="">Todos os metodos</option>
+                                {opcoesMetodos.map((metodo) => (
+                                    <option key={metodo} value={metodo}>{metodo}</option>
+                                ))}
+                            </select>
+                        </label>
+                        {(filtroFuncionario || filtroMetodo) && (
+                            <button
+                                type="button"
+                                className="relatorio-filtro-limpar"
+                                onClick={() => {
+                                    setFiltroFuncionario("");
+                                    setFiltroMetodo("");
+                                }}
+                            >
+                                Limpar filtros
+                            </button>
+                        )}
+                        <p className="relatorio-filtros-nota">
+                            Os filtros aplicam-se as listas detalhadas de equipa, receitas e despesas. Os totais do
+                            periodo continuam a ser globais.
+                        </p>
+                    </div>
                 </section>
 
                 {!dados ? (
@@ -525,16 +767,16 @@ function Relatorio() {
                             <article className="relatorio-kpi receita">
                                 <span className="relatorio-kpi-icon"><TrendingUp size={20} /></span>
                                 <div>
-                                    <span className="relatorio-kpi-label">Receita</span>
+                                    <span className="relatorio-kpi-label">Receitas recebidas</span>
                                     <strong>{formatarMoeda(receita)}</strong>
-                                    <small>{formatarNumero(totalServicos)} servicos realizados</small>
+                                    <small>{formatarNumero(totalServicos)} servicos - geradas {formatarMoeda(receitaGerada)}</small>
                                 </div>
                             </article>
 
                             <article className="relatorio-kpi despesa">
                                 <span className="relatorio-kpi-icon"><Receipt size={20} /></span>
                                 <div>
-                                    <span className="relatorio-kpi-label">Despesas</span>
+                                    <span className="relatorio-kpi-label">Despesas pagas</span>
                                     <strong>{formatarMoeda(despesasTotal)}</strong>
                                     <small>{formatarNumero(despesas.length)} despesas ativas</small>
                                 </div>
@@ -543,21 +785,42 @@ function Relatorio() {
                             <article className={`relatorio-kpi resultado ${resultado < 0 ? "negativo" : ""}`}>
                                 <span className="relatorio-kpi-icon"><Wallet size={20} /></span>
                                 <div>
-                                    <span className="relatorio-kpi-label">Resultado</span>
+                                    <span className="relatorio-kpi-label">Resultado operacional</span>
                                     <strong>{formatarMoeda(resultado)}</strong>
-                                    <small>{resultado < 0 ? "Resultado negativo" : "Resultado positivo"}</small>
+                                    <small>{resultado < 0 ? "Prejuizo no periodo" : "Lucro no periodo"} - margem {margem.toFixed(1)}%</small>
                                 </div>
                             </article>
 
-                            <article className={`relatorio-kpi margem ${margem < 0 ? "negativo" : ""}`}>
-                                <span className="relatorio-kpi-icon"><CircleDollarSign size={20} /></span>
+                            <article className="relatorio-kpi margem">
+                                <span className="relatorio-kpi-icon"><Landmark size={20} /></span>
                                 <div>
-                                    <span className="relatorio-kpi-label">Margem</span>
-                                    <strong>{margem.toFixed(1)}%</strong>
-                                    <div className="relatorio-margin-bar">
-                                        <span style={{ width: `${Math.max(0, Math.min(100, margem))}%` }} />
-                                    </div>
+                                    <span className="relatorio-kpi-label">Saldo de caixa</span>
+                                    <strong>{formatarMoeda(saldoFinal)}</strong>
+                                    <small>Saldo inicial {formatarMoeda(saldoInicial)}</small>
                                 </div>
+                            </article>
+                        </section>
+
+                        <section className="relatorio-financeiro-resumo">
+                            <article className="relatorio-stat-mini success">
+                                <span><HandCoins size={18} /> Valores a receber</span>
+                                <strong>{formatarMoeda(valoresReceber)}</strong>
+                            </article>
+                            <article className="relatorio-stat-mini danger">
+                                <span><PiggyBank size={18} /> A pagar a equipa</span>
+                                <strong>{formatarMoeda(valoresPagar)}</strong>
+                            </article>
+                            <article className="relatorio-stat-mini warning">
+                                <span><Banknote size={18} /> Salario fixo</span>
+                                <strong>{formatarMoeda(salarioFixo)}</strong>
+                            </article>
+                            <article className="relatorio-stat-mini primary">
+                                <span><Percent size={18} /> Comissoes acumuladas</span>
+                                <strong>{formatarMoeda(comissoesEquipa)}</strong>
+                            </article>
+                            <article className="relatorio-stat-mini neutral">
+                                <span><CreditCard size={18} /> Saldo pendente equipa</span>
+                                <strong>{formatarMoeda(saldoPendenteEquipa)}</strong>
                             </article>
                         </section>
 
@@ -583,6 +846,73 @@ function Relatorio() {
 
                         {tabAtiva === "resumo" && (
                             <div className="relatorio-resumo-grid">
+                                <article className="relatorio-card relatorio-card-span2">
+                                    <header className="relatorio-card-header">
+                                        <div>
+                                            <h2>Comparacao com o periodo anterior</h2>
+                                            <p>
+                                                {comparacao.disponivel
+                                                    ? `${formatarDataCurta(comparacao.periodo.de)} a ${formatarDataCurta(comparacao.periodo.ate)}`
+                                                    : "Defina um intervalo de datas para comparar com o periodo anterior."}
+                                            </p>
+                                        </div>
+                                        <span className="relatorio-card-chip">
+                                            {comparacao.disponivel ? `${comparacao.periodo.dias} dias` : "Sem comparacao"}
+                                        </span>
+                                    </header>
+
+                                    {comparacao.disponivel ? (
+                                        <div className="relatorio-comparacao-grid">
+                                            {[
+                                                {
+                                                    chave: "receitas",
+                                                    label: "Receitas",
+                                                    atual: comparacao.atual.receitas,
+                                                    anterior: comparacao.anterior.receitas,
+                                                    variacao: comparacao.variacao.receitas
+                                                },
+                                                {
+                                                    chave: "despesas",
+                                                    label: "Despesas",
+                                                    atual: comparacao.atual.despesas,
+                                                    anterior: comparacao.anterior.despesas,
+                                                    variacao: comparacao.variacao.despesas
+                                                },
+                                                {
+                                                    chave: "resultado",
+                                                    label: "Resultado",
+                                                    atual: comparacao.atual.resultado,
+                                                    anterior: comparacao.anterior.resultado,
+                                                    variacao: comparacao.variacao.resultado
+                                                }
+                                            ].map((item) => {
+                                                const semBase = item.variacao === null || item.variacao === undefined;
+                                                const positiva = !semBase && Number(item.variacao) >= 0;
+                                                return (
+                                                    <div className={`relatorio-comparacao-item ${item.chave}`} key={item.chave}>
+                                                        <span>{item.label}</span>
+                                                        <strong>{formatarMoeda(item.atual)}</strong>
+                                                        <small>Periodo anterior: {formatarMoeda(item.anterior)}</small>
+                                                        <span className={`relatorio-variacao ${semBase ? "neutral" : positiva ? "success" : "danger"}`}>
+                                                            {semBase ? "Nao calculavel" : (
+                                                                <>
+                                                                    {positiva ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                                                                    {formatarPercentual(item.variacao)}
+                                                                </>
+                                                            )}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <Vazio
+                                            titulo="Comparacao indisponivel"
+                                            texto="Escolha um periodo com data inicial e final para ver a variacao face ao periodo anterior."
+                                        />
+                                    )}
+                                </article>
+
                                 <article className="relatorio-card relatorio-card-span2">
                                     <header className="relatorio-card-header">
                                         <div>
@@ -823,8 +1153,703 @@ function Relatorio() {
                             </div>
                         )}
 
+                        {tabAtiva === "receitas" && (
+                            <>
+                                <section className="relatorio-caixa-resumo">
+                                    <article className="relatorio-stat-mini success">
+                                        <span><TrendingUp size={18} /> Receitas recebidas</span>
+                                        <strong>{formatarMoeda(receita)}</strong>
+                                    </article>
+                                    <article className="relatorio-stat-mini primary">
+                                        <span><Receipt size={18} /> Receitas geradas</span>
+                                        <strong>{formatarMoeda(receitaGerada)}</strong>
+                                    </article>
+                                    <article className="relatorio-stat-mini warning">
+                                        <span><HandCoins size={18} /> Por receber</span>
+                                        <strong>{formatarMoeda(valoresReceber)}</strong>
+                                    </article>
+                                    <article className="relatorio-stat-mini danger">
+                                        <span><Tag size={18} /> Descontos</span>
+                                        <strong>{formatarMoeda(descontosTotal)}</strong>
+                                    </article>
+                                </section>
+
+                                <div className="relatorio-grid-2">
+                                    <article className="relatorio-card">
+                                        <header className="relatorio-card-header">
+                                            <div>
+                                                <h2>Receitas por metodo de pagamento</h2>
+                                                <p>Dinheiro efetivamente recebido no periodo</p>
+                                            </div>
+                                            <CreditCard size={17} className="relatorio-card-mark" />
+                                        </header>
+
+                                        {receitasMetodoFiltradas.length === 0 ? (
+                                            <Vazio
+                                                titulo="Sem pagamentos no periodo"
+                                                texto="Os pagamentos recebidos por metodo aparecem aqui."
+                                            />
+                                        ) : (
+                                            <div className="relatorio-breakdown-list">
+                                                {receitasMetodoFiltradas.map((metodo) => (
+                                                    <div className="relatorio-breakdown-row" key={metodo.metodo}>
+                                                        <div className="relatorio-breakdown-line">
+                                                            <span>{metodo.metodo}</span>
+                                                            <strong>{formatarMoeda(metodo.total)}</strong>
+                                                        </div>
+                                                        <div className="relatorio-breakdown-bar">
+                                                            <span style={{ width: `${Math.max((Number(metodo.total) / maxReceitaMetodo) * 100, 3)}%` }} />
+                                                        </div>
+                                                        <small>{formatarNumero(metodo.quantidade)} pagamentos</small>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </article>
+
+                                    <article className="relatorio-card">
+                                        <header className="relatorio-card-header">
+                                            <div>
+                                                <h2>Receita por funcionario</h2>
+                                                <p>Quem gerou dinheiro para o salao</p>
+                                            </div>
+                                            <Users size={17} className="relatorio-card-mark" />
+                                        </header>
+
+                                        {receitasFuncionario.length === 0 ? (
+                                            <Vazio
+                                                titulo="Sem receita atribuida"
+                                                texto="Os servicos concluidos por funcionario aparecem aqui."
+                                            />
+                                        ) : (
+                                            <div className="relatorio-table-scroll">
+                                                <table className="admin-table relatorio-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Funcionario</th>
+                                                            <th>Servicos</th>
+                                                            <th>Receita</th>
+                                                            <th>Comissoes</th>
+                                                            <th>A pagar</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {receitasFuncionario.map((funcionario) => (
+                                                            <tr key={funcionario.funcionario_id}>
+                                                                <td>
+                                                                    <div className="relatorio-person">
+                                                                        <span className="relatorio-avatar">
+                                                                            {iniciais(funcionario.funcionario_nome)}
+                                                                        </span>
+                                                                        <strong>{funcionario.funcionario_nome}</strong>
+                                                                    </div>
+                                                                </td>
+                                                                <td>{formatarNumero(funcionario.servicos)}</td>
+                                                                <td>{formatarMoeda(funcionario.receita)}</td>
+                                                                <td>{formatarMoeda(funcionario.comissoes)}</td>
+                                                                <td>{formatarMoeda(funcionario.total_a_pagar)}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </article>
+
+                                    <article className="relatorio-card relatorio-card-span2">
+                                        <header className="relatorio-card-header">
+                                            <div>
+                                                <h2>Desempenho financeiro por servico</h2>
+                                                <p>Quantidade, preco medio, descontos e comissoes associadas</p>
+                                            </div>
+                                            <Scissors size={17} className="relatorio-card-mark" />
+                                        </header>
+
+                                        {servicos.length === 0 ? (
+                                            <Vazio
+                                                titulo="Sem servicos no periodo"
+                                                texto="A receita por tipo de servico aparece quando existirem atendimentos concluidos."
+                                            />
+                                        ) : (
+                                            <div className="relatorio-table-scroll">
+                                                <table className="admin-table relatorio-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Servico</th>
+                                                            <th>Qtd.</th>
+                                                            <th>Preco medio</th>
+                                                            <th>Valor bruto</th>
+                                                            <th>Descontos</th>
+                                                            <th>Receita liquida</th>
+                                                            <th>Comissoes</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {servicos.map((servico) => {
+                                                            const quantidade = Number(servico.quantidade) || 0;
+                                                            const total = Number(servico.total) || 0;
+                                                            return (
+                                                                <tr key={servico.servico_id}>
+                                                                    <td>{servico.servico_nome}</td>
+                                                                    <td>{formatarNumero(quantidade)}</td>
+                                                                    <td>{formatarMoeda(quantidade > 0 ? total / quantidade : 0)}</td>
+                                                                    <td>{formatarMoeda(servico.valor_bruto ?? total)}</td>
+                                                                    <td>{formatarMoeda(servico.descontos)}</td>
+                                                                    <td>{formatarMoeda(total)}</td>
+                                                                    <td>{formatarMoeda(servico.comissoes)}</td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+
+                                        <p className="relatorio-footnote">
+                                            Receita gerada: {formatarMoeda(totalReceitaServicos)}. Uma receita alta nao significa
+                                            necessariamente maior lucro: os produtos, o tempo e as comissoes tambem contam.
+                                        </p>
+                                    </article>
+
+                                    <article className="relatorio-card">
+                                        <header className="relatorio-card-header">
+                                            <div>
+                                                <h2>Outras receitas e ajustes</h2>
+                                                <p>Entradas que nao vem diretamente dos servicos</p>
+                                            </div>
+                                            <CircleDollarSign size={17} className="relatorio-card-mark" />
+                                        </header>
+
+                                        <div className="relatorio-client-stats">
+                                            <div>
+                                                <span>Outras receitas</span>
+                                                <strong>{formatarMoeda(outrasReceitas)}</strong>
+                                            </div>
+                                            <div>
+                                                <span>Descontos concedidos</span>
+                                                <strong>{formatarMoeda(descontosTotal)}</strong>
+                                            </div>
+                                            <div>
+                                                <span>Total anulado</span>
+                                                <strong>{formatarMoeda(totalAnulacoes)}</strong>
+                                            </div>
+                                            <div>
+                                                <span>Receita gerada</span>
+                                                <strong>{formatarMoeda(receitaGerada)}</strong>
+                                            </div>
+                                        </div>
+                                    </article>
+
+                                    <article className="relatorio-card">
+                                        <header className="relatorio-card-header">
+                                            <div>
+                                                <h2>Pagamentos pendentes</h2>
+                                                <p>Clientes que ainda devem ao salao</p>
+                                            </div>
+                                            <HandCoins size={17} className="relatorio-card-mark" />
+                                        </header>
+
+                                        {dividasReceber.length === 0 ? (
+                                            <Vazio
+                                                titulo="Nenhum valor em divida"
+                                                texto="Todos os atendimentos do periodo estao liquidados."
+                                            />
+                                        ) : (
+                                            <div className="relatorio-table-scroll">
+                                                <table className="admin-table relatorio-table relatorio-table-compact">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Cliente</th>
+                                                            <th>Data</th>
+                                                            <th>Em falta</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {dividasReceber.slice(0, 8).map((divida) => (
+                                                            <tr key={divida.id}>
+                                                                <td>{divida.cliente_nome}</td>
+                                                                <td>{formatarDataCurta(divida.data_hora)}</td>
+                                                                <td>{formatarMoeda(divida.pendente)}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </article>
+                                </div>
+                            </>
+                        )}
+
+                        {tabAtiva === "despesas" && (
+                            <>
+                                <section className="relatorio-caixa-resumo">
+                                    <article className="relatorio-stat-mini danger">
+                                        <span><Receipt size={18} /> Total de despesas</span>
+                                        <strong>{formatarMoeda(despesasTotal)}</strong>
+                                    </article>
+                                    <article className="relatorio-stat-mini warning">
+                                        <span><Tag size={18} /> Lancamentos</span>
+                                        <strong>{formatarNumero(despesas.length)}</strong>
+                                    </article>
+                                    <article className="relatorio-stat-mini primary">
+                                        <span><Percent size={18} /> Despesa media</span>
+                                        <strong>{formatarMoeda(despesasMedia)}</strong>
+                                    </article>
+                                    <article className="relatorio-stat-mini neutral">
+                                        <span><TrendingUp size={18} /> Maior categoria</span>
+                                        <strong>{despesasMaiorCategoria ? formatarMoeda(despesasMaiorCategoria.total) : formatarMoeda(0)}</strong>
+                                    </article>
+                                </section>
+
+                                <div className="relatorio-grid-2">
+                                    <article className="relatorio-card">
+                                        <header className="relatorio-card-header">
+                                            <div>
+                                                <h2>Despesas por categoria</h2>
+                                                <p>Onde o dinheiro do salao esta a ser gasto</p>
+                                            </div>
+                                            <Tag size={17} className="relatorio-card-mark" />
+                                        </header>
+
+                                        {despesasPorCategoria.length === 0 ? (
+                                            <Vazio
+                                                titulo="Sem despesas no periodo"
+                                                texto="As categorias com gastos aparecem aqui."
+                                            />
+                                        ) : (
+                                            <div className="relatorio-breakdown-list">
+                                                {despesasPorCategoria.map((categoria) => (
+                                                    <div className="relatorio-breakdown-row" key={categoria.categoria}>
+                                                        <div className="relatorio-breakdown-line">
+                                                            <span>{categoria.categoria}</span>
+                                                            <strong>{formatarMoeda(categoria.total)}</strong>
+                                                        </div>
+                                                        <div className="relatorio-breakdown-bar despesa">
+                                                            <span style={{ width: `${Math.max((Number(categoria.total) / maxDespesaCategoria) * 100, 3)}%` }} />
+                                                        </div>
+                                                        <small>{formatarNumero(categoria.quantidade)} lancamentos</small>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </article>
+
+                                    <article className="relatorio-card">
+                                        <header className="relatorio-card-header">
+                                            <div>
+                                                <h2>Despesas por metodo de pagamento</h2>
+                                                <p>Como os gastos foram liquidados</p>
+                                            </div>
+                                            <CreditCard size={17} className="relatorio-card-mark" />
+                                        </header>
+
+                                        {despesasPorMetodo.length === 0 ? (
+                                            <Vazio
+                                                titulo="Sem metodos registados"
+                                                texto="Os metodos usados nas despesas aparecem aqui."
+                                            />
+                                        ) : (
+                                            <div className="relatorio-breakdown-list">
+                                                {despesasPorMetodo.map((metodo) => (
+                                                    <div className="relatorio-breakdown-row" key={metodo.metodo}>
+                                                        <div className="relatorio-breakdown-line">
+                                                            <span>{metodo.metodo}</span>
+                                                            <strong>{formatarMoeda(metodo.total)}</strong>
+                                                        </div>
+                                                        <div className="relatorio-breakdown-bar despesa">
+                                                            <span style={{ width: `${Math.max((Number(metodo.total) / maxDespesaMetodo) * 100, 3)}%` }} />
+                                                        </div>
+                                                        <small>{formatarNumero(metodo.quantidade)} despesas</small>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </article>
+
+                                    <article className="relatorio-card relatorio-card-span2">
+                                        <header className="relatorio-card-header">
+                                            <div>
+                                                <h2>Detalhe das despesas</h2>
+                                                <p>Data, categoria, descricao, metodo e responsavel pelo registo</p>
+                                            </div>
+                                            <span className="relatorio-card-chip">
+                                                {despesasDetalheFiltradas.length} registos
+                                            </span>
+                                        </header>
+
+                                        {despesasDetalheFiltradas.length === 0 ? (
+                                            <Vazio
+                                                titulo="Sem despesas para mostrar"
+                                                texto="Ajuste os filtros ou escolha outro periodo."
+                                            />
+                                        ) : (
+                                            <div className="relatorio-table-scroll relatorio-table-scroll-tall">
+                                                <table className="admin-table relatorio-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Data</th>
+                                                            <th>Categoria</th>
+                                                            <th>Descricao</th>
+                                                            <th>Metodo</th>
+                                                            <th>Responsavel</th>
+                                                            <th>Valor</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {despesasDetalheFiltradas.map((despesa) => (
+                                                            <tr key={despesa.id}>
+                                                                <td>{formatarDataCurta(despesa.data_compra)}</td>
+                                                                <td>{despesa.categoria}</td>
+                                                                <td>{despesa.descricao}</td>
+                                                                <td>{despesa.metodo_pagamento}</td>
+                                                                <td>{despesa.responsavel}</td>
+                                                                <td>{formatarMoeda(despesa.valor_total)}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </article>
+                                </div>
+                            </>
+                        )}
+
+                        {tabAtiva === "dividas" && (
+                            <>
+                                <section className="relatorio-caixa-resumo">
+                                    <article className="relatorio-stat-mini success">
+                                        <span><HandCoins size={18} /> A receber</span>
+                                        <strong>{formatarMoeda(dividas.resumo?.a_receber ?? valoresReceber)}</strong>
+                                    </article>
+                                    <article className="relatorio-stat-mini warning">
+                                        <span><TriangleAlert size={18} /> Vencido ha mais de 30 dias</span>
+                                        <strong>{formatarMoeda(dividas.resumo?.vencido)}</strong>
+                                    </article>
+                                    <article className="relatorio-stat-mini danger">
+                                        <span><PiggyBank size={18} /> A pagar a equipa</span>
+                                        <strong>{formatarMoeda(valoresPagar)}</strong>
+                                    </article>
+                                    <article className="relatorio-stat-mini primary">
+                                        <span><Receipt size={18} /> Processamentos pendentes</span>
+                                        <strong>{formatarNumero(dividas.resumo?.processamentos_pendentes)}</strong>
+                                    </article>
+                                </section>
+
+                                <div className="relatorio-grid-2">
+                                    <article className="relatorio-card">
+                                        <header className="relatorio-card-header">
+                                            <div>
+                                                <h2>Valores a receber</h2>
+                                                <p>Clientes com pagamentos em divida (todos os periodos)</p>
+                                            </div>
+                                            <HandCoins size={17} className="relatorio-card-mark" />
+                                        </header>
+
+                                        {dividasReceber.length === 0 ? (
+                                            <Vazio
+                                                titulo="Nenhum valor a receber"
+                                                texto="Nao existem atendimentos com saldo pendente."
+                                            />
+                                        ) : (
+                                            <div className="relatorio-table-scroll relatorio-table-scroll-tall">
+                                                <table className="admin-table relatorio-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Cliente</th>
+                                                            <th>Data</th>
+                                                            <th>Servicos</th>
+                                                            <th>Original</th>
+                                                            <th>Pago</th>
+                                                            <th>Pendente</th>
+                                                            <th>Atraso</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {dividasReceber.map((divida) => (
+                                                            <tr key={divida.id}>
+                                                                <td>
+                                                                    <div className="relatorio-person">
+                                                                        <span className="relatorio-avatar">{iniciais(divida.cliente_nome)}</span>
+                                                                        <div>
+                                                                            <strong>{divida.cliente_nome}</strong>
+                                                                            <small>{divida.telefone || "Sem telefone"}</small>
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                                <td>{formatarDataCurta(divida.data_hora)}</td>
+                                                                <td>{divida.servicos || "-"}</td>
+                                                                <td>{formatarMoeda(divida.valor_total)}</td>
+                                                                <td>{formatarMoeda(divida.pago)}</td>
+                                                                <td>{formatarMoeda(divida.pendente)}</td>
+                                                                <td>
+                                                                    <span className={`relatorio-pill ${Number(divida.dias_atraso) > 30 ? "danger" : "warning"}`}>
+                                                                        {formatarNumero(divida.dias_atraso)} dias
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </article>
+
+                                    <article className="relatorio-card">
+                                        <header className="relatorio-card-header">
+                                            <div>
+                                                <h2>Valores a pagar</h2>
+                                                <p>Salarios e comissoes ainda nao liquidados</p>
+                                            </div>
+                                            <PiggyBank size={17} className="relatorio-card-mark" />
+                                        </header>
+
+                                        {salariosPendentes.length === 0 ? (
+                                            <div className="relatorio-empty relatorio-empty-success">
+                                                <CheckCircle2 size={28} />
+                                                <strong>Nenhum salario pendente</strong>
+                                                <span>Os salarios e comissoes do periodo estao liquidados.</span>
+                                            </div>
+                                        ) : (
+                                            <div className="relatorio-table-scroll relatorio-table-scroll-tall">
+                                                <table className="admin-table relatorio-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Beneficiario</th>
+                                                            <th>Referencia</th>
+                                                            <th>Total a pagar</th>
+                                                            <th>Pago</th>
+                                                            <th>Pendente</th>
+                                                            <th>Estado</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {salariosPendentes.map((funcionario) => {
+                                                            const processamentoAtual = funcionario.processamentos?.[0];
+                                                            const estado = processamentoAtual?.estado || "Por processar";
+                                                            return (
+                                                                <tr key={funcionario.funcionario_id}>
+                                                                    <td>{funcionario.funcionario_nome}</td>
+                                                                    <td>
+                                                                        {formatarDataCurta(salarioResumo.referencia_inicio)} —{" "}
+                                                                        {formatarDataCurta(salarioResumo.referencia_fim)}
+                                                                    </td>
+                                                                    <td>{formatarMoeda(funcionario.total_a_pagar)}</td>
+                                                                    <td>{formatarMoeda(funcionario.total_pago)}</td>
+                                                                    <td>
+                                                                        <span className="relatorio-pill warning">
+                                                                            {formatarMoeda(funcionario.saldo_pendente)}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td>
+                                                                        <span className={`relatorio-pill ${estado === "Pago" ? "success" : estado === "Aprovado" ? "warning" : "neutral"}`}>
+                                                                            {estado}
+                                                                        </span>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+
+                                        <p className="relatorio-note">
+                                            As comissoes elegiveis ainda nao processadas entram no total a pagar da equipa.
+                                            O modulo de despesas nao tem estado de pagamento, por isso os gastos registados sao
+                                            tratados como pagos no fluxo de caixa.
+                                        </p>
+                                    </article>
+                                </div>
+                            </>
+                        )}
+
                         {tabAtiva === "equipa" && (
                             <div className="relatorio-grid-2">
+                                <article className="relatorio-card relatorio-card-span2 relatorio-payroll-card">
+                                    <header className="relatorio-card-header">
+                                        <div>
+                                            <h2>Salarios e comissoes da equipa</h2>
+                                            <p>Quanto o salao tem a pagar, separando salario fixo, comissoes e deducoes</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="relatorio-payroll-toggle"
+                                            aria-expanded={mostrarSalarios}
+                                            onClick={() => setMostrarSalarios((valor) => !valor)}
+                                        >
+                                            <span>{mostrarSalarios ? "Ocultar resumo salarial" : "Ver resumo salarial"}</span>
+                                            {mostrarSalarios ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                        </button>
+                                    </header>
+
+                                    <div className="relatorio-payroll-highlight">
+                                        <div>
+                                            <span>Total a pagar a equipa</span>
+                                            <strong>{formatarMoeda(totalAPagarEquipa)}</strong>
+                                            <small>Salario fixo + comissoes acumuladas - deducoes</small>
+                                        </div>
+                                        <div className="relatorio-payroll-highlight-meta">
+                                            <span><Banknote size={14} /> Fixo {formatarMoeda(salarioFixo)}</span>
+                                            <span><Percent size={14} /> Comissoes {formatarMoeda(comissoesEquipa)}</span>
+                                            <span><CheckCircle2 size={14} /> Pago {formatarMoeda(totalPagoEquipa)}</span>
+                                        </div>
+                                    </div>
+
+                                    {mostrarSalarios && (
+                                        <div className="relatorio-payroll-dropdown">
+                                            <div className="relatorio-payroll-summary">
+                                                {[
+                                                    { label: "Salario fixo", valor: salarioFixo, nota: `${salarioResumo.dias_referencia || 0} dia(s) em ${salarioResumo.meses_referencia || 1} mes(es)` },
+                                                    { label: "Comissoes acumuladas", valor: comissoesEquipa, nota: `${formatarMoeda(salarioResumo.comissoes_pendentes)} pendentes` },
+                                                    { label: "Deducoes", valor: deducoesEquipa, nota: "adiantamentos e ajustes" },
+                                                    { label: "Total a pagar", valor: totalAPagarEquipa, nota: "valor liquido devido" },
+                                                    { label: "Total pago", valor: totalPagoEquipa, nota: "processamentos liquidados" },
+                                                    { label: "Saldo pendente", valor: saldoPendenteEquipa, nota: "ainda por pagar" }
+                                                ].map((item) => (
+                                                    <div className="relatorio-payroll-summary-item" key={item.label}>
+                                                        <span>{item.label}</span>
+                                                        <strong>{formatarMoeda(item.valor)}</strong>
+                                                        <small>{item.nota}</small>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <p className="relatorio-note">
+                                                Referencia do salario fixo: {formatarDataCurta(salarioResumo.referencia_inicio)} a{" "}
+                                                {formatarDataCurta(salarioResumo.referencia_fim)}. O salario fixo e mensal e proporcional
+                                                aos {salarioResumo.dias_referencia || 0} dia(s) do periodo dentro de{" "}
+                                                {salarioResumo.meses_referencia || 1} mes(es) de referencia.
+                                            </p>
+
+                                            {salariosFiltrados.length === 0 ? (
+                                                <Vazio
+                                                    titulo="Sem funcionarios para mostrar"
+                                                    texto="Ajuste o filtro de funcionario para consultar os salarios."
+                                                />
+                                            ) : (
+                                                <div className="relatorio-table-scroll">
+                                                    <table className="admin-table relatorio-table relatorio-payroll-table">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Funcionario</th>
+                                                                <th>Salario fixo</th>
+                                                                <th>Comissoes</th>
+                                                                <th>Deducoes</th>
+                                                                <th>Total a pagar</th>
+                                                                <th>Pago</th>
+                                                                <th>Pendente</th>
+                                                                <th />
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {salariosFiltrados.map((funcionario) => (
+                                                                <tr key={funcionario.funcionario_id}>
+                                                                    <td>
+                                                                        <div className="relatorio-person">
+                                                                            <span className="relatorio-avatar">
+                                                                                {iniciais(funcionario.funcionario_nome)}
+                                                                            </span>
+                                                                            <div>
+                                                                                <strong>{funcionario.funcionario_nome}</strong>
+                                                                                <small>
+                                                                                    {funcionario.cargo || "Equipa"}
+                                                                                    {funcionario.estado !== "Ativo" ? " - Inativo" : ""}
+                                                                                </small>
+                                                                            </div>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td>{formatarMoeda(funcionario.salario_fixo)}</td>
+                                                                    <td>{formatarMoeda(funcionario.comissoes)}</td>
+                                                                    <td>{formatarMoeda(funcionario.deducoes)}</td>
+                                                                    <td><strong>{formatarMoeda(funcionario.total_a_pagar)}</strong></td>
+                                                                    <td>{formatarMoeda(funcionario.total_pago)}</td>
+                                                                    <td>
+                                                                        <span className={`relatorio-pill ${Number(funcionario.saldo_pendente) > 0 ? "warning" : "success"}`}>
+                                                                            {formatarMoeda(funcionario.saldo_pendente)}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="relatorio-payroll-detail-toggle"
+                                                                            onClick={() => setFuncionarioExpandido((atual) => (
+                                                                                String(atual) === String(funcionario.funcionario_id)
+                                                                                    ? null
+                                                                                    : funcionario.funcionario_id
+                                                                            ))}
+                                                                        >
+                                                                            {String(funcionarioExpandido) === String(funcionario.funcionario_id)
+                                                                                ? <ChevronUp size={15} />
+                                                                                : <ChevronDown size={15} />}
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+
+                                            {funcionarioSalarioExpandido && (
+                                                <div className="relatorio-payroll-detail">
+                                                    <div className="relatorio-payroll-detail-head">
+                                                        <div>
+                                                            <strong>{funcionarioSalarioExpandido.funcionario_nome}</strong>
+                                                            <small>Processamentos salariais no periodo</small>
+                                                        </div>
+                                                        <button type="button" onClick={() => setFuncionarioExpandido(null)}>
+                                                            <ChevronUp size={15} /> Fechar
+                                                        </button>
+                                                    </div>
+
+                                                    {funcionarioSalarioExpandido.processamentos.length === 0 ? (
+                                                        <p className="relatorio-note">
+                                                            Ainda nao existe processamento salarial para este periodo. Os valores acima
+                                                            sao a estimativa de salario fixo e comissoes acumuladas.
+                                                        </p>
+                                                    ) : (
+                                                        <div className="relatorio-table-scroll">
+                                                            <table className="admin-table relatorio-table relatorio-table-compact">
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th>Periodo</th>
+                                                                        <th>Salario base</th>
+                                                                        <th>Comissoes</th>
+                                                                        <th>Deducoes</th>
+                                                                        <th>Total</th>
+                                                                        <th>Estado</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {funcionarioSalarioExpandido.processamentos.map((processamento) => (
+                                                                        <tr key={processamento.id}>
+                                                                            <td>
+                                                                                {formatarDataCurta(processamento.periodo_inicio)} —{" "}
+                                                                                {formatarDataCurta(processamento.periodo_fim)}
+                                                                            </td>
+                                                                            <td>{formatarMoeda(processamento.salario_base)}</td>
+                                                                            <td>{formatarMoeda(processamento.total_comissoes)}</td>
+                                                                            <td>{formatarMoeda(processamento.total_deducoes)}</td>
+                                                                            <td>{formatarMoeda(processamento.total_a_pagar)}</td>
+                                                                            <td>
+                                                                                <span className={`relatorio-pill ${processamento.estado === "Pago" ? "success" : processamento.estado === "Aprovado" ? "warning" : "neutral"}`}>
+                                                                                    {processamento.estado}
+                                                                                </span>
+                                                                            </td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </article>
+
                                 <article className="relatorio-card">
                                     <header className="relatorio-card-header">
                                         <div>
@@ -848,12 +1873,12 @@ function Relatorio() {
                                                         <th>Servicos</th>
                                                         <th>Receita</th>
                                                         <th>Comissoes</th>
-                                                        <th>Salario</th>
+                                                        <th>Salario base</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     {funcionariosVisiveis.map((funcionario) => (
-                                                        <tr key={funcionario.funcionario_id} onClick={() => setFuncionarioSelecionado(funcionario)}>
+                                                        <tr key={funcionario.funcionario_id}>
                                                             <td>
                                                                 <div className="relatorio-person">
                                                                     <span className="relatorio-avatar">
@@ -878,50 +1903,12 @@ function Relatorio() {
                                         </div>
                                     )}
 
-                                    {funcionarios.length > funcionariosVisiveis.length && (
+                                    {funcionariosFiltrados.length > funcionariosVisiveis.length && (
                                         <p className="relatorio-footnote">
                                             A mostrar os {funcionariosVisiveis.length} funcionarios com mais receita.
                                         </p>
                                     )}
                                 </article>
-
-                                {/* Painel de detalhes do salário */}
-                                {funcionarioSelecionado && (
-                                    <div className="salario-detalhe-panel">
-                                        <div className="salario-detalhe-header">
-                                            <h3>Detalhes Salariais - {funcionarioSelecionado.nome}</h3>
-                                            <button
-                                                onClick={() => setFuncionarioSelecionado(null)}
-                                                className="btn-fechar-detalhe"
-                                            >
-                                                ✕
-                                            </button>
-                                        </div>
-                                        <div className="salario-detalhe-conteudo">
-                                            {salarioDetalhe ? (
-                                                <div className="salario-detalhe-grid">
-                                                    <div className="salario-detalhe-item">
-                                                        <strong>Mês Referente:</strong> {salarioDetalhe.periodo}
-                                                    </div>
-                                                    <div className="salario-detalhe-item">
-                                                        <strong>Salário Base:</strong> {formatarMoeda(salarioDetalhe.salario_base)}
-                                                    </div>
-                                                    <div className="salario-detalhe-item">
-                                                        <strong>Comissões Acumuladas:</strong> {formatarMoeda(salarioDetalhe.total_comissoes)}
-                                                    </div>
-                                                    <div className="salario-detalhe-item total">
-                                                        <strong>Total a Pagar:</strong> {formatarMoeda(salarioDetalhe.total_a_pagar)}
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <p>Carregando detalhes salariais...</p>
-                                            )}
-                                            <div className="salario-detalhe-status">
-                                                <strong>Estado:</strong> {salarioDetalhe?.estado === 'Pago' ? 'Pago' : salarioDetalhe?.estado === 'Aprovado' ? 'Aprovado' : 'Preparado'}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
 
                                 <article className="relatorio-card">
                                     <header className="relatorio-card-header">
@@ -1086,24 +2073,33 @@ function Relatorio() {
 
                         {tabAtiva === "caixa" && (
                             <>
-                                <section className="relatorio-caixa-resumo">
+                                <section className="relatorio-caixa-resumo relatorio-caixa-resumo-5">
+                                    <article className="relatorio-stat-mini neutral">
+                                        <span><Landmark size={18} /> Saldo inicial</span>
+                                        <strong>{formatarMoeda(saldoInicial)}</strong>
+                                    </article>
                                     <article className="relatorio-stat-mini success">
                                         <span><TrendingUp size={18} /> Entradas</span>
-                                        <strong>{formatarMoeda(caixa.entradas)}</strong>
+                                        <strong>{formatarMoeda(fluxoFinanceiro.entradas ?? caixa.entradas)}</strong>
                                     </article>
                                     <article className="relatorio-stat-mini danger">
                                         <span><Receipt size={18} /> Saidas</span>
-                                        <strong>{formatarMoeda(caixa.saidas)}</strong>
+                                        <strong>{formatarMoeda(fluxoFinanceiro.saidas ?? caixa.saidas)}</strong>
                                     </article>
                                     <article className="relatorio-stat-mini warning">
                                         <span><Wallet size={18} /> Levantamentos</span>
-                                        <strong>{formatarMoeda(caixa.levantamentos)}</strong>
+                                        <strong>{formatarMoeda(fluxoFinanceiro.levantamentos ?? caixa.levantamentos)}</strong>
                                     </article>
                                     <article className="relatorio-stat-mini primary">
-                                        <span><CircleDollarSign size={18} /> Saldo</span>
-                                        <strong>{formatarMoeda(saldoCaixa)}</strong>
+                                        <span><CircleDollarSign size={18} /> Saldo final esperado</span>
+                                        <strong>{formatarMoeda(saldoFinal)}</strong>
                                     </article>
                                 </section>
+
+                                <p className="relatorio-note relatorio-fluxo-nota">
+                                    Saldo final = saldo inicial + entradas - saidas - levantamentos. Dinheiro recebido nao e
+                                    lucro: entradas de origem manual podem nao ser receita de servicos.
+                                </p>
 
                                 <article className="relatorio-card">
                                     <header className="relatorio-card-header">
@@ -1126,6 +2122,7 @@ function Relatorio() {
                                                     <tr>
                                                         <th>Abertura</th>
                                                         <th>Fecho</th>
+                                                        <th>Fechado por</th>
                                                         <th>Saldo inicial</th>
                                                         <th>Esperado</th>
                                                         <th>Contado</th>
@@ -1139,6 +2136,7 @@ function Relatorio() {
                                                             <tr key={sessao.id}>
                                                                 <td>{formatarDataHora(sessao.data_abertura)}</td>
                                                                 <td>{formatarDataHora(sessao.data_fecho)}</td>
+                                                                <td>{sessao.fechado_por_nome || "-"}</td>
                                                                 <td>{formatarMoeda(sessao.saldo_inicial)}</td>
                                                                 <td>{formatarMoeda(sessao.valor_esperado)}</td>
                                                                 <td>{formatarMoeda(sessao.valor_contado)}</td>
@@ -1289,6 +2287,16 @@ function Relatorio() {
                             </>
                         )}
                     </>
+                )}
+
+                {dados && (
+                    <footer className="relatorio-rodape">
+                        <span>
+                            Relatorio gerado por <strong>{geradoPor || "Sistema"}</strong> em{" "}
+                            {formatarDataHora(geradoEm)}.
+                        </span>
+                        <span>{rotuloPeriodo}</span>
+                    </footer>
                 )}
             </main>
         </div>

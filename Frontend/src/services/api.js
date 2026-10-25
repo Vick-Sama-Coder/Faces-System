@@ -138,6 +138,10 @@ export const getPagamentoAtendimento = (atendimentoId) => {
     return server.get(`api/atendimentos/${atendimentoId}/pagamento`);
 };
 
+export const aplicarDesconto = (atendimentoId, data) => {
+    return server.post(`api/atendimentos/${atendimentoId}/descontos`, data);
+};
+
 export const getFidelizacao = (clienteId) => {
     return server.get(`api/clientes/${clienteId}/fidelizacao`);
 };
@@ -203,6 +207,36 @@ export const deleteServico = (id) => {
 //servicos: activar / desactivar
 export const updateServicoEstado = (id, estado) => {
     return server.patch(`api/servicos/${id}/estado`, { estado });
+};
+
+//servicos: modalidades
+export const getServicoModalidades = (id) => {
+    return server.get(`api/servicos/${id}/modalidades`);
+};
+
+export const createServicoModalidade = (id, data) => {
+    return server.post(`api/servicos/${id}/modalidades`, data);
+};
+
+export const updateServicoModalidade = (id, data) => {
+    return server.put(`api/servicos/modalidades/${id}`, data);
+};
+
+export const deleteServicoModalidade = (id) => {
+    return server.delete(`api/servicos/modalidades/${id}`);
+};
+
+//servicos: aplicacoes associadas
+export const getServicoAplicacoes = (id) => {
+    return server.get(`api/servicos/${id}/aplicacoes`);
+};
+
+export const associarAplicacao = (id, aplicacaoId) => {
+    return server.post(`api/servicos/${id}/aplicacoes`, { aplicacao_id: aplicacaoId });
+};
+
+export const desassociarAplicacao = (id, aplicacaoId) => {
+    return server.delete(`api/servicos/${id}/aplicacoes/${aplicacaoId}`);
 };
 
 //---- utilizadores (gestao de contas) ----
@@ -328,6 +362,27 @@ export const deleteDespesa = (id) => {
     return server.delete(`api/despesas/${id}`);
 };
 
+//---- movimentos de stock ----
+export const getMovimentosEstoque = (params) => {
+    return server.get("api/movimentos", { params });
+};
+
+export const getStockProduto = (produtoId) => {
+    return server.get(`api/stock/${produtoId}`);
+};
+
+export const registrarEntradaEstoque = (data) => {
+    return server.post("api/estoque/entrada", data);
+};
+
+export const registrarSaidaEstoque = (data) => {
+    return server.post("api/estoque/saida", data);
+};
+
+export const registrarAjusteEstoque = (data) => {
+    return server.post("api/estoque/ajuste", data);
+};
+
 //---- auditoria / logs ----
 export const getAuditoria = (params) => {
     return server.get("api/auditoria", { params });
@@ -375,8 +430,9 @@ export const updateAssiduidade = (id, data) => {
     return server.put(`api/assiduidade/${id}`, data);
 };
 
-export const registarDiaAssiduidade = (data) => {
-    return server.put("api/assiduidade/dia", data);
+//---- relatorio financeiro ----
+export const getRelatorioFinanceiro = (params) => {
+    return server.get("api/relatorios/financeiro", { params });
 };
 
 //---- salarios ----
