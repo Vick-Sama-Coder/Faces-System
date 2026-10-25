@@ -30,7 +30,7 @@ regras de negócio e critérios de conclusão. Deve ser lido em conjunto com:
 | Fase 6 — Pagamentos | ✅ Concluída | `pagamento` remodelado + `pagamento_parcela`; liquidação, anulação e estado do atendimento |
 | Fase 7 — Comissões | ✅ Concluída | `comissao` gerada na liquidação (idempotente), taxa específica sobrepõe-se à geral |
 | Fase 8 — Caixa e despesas | ✅ Concluída | `caixa`/`caixa_sessao`/`movimento_caixa`, `categoria_despesa`, `despesa` remodelada; abertura, levantamentos, fecho com diferença |
-| Fase 9 — Fidelização | ✅ Concluída | `cartao_fidelizacao`/`movimento_fidelizacao`; marcas por dia, benefício à 5.ª, corte gratuito |
+| Fase 9 — Fidelização | ✅ Concluída | `cartao_fidelizacao`/`movimento_fidelizacao`; ambos os sexos, serviços elegíveis até 200 MT, 5 marcas → 6.º serviço obrigatoriamente gratuito |
 | Fase 10 — Horários, assiduidade e salários | ✅ Concluída | `horario_funcionario`, `assiduidade`, `processamento_salarial`/`deducao_salarial`; fluxo Preparado→Aprovado→Pago; comissões elegíveis do período |
 | Fase 11 — Relatórios | ✅ Concluída | 9 relatórios agregados (`repository/relatorio.js`), filtro opcional `de`/`ate`, permissão `relatorios:ler` |
 | Fase 12 — Catálogo público | ✅ Concluída | `GET /api/public/servicos` (+`:id`) sem autenticação; só serviços ativos e campos de divulgação |
@@ -639,7 +639,8 @@ saldo esperado, contagem física e fecho diário (RF10–RF13, RN09–RN13, HU-1
 
 ## Fase 9 — Fidelização
 
-**Objetivo:** cartão de fidelização apenas para cortes de cabelo (RF20, RN16–RN20).
+**Objetivo:** cartão de fidelização para clientes de ambos os sexos, aplicado a serviços
+elegíveis até 200 MT (RF20, RN16–RN20).
 
 **Migrações**
 
@@ -653,29 +654,47 @@ saldo esperado, contagem física e fecho diário (RF10–RF13, RN09–RN13, HU-1
 - `038_add_origem_movimento_fidelizacao.sql` — adiciona `origem` para distinguir as marcas
   de atendimento das introduzidas manualmente pelo administrador.
 - `002_create_servico.sql` (editado) — `elegivel_fidelizacao boolean` marca os serviços
-  que contam (cortes).
+  que contam. A API só permite marcar serviços com valor até **200 MT**.
 
 **Endpoints**
 
 | Método | Rota | Permissão | Descrição |
 | --- | --- | --- | --- |
-| GET | `/api/clientes/:id/fidelizacao` | autenticado | Progresso + benefícios disponíveis/utilizados |
+| GET | `/api/clientes/:id/fidelizacao` | autenticado | Progresso + 6.º serviço pendente/benefícios utilizados |
 | POST | `/api/clientes/:id/fidelizacao/correcao` | `fidelizacao:corrigir` | Correção autorizada |
-| POST | `/api/clientes/:id/fidelizacao/marcas` | Administrador | Preenchimento manual de cartões físicos (1–20 marcas) |
-| DELETE | `/api/clientes/:id/fidelizacao/marcas/:movimentoId` | Administrador | Remove marca manual e recalcula o trecho manual |
-| POST | `/api/clientes/:id/fidelizacao/beneficios/utilizar` | Administrador | Consome um benefício disponível |
+| POST | `/api/clientes/:id/fidelizacao/marcas` | Administrador | Preenchimento manual de cartões físicos (até completar 5/5) |
+| DELETE | `/api/clientes/:id/fidelizacao/marcas/:movimentoId` | Administrador | Remove marca do ciclo atual (manual ou de atendimento) e recalcula o cartão |
+| POST | `/api/clientes/:id/fidelizacao/beneficios/utilizar` | Administrador | Regista a utilização do 6.º serviço gratuito |
 
 **Regras de negócio**
 
-- Uma marca de atendimento por cliente por dia, mesmo com vários cortes (RN17).
+- Uma marca de atendimento por cliente por dia, mesmo com vários serviços (RN17).
 - Marcas manuais entram no mesmo ciclo e contam individualmente; o 5.º movimento do ciclo
-  gera benefício independentemente de ser manual ou de atendimento.
-- Ao 5.º corte elegível → 1 benefício gratuito (RN18); benefícios **acumulam** (RN19).
-- Corte gratuito conta para o ciclo seguinte **sem** gerar marca visível (RN20).
-- Distinguir histórico real de cortes, marcas visíveis e progresso do ciclo.
+  deixa o cartão completo independentemente de ser manual ou de atendimento.
+- Ao 5.º serviço elegível o cartão fica **5/5** e o **6.º serviço é obrigatoriamente
+  gratuito** (RN18). O direito não pode ser guardado para depois: não há acumulação (RN19).
+- Enquanto o 6.º serviço estiver pendente, um atendimento com serviços elegíveis tem de
+  marcar exatamente um deles com `usar_beneficio_fidelizacao: true`. Um atendimento só com
+  serviços não elegíveis não consome o benefício.
+- O cliente escolhe **um único** serviço elegível do atendimento, até 200 MT, para ser
+  gratuito. Se o valor for inferior ao limite, o remanescente não é reutilizado.
+- O serviço gratuito consome o benefício e **não** gera marca; os restantes serviços desse
+  atendimento também não geram marca e o ciclo seguinte começa em zero (RN20).
+- O preenchimento manual para em 5/5: para acrescentar novas marcas é necessário registar
+  primeiro a utilização do 6.º serviço gratuito.
+- A remoção de marcas está limitada ao ciclo atual. Se o cartão estava completo, o
+  `beneficio_ganho` pendente também é removido; ciclos anteriores são corrigidos pela
+  correção de fidelização. A marca de atendimento pode ser removida sem apagar o
+  atendimento.
+- A resposta de criação de atendimento inclui `fidelizacao`, para a UI refletir
+  imediatamente o reset para 0/5 após o 6.º serviço gratuito.
+- Distinguir histórico real de serviços, marcas visíveis e progresso do ciclo.
 - Implementação **transacional e idempotente** (RNF02/RNF05) — operações repetidas ou
   sincronizações não geram benefícios duplicados.
-- Só serviços do tipo "corte de cabelo" são elegíveis (configurável por `servico_id`/categoria).
+- A elegibilidade é configurável por serviço e aplica-se a ambos os sexos; a API valida o
+  limite de 200 MT ao configurar e ao usar o benefício.
+- A linha do atendimento usa `usar_beneficio_fidelizacao: true`; o backend aplica o desconto
+  integral e recusa mais de um serviço gratuito no mesmo atendimento.
 
 **Critério de conclusão**
 
@@ -707,9 +726,12 @@ e aprovação (RF15–RF19, RN14–RN15, HU relacionadas).
 
 | Método | Rota | Permissão | Descrição |
 | --- | --- | --- | --- |
-| GET/POST/PUT | `/api/funcionarios/:id/horarios` | `horarios:gerir` | Programação (PUT substitui a lista) |
+| GET | `/api/funcionarios/:id/horarios` | autenticado (gestor ou próprio) | Programação semanal (vários turnos por dia) |
+| POST/PUT | `/api/funcionarios/:id/horarios` | `horarios:gerir` | Criar turno / substituir a lista |
+| PUT/DELETE | `/api/horarios/:id` | `horarios:gerir` | Atualizar / remover um único turno |
 | GET/POST | `/api/assiduidade` | `assiduidade:gerir` | Registos e ocorrências |
 | PUT | `/api/assiduidade/:id` | `assiduidade:gerir` | Correção (com auditoria) |
+| PUT | `/api/assiduidade/dia` | `assiduidade:gerir` | Criar/atualizar o dia do controlo mensal (upsert) |
 | GET | `/api/salarios/processamentos?periodo=` | `salarios:gerir` | Lista |
 | GET | `/api/salarios/processamentos/:id` | `salarios:gerir` | Detalhe + deduções |
 | POST | `/api/salarios/processar` | `salarios:gerir` | Gera processamento do período (`{ periodo: 'AAAA-MM' }`) |
@@ -917,7 +939,7 @@ implementado, deve ser aberta uma tarefa na fase correspondente.
 | 9 | Relatórios: formatos de exportação (PDF/Excel) | _pendente_ | Fase 11 |
 | 10 | Migração: dados históricos a recuperar além de clientes e cartões | _pendente_ | Fase 15 |
 | 11 | Offline: dispositivo, instalação local e estratégia de sincronização | _pendente_ | Fase 14 |
-| 12 | Fidelização: vários cortes no mesmo dia e apresentação do progresso | _pendente_ | Fase 9 |
+| 12 | Fidelização: vários serviços no mesmo dia e apresentação do progresso | ✅ resolvido (1 marca/dia; grátis não conta) | Fase 9 |
 | 13 | Reservas de clientes: introduzir agendamento numa fase futura? | _pendente_ | §12 (fora do âmbito atual) |
 | 14 | Controlo de stock: requisitos detalhados quando o módulo existir | _pendente_ | §12 (fora do âmbito atual) |
 
@@ -977,7 +999,7 @@ Rastreio rápido das regras mais críticas e onde são aplicadas:
 | RN08 | Anulação preserva histórico + motivo | 5, 6 |
 | RN09 | Caixa único | 8 |
 | RN10 | Fecho diário obrigatório; bloqueio no dia seguinte | 8 |
-| RN17–RN20 | Regras de fidelização (marca diária, 5→1, acúmulo, ciclo) | 9 |
+| RN17–RN20 | Regras de fidelização (marca diária, serviço elegível até 200 MT, 5→1, acúmulo, ciclo) | 9 |
 | RN30–RN34 | Clientes (obrigatórios, telefone único, inativação) | 2 |
 | RN21–RN29 | Funcionários e comissões | 4, 7 |
 | RN35–RN40 | Despesas e empréstimos | 8 |

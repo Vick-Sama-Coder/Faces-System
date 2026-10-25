@@ -1,6 +1,19 @@
 //validacoes de entrada do frontend — espelho de Backend/src/utils/validacoes.js
 //devolvem mensagem ou null
 
+//regras do cartao de fidelizacao
+export const META_FIDELIZACAO = 5;
+export const LIMITE_FIDELIZACAO = 200;
+
+//um servico so conta se estiver marcado como elegivel e custar ate 200 MT
+export function servicoContaParaFidelizacao(servico) {
+    const valor = Number(servico?.valor);
+    return Boolean(servico?.elegivel_fidelizacao)
+        && Number.isFinite(valor)
+        && valor > 0
+        && valor <= LIMITE_FIDELIZACAO;
+}
+
 //nome: so letras (com acentos) e espacos, 3 a 100 caracteres
 export function validarNome(nome){
     if(!nome || !String(nome).trim()){
@@ -140,8 +153,14 @@ export function validarAtendimento({ cliente_id, servicos }) {
             const preco = Number(item.preco_praticado);
             if (!preco || preco <= 0) {
                 erros[`preco_${index}`] = "Indique um valor maior que zero";
+            } else if (item.usar_beneficio_fidelizacao && preco > LIMITE_FIDELIZACAO) {
+                erros[`preco_${index}`] = `O servico gratuito nao pode ultrapassar ${LIMITE_FIDELIZACAO} MT`;
             }
         });
+
+        if (servicos.filter((item) => item.usar_beneficio_fidelizacao).length > 1) {
+            erros.servicos = "So e possivel marcar um servico gratis por atendimento";
+        }
     }
 
     return erros;
@@ -181,6 +200,55 @@ export function validarCodigo(codigo){
     }
     return null;
 
+}
+
+//dia da semana: 0 = domingo ... 6 = sabado
+export function validarDiaSemana(dia){
+    if(dia === undefined || dia === null || dia === ""){
+        return "O dia da semana e obrigatorio";
+    }
+    const numero = Number(dia);
+    if(!Number.isInteger(numero) || numero < 0 || numero > 6){
+        return "O dia da semana deve estar entre 0 (domingo) e 6 (sabado)";
+    }
+    return null;
+}
+
+//converte HH:MM ou HH:MM:SS em minutos desde a meia-noite
+export function horaParaMinutos(hora){
+    const match = /^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/.exec(String(hora ?? "").trim());
+    if(!match){
+        return null;
+    }
+    return Number(match[1]) * 60 + Number(match[2]);
+}
+
+export function validarHora(hora, campo){
+    if(!hora){
+        return `O campo ${campo} e obrigatorio`;
+    }
+    if(horaParaMinutos(hora) === null){
+        return `O campo ${campo} deve estar no formato HH:MM`;
+    }
+    return null;
+}
+
+//dois turnos no mesmo dia sobrepoem-se quando os intervalos se cruzam
+export function horariosSobrepostos(a, b){
+    if(Number(a.dia_semana) !== Number(b.dia_semana)){
+        return false;
+    }
+
+    const inicioA = horaParaMinutos(a.hora_entrada);
+    const fimA = horaParaMinutos(a.hora_saida);
+    const inicioB = horaParaMinutos(b.hora_entrada);
+    const fimB = horaParaMinutos(b.hora_saida);
+
+    if([inicioA, fimA, inicioB, fimB].some((valor) => valor === null)){
+        return false;
+    }
+
+    return inicioA < fimB && fimA > inicioB;
 }
 
 

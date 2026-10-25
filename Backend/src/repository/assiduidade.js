@@ -6,7 +6,7 @@ const campos = {
     id: assiduidade.id,
     funcionario_id: assiduidade.funcionario_id,
     funcionario_nome: funcionario.nome,
-    data: assiduidade.data,
+    data: sql`to_char(${assiduidade.data}, 'YYYY-MM-DD')`,
     hora_entrada_real: assiduidade.hora_entrada_real,
     hora_saida_real: assiduidade.hora_saida_real,
     tipo_ocorrencia: assiduidade.tipo_ocorrencia,
@@ -46,6 +46,19 @@ const findById = async (id) => {
     return linha || null;
 };
 
+//usado pelo registo mensal para atualizar o dia sem duplicar (funcionario, data)
+const findByFuncionarioData = async (funcionario_id, data) => {
+    const [linha] = await db.select({ id: assiduidade.id })
+        .from(assiduidade)
+        .where(and(
+            eq(assiduidade.funcionario_id, funcionario_id),
+            eq(assiduidade.data, data)
+        ))
+        .limit(1);
+
+    return linha || null;
+};
+
 const create = async ({
     funcionario_id,
     data,
@@ -80,8 +93,8 @@ const update = async (id, {
 }) => {
     const valores = {};
 
-    if (hora_entrada_real !== undefined && hora_entrada_real !== null) valores.hora_entrada_real = hora_entrada_real;
-    if (hora_saida_real !== undefined && hora_saida_real !== null) valores.hora_saida_real = hora_saida_real;
+    if (hora_entrada_real !== undefined) valores.hora_entrada_real = hora_entrada_real || null;
+    if (hora_saida_real !== undefined) valores.hora_saida_real = hora_saida_real || null;
     if (tipo_ocorrencia !== undefined && tipo_ocorrencia !== null) valores.tipo_ocorrencia = tipo_ocorrencia;
     if (justificacao !== undefined && justificacao !== null) valores.justificacao = justificacao;
     if (estado !== undefined && estado !== null) valores.estado = estado;
@@ -106,6 +119,7 @@ const update = async (id, {
 const Assiduidade = {
     findAll,
     findById,
+    findByFuncionarioData,
     create,
     update
 };

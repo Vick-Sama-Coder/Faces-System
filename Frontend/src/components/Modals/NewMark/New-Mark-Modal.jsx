@@ -9,6 +9,7 @@ import {
     Receipt,
     CreditCard,
     Heart,
+    Gift,
     CheckCircle2,
     Wallet
 } from "lucide-react";
@@ -22,7 +23,11 @@ import {
     getApiError,
     getApiErrorField
 } from "../../../services/api.js";
-import { validarAtendimento } from "../../../utils/validacoes.js";
+import {
+    LIMITE_FIDELIZACAO,
+    servicoContaParaFidelizacao,
+    validarAtendimento
+} from "../../../utils/validacoes.js";
 import { useAuthStore } from "../../../store/authStore.js";
 import ClientModal from "../ClientModal/ClientModal.jsx";
 import FidelizacaoCard from "../../FidelizacaoCard/FidelizacaoCard.jsx";
@@ -34,8 +39,17 @@ const itemVazio = () => ({
     categoria_id: "",
     servico_id: "",
     funcionario_id: "",
-    preco_praticado: ""
+    preco_praticado: "",
+    usar_beneficio_fidelizacao: false
 });
+
+function itemPodeSerGratuito(item, servico) {
+    const preco = Number(item?.preco_praticado);
+    return servicoContaParaFidelizacao(servico)
+        && Number.isFinite(preco)
+        && preco > 0
+        && preco <= LIMITE_FIDELIZACAO;
+}
 
 function NewMarkModal({ onclose, onSuccess }) {
     const { user } = useAuthStore();
@@ -154,13 +168,23 @@ function NewMarkModal({ onclose, onSuccess }) {
 
     function handleClienteChange(value) {
         setClienteId(value);
+        setItens((anteriores) => anteriores.map((item) => ({
+            ...item,
+            usar_beneficio_fidelizacao: false
+        })));
         limparErro("cliente_id");
     }
 
     function handleCategoriaChange(index, categoriaId) {
         setItens((anteriores) => anteriores.map((item, i) => (
             i === index
-                ? { ...item, categoria_id: categoriaId, servico_id: "", preco_praticado: "" }
+                ? {
+                    ...item,
+                    categoria_id: categoriaId,
+                    servico_id: "",
+                    preco_praticado: "",
+                    usar_beneficio_fidelizacao: false
+                }
                 : item
         )));
         limparErro(`servico_${index}`);
@@ -182,7 +206,8 @@ function NewMarkModal({ onclose, onSuccess }) {
                 ? {
                     ...item,
                     servico_id: servicoId,
-                    preco_praticado: servico ? String(servico.valor) : ""
+                    preco_praticado: servico ? String(servico.valor) : "",
+                    usar_beneficio_fidelizacao: false
                 }
                 : item
         )));
@@ -221,7 +246,9 @@ function NewMarkModal({ onclose, onSuccess }) {
     }
 
     const total = useMemo(() => (
-        itens.reduce((acc, item) => acc + (Number(item.preco_praticado) || 0), 0)
+        itens.reduce((acc, item) => (
+            acc + (item.usar_beneficio_fidelizacao ? 0 : (Number(item.preco_praticado) || 0))
+        ), 0)
     ), [itens]);
 
     const valorPagamentoAtual = pagamentoManual
@@ -240,9 +267,21 @@ function NewMarkModal({ onclose, onSuccess }) {
     const temServicoElegivel = useMemo(() => (
         itens.some((item) => {
             const servico = servicos.find((s) => String(s.id) === String(item.servico_id));
-            return !!servico?.elegivel_fidelizacao;
+            return !item.usar_beneficio_fidelizacao && servicoContaParaFidelizacao(servico);
         })
     ), [itens, servicos]);
+
+    const beneficiosDisponiveis = Number(fidelizacao?.beneficios_disponiveis) || 0;
+    const temServicoGratuito = itens.some((item) => item.usar_beneficio_fidelizacao);
+
+    function alternarBeneficio(index) {
+        setItens((anteriores) => anteriores.map((item, i) => (
+            i === index
+                ? { ...item, usar_beneficio_fidelizacao: !item.usar_beneficio_fidelizacao }
+                : { ...item, usar_beneficio_fidelizacao: false }
+        )));
+        limparErro("servicos");
+    }
 
     function alterarPagamento(campo, valor) {
         setPagamento((anterior) => ({ ...anterior, [campo]: valor }));
@@ -255,6 +294,10 @@ function NewMarkModal({ onclose, onSuccess }) {
         if (loading) return;
 
         const erros = validarAtendimento({ cliente_id: clienteId, servicos: itens });
+
+        if (beneficiosDisponiveis > 0 && temServicoElegivel && !temServicoGratuito) {
+            erros.servicos = "O cartão está completo (5/5). Selecione o serviço que será o 6.º gratuito.";
+        }
 
         if (podePagar) {
             if (Number(valorPagamentoAtual) < 0) {
@@ -287,13 +330,24 @@ function NewMarkModal({ onclose, onSuccess }) {
                     servico_id: Number(item.servico_id),
                     funcionario_id: Number(item.funcionario_id),
                     preco_praticado: Number(item.preco_praticado),
-                    desconto: 0
+                    desconto: 0,
+                    usar_beneficio_fidelizacao: item.usar_beneficio_fidelizacao === true
                 }))
             };
 
             const resposta = await createAtendimento(payload);
             const novoAtendimento = resposta.data;
+            const usouBeneficio = payload.servicos.some((item) => item.usar_beneficio_fidelizacao);
             let avisoPagamento = "";
+
+            //actualiza o cartao dentro do proprio modal antes de fechar, para
+            //que o reset para 0/5 fique visivel imediatamente.
+            if (novoAtendimento?.fidelizacao) {
+                setFidelizacaoCarregada({
+                    clienteId: String(clienteId),
+                    dados: novoAtendimento.fidelizacao
+                });
+            }
 
             if (podePagar && valorPago > 0 && novoAtendimento?.id) {
                 try {
@@ -311,9 +365,13 @@ function NewMarkModal({ onclose, onSuccess }) {
             setLoading(false);
             setConfirmOpen(false);
             setSucesso(
-                valorPago > 0 && !avisoPagamento
-                    ? "Atendimento e pagamento registados com sucesso"
-                    : `Atendimento registado com sucesso.${avisoPagamento}`
+                usouBeneficio
+                    ? `6.º serviço gratuito registado. O cartão reiniciou em 0/${Number(novoAtendimento?.fidelizacao?.meta) || 5}.${avisoPagamento}`
+                    : novoAtendimento?.valor_total === 0
+                        ? "Atendimento gratuito registado com sucesso"
+                        : valorPago > 0 && !avisoPagamento
+                            ? "Atendimento e pagamento registados com sucesso"
+                            : `Atendimento registado com sucesso.${avisoPagamento}`
             );
 
             if (onSuccess) onSuccess();
@@ -321,7 +379,7 @@ function NewMarkModal({ onclose, onSuccess }) {
             setTimeout(() => {
                 setSucesso(null);
                 onclose();
-            }, avisoPagamento ? 2600 : 1400);
+            }, avisoPagamento ? 2600 : usouBeneficio ? 2200 : 1400);
         } catch (err) {
             setLoading(false);
             setConfirmOpen(false);
@@ -446,8 +504,11 @@ function NewMarkModal({ onclose, onSuccess }) {
                                 const servicosDoItem = servicos.filter((servico) => (
                                     String(servico.categoria_id) === String(item.categoria_id)
                                 ));
+                                const contaParaFidelizacao = servicoContaParaFidelizacao(servicoSelecionado);
+                                const podeUsarBeneficio = beneficiosDisponiveis > 0
+                                    && itemPodeSerGratuito(item, servicoSelecionado);
                                 return (
-                                    <div className="nm-item" key={index}>
+                                    <div className={`nm-item ${item.usar_beneficio_fidelizacao ? "free" : ""}`} key={index}>
                                         <div className="nm-item-fields">
                                             <div className="nm-field">
                                                 <label>Categoria</label>
@@ -489,9 +550,14 @@ function NewMarkModal({ onclose, onSuccess }) {
                                                         {errors[`servico_${index}`]}
                                                     </span>
                                                 )}
-                                                {servicoSelecionado?.elegivel_fidelizacao && (
+                                                {contaParaFidelizacao && !item.usar_beneficio_fidelizacao && (
                                                     <span className="nm-loyalty-tag">
                                                         <Heart size={12} /> Conta para fidelizacao
+                                                    </span>
+                                                )}
+                                                {item.usar_beneficio_fidelizacao && (
+                                                    <span className="nm-loyalty-tag free">
+                                                        <Gift size={12} /> 6.º serviço grátis
                                                     </span>
                                                 )}
                                             </div>
@@ -526,7 +592,11 @@ function NewMarkModal({ onclose, onSuccess }) {
                                                     step="1"
                                                     value={item.preco_praticado}
                                                     onChange={(e) => handleItemChange(index, "preco_praticado", e.target.value)}
+                                                    disabled={item.usar_beneficio_fidelizacao}
                                                 />
+                                                {item.usar_beneficio_fidelizacao && (
+                                                    <span className="nm-free-note">6.º serviço gratuito</span>
+                                                )}
                                                 {errors[`preco_${index}`] && (
                                                     <span className="field-error" role="alert">
                                                         {errors[`preco_${index}`]}
@@ -543,6 +613,36 @@ function NewMarkModal({ onclose, onSuccess }) {
                                                 <Trash2 size={18} />
                                             </button>
                                         </div>
+
+                                        {clienteId && contaParaFidelizacao && (
+                                            <div className="nm-benefit-row">
+                                                <button
+                                                    type="button"
+                                                    className={`nm-benefit-btn ${item.usar_beneficio_fidelizacao ? "active" : ""}`}
+                                                    onClick={() => alternarBeneficio(index)}
+                                                    disabled={!item.usar_beneficio_fidelizacao && !podeUsarBeneficio}
+                                                    title={
+                                                        beneficiosDisponiveis <= 0
+                                                            ? "O cartão ainda não está completo (5/5)"
+                                                            : !podeUsarBeneficio
+                                                                ? `O serviço tem de ser elegível e custar até ${LIMITE_FIDELIZACAO} MT`
+                                                                : "Marcar este serviço como o 6.º gratuito"
+                                                    }
+                                                >
+                                                    <Gift size={14} />
+                                                    {item.usar_beneficio_fidelizacao
+                                                        ? "6.º serviço grátis selecionado"
+                                                        : "Marcar 6.º serviço como grátis"}
+                                                </button>
+                                                <span>
+                                                    {item.usar_beneficio_fidelizacao
+                                                        ? `Este é o único serviço grátis do atendimento (limite ${LIMITE_FIDELIZACAO} MT).`
+                                                        : beneficiosDisponiveis > 0
+                                                            ? "O cartão está completo (5/5). Escolha apenas um serviço elegível para ser o 6.º gratuito."
+                                                            : "O cartão ainda não tem o 6.º serviço gratuito pendente."}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}
@@ -569,10 +669,40 @@ function NewMarkModal({ onclose, onSuccess }) {
                                     <span>Fidelizacao</span>
                                 </div>
                                 <FidelizacaoCard fidelizacao={fidelizacao} loading={carregandoFidelizacao} />
-                                {temServicoElegivel && (
+                                {beneficiosDisponiveis > 0 && (
                                     <p className="nm-hint">
-                                        Este atendimento inclui servico elegivel: a marca sera registada automaticamente
-                                        (uma marca por cliente por dia).
+                                        O cartão está completo (5/5). Se este atendimento incluir serviços
+                                        elegíveis, o <strong>6.º serviço</strong> tem de ser gratuito, até{" "}
+                                        {LIMITE_FIDELIZACAO} MT. Marque <strong>apenas um</strong> serviço
+                                        como gratuito.
+                                    </p>
+                                )}
+                                {beneficiosDisponiveis > 0 && temServicoElegivel && !temServicoGratuito && (
+                                    <p className="nm-hint nm-hint-warning">
+                                        Falta selecionar qual dos serviços elegíveis será o 6.º gratuito.
+                                    </p>
+                                )}
+                                {beneficiosDisponiveis > 0
+                                    && !temServicoElegivel
+                                    && !temServicoGratuito
+                                    && itensComServico.length === itens.length
+                                    && itens.length > 0 && (
+                                        <p className="nm-hint nm-hint-warning">
+                                            Este atendimento não inclui serviços elegíveis. O 6.º serviço
+                                            gratuito continua pendente; escolha um serviço elegível até{" "}
+                                            {LIMITE_FIDELIZACAO} MT para o consumir.
+                                        </p>
+                                    )}
+                                {beneficiosDisponiveis === 0 && temServicoElegivel && (
+                                    <p className="nm-hint">
+                                        Este atendimento inclui serviço pago elegível: a marca será registada
+                                        automaticamente (uma marca por cliente por dia).
+                                    </p>
+                                )}
+                                {beneficiosDisponiveis > 0 && temServicoGratuito && (
+                                    <p className="nm-hint">
+                                        O 6.º serviço gratuito será consumido neste atendimento. Nenhum
+                                        serviço deste atendimento gera marca; o cartão reinicia em 0/5.
                                     </p>
                                 )}
                             </div>
@@ -616,11 +746,13 @@ function NewMarkModal({ onclose, onSuccess }) {
 
                                 <div className={`nm-payment-balance ${saldo > 0 ? "pending" : "settled"}`}>
                                     <Wallet size={16} />
-                                    {valorPago <= 0
-                                        ? "Pagamento depois: o atendimento fica pendente."
-                                        : saldo > 0
-                                            ? `${valorPago.toLocaleString("pt-MZ")} MT pagos · faltam ${saldo.toLocaleString("pt-MZ")} MT.`
-                                            : "Pagamento total: o atendimento fica liquidado."}
+                                    {total <= 0
+                                        ? "Sem valor a pagar: atendimento gratuito."
+                                        : valorPago <= 0
+                                            ? "Pagamento depois: o atendimento fica pendente."
+                                            : saldo > 0
+                                                ? `${valorPago.toLocaleString("pt-MZ")} MT pagos · faltam ${saldo.toLocaleString("pt-MZ")} MT.`
+                                                : "Pagamento total: o atendimento fica liquidado."}
                                 </div>
 
                                 {errors.pagamento && (
@@ -699,11 +831,13 @@ function NewMarkModal({ onclose, onSuccess }) {
                                     <div className="nm-summary-row">
                                         <span>Pagamento</span>
                                         <strong>
-                                            {!podePagar
-                                                ? "Sem permissao para registar"
-                                                : valorPago <= 0
-                                                    ? "Pendente"
-                                                    : `${pagamento.metodo} · ${valorPago.toLocaleString("pt-MZ")} MT`}
+                                            {total <= 0
+                                                ? "Sem valor a pagar"
+                                                : !podePagar
+                                                    ? "Sem permissao para registar"
+                                                    : valorPago <= 0
+                                                        ? "Pendente"
+                                                        : `${pagamento.metodo} · ${valorPago.toLocaleString("pt-MZ")} MT`}
                                         </strong>
                                     </div>
                                     <div className="nm-summary-row">
@@ -712,6 +846,7 @@ function NewMarkModal({ onclose, onSuccess }) {
                                             {fidelizacao?.cartao
                                                 ? `${fidelizacao.marcas_no_ciclo}/${fidelizacao.meta} marcas`
                                                 : "Sem cartao ativo"}
+                                            {temServicoGratuito ? " · 6.º serviço grátis" : ""}
                                         </strong>
                                     </div>
                                 </div>
@@ -728,7 +863,11 @@ function NewMarkModal({ onclose, onSuccess }) {
                                                         <small>{servico?.categoria_nome || "Sem categoria"}</small>
                                                     </span>
                                                     <span>{funcionario?.nome || "Sem funcionario"}</span>
-                                                    <strong>{Number(item.preco_praticado || 0).toLocaleString("pt-MZ")} MT</strong>
+                                                    <strong>
+                                                        {item.usar_beneficio_fidelizacao
+                                                            ? "Grátis"
+                                                            : `${Number(item.preco_praticado || 0).toLocaleString("pt-MZ")} MT`}
+                                                    </strong>
                                                 </li>
                                             );
                                         })}
@@ -737,19 +876,27 @@ function NewMarkModal({ onclose, onSuccess }) {
 
                                 <div className={`nm-payment-balance ${saldo > 0 ? "pending" : "settled"}`}>
                                     <Wallet size={16} />
-                                    {!podePagar
-                                        ? "Sem permissao para registar pagamento; o atendimento fica pendente."
-                                        : valorPago <= 0
-                                            ? `Pagamento pendente: faltam ${total.toLocaleString("pt-MZ")} MT.`
-                                            : saldo > 0
-                                                ? `${valorPago.toLocaleString("pt-MZ")} MT pagos · faltam ${saldo.toLocaleString("pt-MZ")} MT.`
-                                                : "Pagamento total: o atendimento fica liquidado."}
+                                    {total <= 0
+                                        ? "Sem valor a pagar: atendimento gratuito."
+                                        : !podePagar
+                                            ? "Sem permissao para registar pagamento; o atendimento fica pendente."
+                                            : valorPago <= 0
+                                                ? `Pagamento pendente: faltam ${total.toLocaleString("pt-MZ")} MT.`
+                                                : saldo > 0
+                                                    ? `${valorPago.toLocaleString("pt-MZ")} MT pagos · faltam ${saldo.toLocaleString("pt-MZ")} MT.`
+                                                    : "Pagamento total: o atendimento fica liquidado."}
                                 </div>
 
-                                {temServicoElegivel && (
+                                {temServicoGratuito && (
                                     <p className="nm-hint">
-                                        Este atendimento inclui servico elegivel. A marca de fidelizacao do cliente
-                                        sera registada automaticamente (uma por cliente por dia).
+                                        Será usado o <strong>6.º serviço grátis</strong>, num único serviço
+                                        elegível até {LIMITE_FIDELIZACAO} MT. O cartão reinicia em 0/5.
+                                    </p>
+                                )}
+                                {temServicoElegivel && !temServicoGratuito && (
+                                    <p className="nm-hint">
+                                        Este atendimento inclui serviço pago elegível. A marca de fidelização
+                                        do cliente será registada automaticamente (uma por cliente por dia).
                                     </p>
                                 )}
                             </div>

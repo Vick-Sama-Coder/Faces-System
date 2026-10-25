@@ -1,4 +1,5 @@
 import { Heart, Gift, Sparkles } from "lucide-react"
+import { LIMITE_FIDELIZACAO, META_FIDELIZACAO } from "../../utils/validacoes.js"
 import "./FidelizacaoCard.css"
 
 function FidelizacaoCard({
@@ -8,7 +9,8 @@ function FidelizacaoCard({
     title = "Cartao de fidelizacao",
     emptyHint = "O cartao e criado automaticamente no primeiro servico elegivel para fidelizacao."
 }) {
-    const meta = Number(fidelizacao?.meta) || 5
+    const meta = Number(fidelizacao?.meta) || META_FIDELIZACAO
+    const limite = Number(fidelizacao?.limite_beneficio) || LIMITE_FIDELIZACAO
     const marcas = Number(fidelizacao?.marcas_no_ciclo) || 0
     const beneficios = Number(fidelizacao?.beneficios_disponiveis) || 0
     const temCartao = !!fidelizacao?.cartao
@@ -28,8 +30,8 @@ function FidelizacaoCard({
                     </span>
                 </div>
                 {beneficios > 0 && (
-                    <span className="fidelizacao-beneficio" title="Beneficios disponiveis">
-                        <Gift size={15} /> {beneficios}
+                    <span className="fidelizacao-beneficio" title="O 6.º serviço é gratuito">
+                        <Gift size={15} /> 6.º grátis
                     </span>
                 )}
             </header>
@@ -50,8 +52,8 @@ function FidelizacaoCard({
                 <p className="fidelizacao-hint">
                     {temCartao
                         ? beneficios > 0
-                            ? `Tem ${beneficios} beneficio${beneficios > 1 ? "s" : ""} disponivel${beneficios > 1 ? "eis" : ""} para utilizar no proximo corte.`
-                            : `Faltam ${Math.max(meta - marcas, 0)} marca${meta - marcas === 1 ? "" : "s"} para ganhar um corte gratuito.`
+                            ? `Cartão completo: o 6.º serviço é gratuito até ${limite.toLocaleString("pt-MZ")} MT. Ao utilizá-lo, o cartão reinicia em 0/${meta}.`
+                            : `Faltam ${Math.max(meta - marcas, 0)} marca${meta - marcas === 1 ? "" : "s"} para o 6.º serviço ser gratuito até ${limite.toLocaleString("pt-MZ")} MT.`
                         : emptyHint}
                 </p>
             )}

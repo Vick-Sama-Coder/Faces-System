@@ -22,7 +22,9 @@ e os **problemas conhecidos** a corrigir.
 - ✅ **Comissões** geradas na liquidação (taxa específica sobrepõe-se à geral).
 - ✅ **Caixa** (abertura, movimentos, levantamentos, fecho com diferença).
 - ✅ **Despesas** e categorias de despesa (com produtos, ligação ao caixa).
-- ✅ **Fidelização** (marcas por dia, benefício à 5.ª, corte gratuito).
+- ✅ **Fidelização** (ambos os sexos, serviços elegíveis até 200 MT, uma marca por dia,
+  5 marcas → cartão 5/5 e 6.º serviço obrigatoriamente gratuito, sem acumulação; reset
+  imediato em 0/5 após o 6.º e remoção de marcas do ciclo atual).
 - ✅ **Horários** de funcionários (programação semanal, substituição transacional).
 - ✅ **Assiduidade** (registos diários e ocorrências, correção).
 - ✅ **Salários** (processamento mensal base + comissões − deduções, aprovação e pagamento).

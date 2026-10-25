@@ -18,6 +18,15 @@ const findByFuncionario = async (funcionario_id) => {
         .orderBy(asc(horarioFuncionario.dia_semana), asc(horarioFuncionario.hora_entrada));
 };
 
+const findById = async (id) => {
+    const [linha] = await db.select(campos)
+        .from(horarioFuncionario)
+        .where(eq(horarioFuncionario.id, id))
+        .limit(1);
+
+    return linha || null;
+};
+
 const create = async (funcionario_id, {
     dia_semana,
     hora_entrada,
@@ -62,11 +71,44 @@ const deletar = async (funcionario_id, dia_semana) => {
         .where(eq(horarioFuncionario.dia_semana, dia_semana));
 };
 
+//actualizacao de um turno individual
+const update = async (id, {
+    dia_semana,
+    hora_entrada,
+    hora_saida
+}) => {
+    const [linha] = await db.update(horarioFuncionario)
+        .set({
+            dia_semana,
+            hora_entrada,
+            hora_saida
+        })
+        .where(eq(horarioFuncionario.id, id))
+        .returning(campos);
+
+    return linha || null;
+};
+
+//remocao de um turno individual
+const deleteById = async (id) => {
+    const [linha] = await db.delete(horarioFuncionario)
+        .where(eq(horarioFuncionario.id, id))
+        .returning({
+            id: horarioFuncionario.id,
+            funcionario_id: horarioFuncionario.funcionario_id
+        });
+
+    return linha || null;
+};
+
 const Horario = {
     findByFuncionario,
+    findById,
     create,
     substituir,
-    deletar
+    deletar,
+    update,
+    deleteById
 };
 
 export default Horario;

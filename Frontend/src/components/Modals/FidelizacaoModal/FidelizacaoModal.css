@@ -96,6 +96,24 @@
     color: var(--primary-text);
 }
 
+.fidelizacao-modal-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 10px 12px;
+    border: 1px solid var(--warning-soft-strong);
+    border-radius: 9px;
+    background: var(--warning-soft);
+    color: var(--warning-text);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.fidelizacao-modal-alert svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
 .fidelizacao-modal-filter {
     display: flex;
     flex-direction: column;
@@ -159,11 +177,20 @@
     opacity: 0.72;
 }
 
+.fidelizacao-option.invalid {
+    border-color: var(--warning-soft-strong);
+    background: var(--warning-soft);
+}
+
 .fidelizacao-option input {
     width: 16px;
     height: 16px;
     accent-color: var(--primary);
     flex-shrink: 0;
+}
+
+.fidelizacao-option input:disabled {
+    cursor: not-allowed;
 }
 
 .fidelizacao-option-icon {
@@ -209,6 +236,11 @@
 .fidelizacao-option-state.on {
     color: var(--primary-text);
     background: var(--primary-soft);
+}
+
+.fidelizacao-option-state.invalid {
+    color: var(--warning-text);
+    background: var(--warning-soft);
 }
 
 .fidelizacao-modal-footer {

@@ -2,45 +2,66 @@ import db from '../db/client.js';
 import Fidelizacao from '../repository/fidelizacao.js';
 import AuditoriaService from './auditoria.js';
 import { criarErro } from '../utils/erro.js';
-import Cliente from '../repository/cliente.js';
-
-//verifica se o cliente e do sexo masculino (apenas homens podem ter cartao)
-const verificarSexoMasculino = async (cliente_id) => {
-    const cliente = await Cliente.findById(cliente_id);
-    if (!cliente) return false;
-    return cliente.sexo === 'M';
-};
+import {
+    LIMITE_FIDELIZACAO,
+    META_FIDELIZACAO,
+    servicoContaParaFidelizacao
+} from '../utils/validacoes.js';
 
 //numero de marcas que gera um beneficio
-const META = 5;
+const META = META_FIDELIZACAO;
+
+//o beneficio cobre um unico servico elegivel, ate este valor
+const LIMITE_BENEFICIO = LIMITE_FIDELIZACAO;
 
 //limite por operacao de preenchimento manual, para evitar erros de digitacao
 const MAX_MARCAS_MANUAIS = 20;
 
-//regista um corte elegivel. Idempotente por atendimento_servico_id.
+//saldos do cartao. Enquanto houver um beneficio por usar, o cartao continua
+//visualmente completo (5/5); o 6.º servico e que o consome e reinicia o ciclo.
+const saldosCartao = async (executor, cliente_id) => {
+    const cartao = await Fidelizacao.getOrCreateCartao(executor, cliente_id);
+    const ganhos = await Fidelizacao.countPorTipo(executor, cartao.id, "beneficio_ganho");
+    const utilizados = await Fidelizacao.countPorTipo(executor, cartao.id, "beneficio_utilizado");
+    const pendentes = ganhos - utilizados;
+
+    return {
+        cartao,
+        ganhos,
+        utilizados,
+        pendentes,
+        //enquanto o 6.º serviço estiver pendente, o ciclo actual ainda e o
+        //ciclo completo (5/5). So depois de o consumir e que avanca.
+        ciclo: pendentes > 0 ? Math.max(ganhos, 1) : ganhos + 1
+    };
+};
+
+//regista um servico elegivel. Idempotente por atendimento_servico_id.
 //Recebe o executor porque e chamado dentro da transacao do atendimento.
 //As marcas manuais usam a mesma logica, mas nao passam pela regra diaria nem
-//pelo ramo de corte gratuito.
+//pelo ramo de servico gratuito.
 const registarCorte = async (executor, {
     cliente_id,
     atendimento_servico_id = null,
     valor_final,
     registado_por,
     origem = 'atendimento',
+    usar_beneficio = false,
     observacao
 }) => {
-    if (!(await verificarSexoMasculino(cliente_id))) {
-        return { marca: false, beneficio: false, ciclo: null, erro: "Apenas clientes do sexo masculino podem ter cartão de fidelização" };
-    }
+    const {
+        cartao,
+        pendentes: disponiveis,
+        ciclo
+    } = await saldosCartao(executor, cliente_id);
 
-    const cartao = await Fidelizacao.getOrCreateCartao(executor, cliente_id);
-    const ganhos = await Fidelizacao.countPorTipo(executor, cartao.id, "beneficio_ganho");
-    const utilizados = await Fidelizacao.countPorTipo(executor, cartao.id, "beneficio_utilizado");
-    const ciclo = ganhos + 1;
+    //servico gratuito: consome um beneficio e nao cria marca no ciclo seguinte.
+    //O cliente escolhe apenas um servico elegivel, ate ao limite definido.
+    if (usar_beneficio) {
+        if (disponiveis <= 0) {
+            throw criarErro(409, "O cliente nao tem beneficios de fidelizacao disponiveis");
+        }
 
-    //corte gratuito: so consome beneficio se houver um disponivel.
-    //Conta para o ciclo seguinte, sem marca visivel no atual (RN20).
-    if (origem === 'atendimento' && Number(valor_final) === 0 && ganhos - utilizados > 0) {
         await Fidelizacao.insertMovimento(executor, {
             cartao_id: cartao.id,
             atendimento_servico_id,
@@ -48,21 +69,19 @@ const registarCorte = async (executor, {
             ciclo,
             registado_por,
             origem,
-            observacao: "Corte gratuito"
+            observacao: observacao || `Servico gratuito ate ${LIMITE_BENEFICIO} MT`
         });
-        await Fidelizacao.insertMovimento(executor, {
-            cartao_id: cartao.id,
-            atendimento_servico_id,
-            tipo_movimento: "marca",
-            ciclo: ciclo + 1,
-            registado_por,
-            origem,
-            observacao: "Corte gratuito (conta para o ciclo seguinte)"
-        });
+
+        return { marca: false, beneficio: false, beneficio_utilizado: true, ciclo };
+    }
+
+    //um servico com valor final zero nao e um servico pago e, por isso,
+    //nao conta como marca (o gratis tem de ser indicado explicitamente).
+    if (origem === 'atendimento' && Number(valor_final) <= 0) {
         return { marca: false, beneficio: false, ciclo };
     }
 
-    //uma marca de atendimento por cliente por dia, mesmo com varios cortes (RN17).
+    //uma marca de atendimento por cliente por dia, mesmo com varios servicos (RN17).
     //Marcas manuais nao bloqueiam o atendimento do mesmo dia.
     if (origem === 'atendimento' && await Fidelizacao.existeMarcaHoje(executor, cartao.id)) {
         return { marca: false, beneficio: false, ciclo };
@@ -78,7 +97,7 @@ const registarCorte = async (executor, {
         observacao
     });
 
-    //5.ª marca do ciclo -> gera beneficio (RN18); os beneficios acumulam (RN19)
+    //5.ª marca do ciclo -> deixa o 6.º servico gratuito pendente (RN18).
     const marcas = await Fidelizacao.marcasNoCiclo(executor, cartao.id, ciclo);
     if (marcas >= META) {
         await Fidelizacao.insertMovimento(executor, {
@@ -96,22 +115,112 @@ const registarCorte = async (executor, {
     return { marca: true, beneficio: false, ciclo };
 };
 
-//progresso do cliente: ciclo atual, marcas, beneficios e historico
-const progresso = async (cliente_id) => {
-    if (!(await verificarSexoMasculino(cliente_id))) {
-        return {
-            cliente_id,
-            cartao: null,
-            ciclo_atual: 1,
-            meta: META,
-            marcas_no_ciclo: 0,
-            beneficios_disponiveis: 0,
-            beneficios_utilizados: 0,
-            historico: [],
-            erro: "Apenas clientes do sexo masculino podem ter cartão de fidelização"
-        };
+//regista a fidelizacao de um atendimento completo. E chamado depois de todas
+//as linhas serem inseridas para que a regra seja independente da ordem dos
+//servicos no pedido:
+//- com o cartao completo (5/5), um servico elegivel tem de ser gratuito;
+//- esse servico consome o beneficio e nenhum servico do atendimento gera marca;
+//- sem beneficio pendente, o atendimento gera no maximo uma marca por dia.
+const registarAtendimento = async (executor, {
+    cliente_id,
+    itens,
+    registado_por
+}) => {
+    const elegiveis = itens.filter((item) => servicoContaParaFidelizacao(item.servico));
+
+    if (elegiveis.length === 0) {
+        return { marca: false, beneficio: false, beneficio_utilizado: false };
     }
 
+    const gratuitos = elegiveis.filter((item) => item.usar_beneficio);
+    if (gratuitos.length > 1) {
+        throw criarErro(409, "So e possivel usar um beneficio gratuito por atendimento");
+    }
+
+    //um servico com valor final zero nao e um servico pago e nao pode gerar
+    //marca, mesmo que o servico do catalogo seja elegivel.
+    const elegiveisPagos = elegiveis.filter((item) => (
+        !item.usar_beneficio && Number(item.valor_final) > 0
+    ));
+
+    const gratuito = gratuitos[0] || null;
+    const {
+        cartao,
+        pendentes,
+        ciclo
+    } = await saldosCartao(executor, cliente_id);
+
+    if (pendentes > 0) {
+        if (!gratuito) {
+            //se so houver linhas elegiveis a zero, nao ha um servico pago para
+            //consumir o 6.º gratuito; o beneficio mantem-se pendente.
+            if (elegiveisPagos.length === 0) {
+                return { marca: false, beneficio: false, beneficio_utilizado: false, ciclo };
+            }
+
+            const erro = criarErro(
+                409,
+                "O cartao esta completo (5/5): o 6.º servico elegivel tem de ser gratuito. Selecione o servico que sera oferecido"
+            );
+            erro.field = "servicos";
+            throw erro;
+        }
+
+        await Fidelizacao.insertMovimento(executor, {
+            cartao_id: cartao.id,
+            atendimento_servico_id: gratuito.atendimento_servico_id,
+            tipo_movimento: "beneficio_utilizado",
+            ciclo,
+            registado_por,
+            origem: "atendimento",
+            observacao: `6.º servico gratuito ate ${LIMITE_BENEFICIO} MT`
+        });
+
+        return { marca: false, beneficio: false, beneficio_utilizado: true, ciclo };
+    }
+
+    if (gratuito) {
+        throw criarErro(409, "O cliente ainda nao tem o 6.º servico gratuito disponivel");
+    }
+
+    if (elegiveisPagos.length === 0) {
+        return { marca: false, beneficio: false, ciclo };
+    }
+
+    if (await Fidelizacao.existeMarcaHoje(executor, cartao.id)) {
+        return { marca: false, beneficio: false, ciclo };
+    }
+
+    const primeiro = elegiveisPagos[0];
+    await Fidelizacao.insertMovimento(executor, {
+        cartao_id: cartao.id,
+        atendimento_servico_id: primeiro.atendimento_servico_id,
+        tipo_movimento: "marca",
+        ciclo,
+        registado_por,
+        origem: "atendimento",
+        observacao: "Marca de atendimento"
+    });
+
+    const marcas = await Fidelizacao.marcasNoCiclo(executor, cartao.id, ciclo);
+    if (marcas >= META) {
+        await Fidelizacao.insertMovimento(executor, {
+            cartao_id: cartao.id,
+            atendimento_servico_id: primeiro.atendimento_servico_id,
+            tipo_movimento: "beneficio_ganho",
+            ciclo,
+            registado_por,
+            origem: "atendimento",
+            observacao: `${META} marcas no ciclo ${ciclo}`
+        });
+        return { marca: true, beneficio: true, ciclo };
+    }
+
+    return { marca: true, beneficio: false, ciclo };
+};
+
+//progresso do cliente: ciclo atual, marcas, beneficios e historico
+const progresso = async (cliente_id) => {
     const cartao = await Fidelizacao.findCartao(db, cliente_id);
 
     if (!cartao) {
@@ -120,35 +229,38 @@ const progresso = async (cliente_id) => {
             cartao: null,
             ciclo_atual: 1,
             meta: META,
+            limite_beneficio: LIMITE_BENEFICIO,
             marcas_no_ciclo: 0,
             beneficios_disponiveis: 0,
             beneficios_utilizados: 0,
+            beneficio_pendente: false,
             historico: []
         };
     }
 
     const ganhos = await Fidelizacao.countPorTipo(db, cartao.id, "beneficio_ganho");
     const utilizados = await Fidelizacao.countPorTipo(db, cartao.id, "beneficio_utilizado");
-    const ciclo = ganhos + 1;
+    const pendentes = ganhos - utilizados;
+    //com o 6.º servico pendente, o cartao ainda mostra o ciclo completo (5/5).
+    //So depois de o usar e que o ciclo seguinte comeca em 0.
+    const ciclo = pendentes > 0 ? Math.max(ganhos, 1) : ganhos + 1;
 
     return {
         cliente_id,
         cartao,
         ciclo_atual: ciclo,
         meta: META,
+        limite_beneficio: LIMITE_BENEFICIO,
         marcas_no_ciclo: await Fidelizacao.marcasNoCiclo(db, cartao.id, ciclo),
-        beneficios_disponiveis: ganhos - utilizados,
+        beneficios_disponiveis: pendentes,
         beneficios_utilizados: utilizados,
+        beneficio_pendente: pendentes > 0,
         historico: await Fidelizacao.findMovimentos(db, cartao.id)
     };
 };
 
 //correcao manual autorizada (fidelizacao:corrigir)
 const corrigir = async (cliente_id, { tipo_movimento, ciclo, observacao }, registado_por) => {
-    if (!(await verificarSexoMasculino(cliente_id))) {
-        throw criarErro(403, "Apenas clientes do sexo masculino podem ter cartão de fidelização");
-    }
-
     const cartao = await Fidelizacao.getOrCreateCartao(db, cliente_id);
 
     await Fidelizacao.insertMovimento(db, {
@@ -170,13 +282,9 @@ const corrigir = async (cliente_id, { tipo_movimento, ciclo, observacao }, regis
 };
 
 //preenchimento manual: o administrador acrescenta marcas ao cartao.
-//Cada marca passa por registarCorte, pelo que contribui para o ciclo e pode
-//gerar beneficio exactamente como uma marca de atendimento.
+//O cartao tem no maximo 5 marcas; com o 6.º servico pendente, e obrigatorio
+//registar primeiro a utilizacao do beneficio antes de acrescentar mais marcas.
 const marcarManual = async (cliente_id, { quantidade, confirmar_beneficio }, registado_por) => {
-    if (!(await verificarSexoMasculino(cliente_id))) {
-        throw criarErro(403, "Apenas clientes do sexo masculino podem ter cartão de fidelização");
-    }
-
     const total = Number(quantidade);
 
     if (!Number.isInteger(total) || total < 1 || total > MAX_MARCAS_MANUAIS) {
@@ -184,17 +292,36 @@ const marcarManual = async (cliente_id, { quantidade, confirmar_beneficio }, reg
     }
 
     const resultado = await db.transaction(async (tx) => {
-        const cartao = await Fidelizacao.getOrCreateCartao(tx, cliente_id);
-        const ganhos = await Fidelizacao.countPorTipo(tx, cartao.id, "beneficio_ganho");
-        const utilizados = await Fidelizacao.countPorTipo(tx, cartao.id, "beneficio_utilizado");
-        const ciclo = ganhos + 1;
+        const {
+            cartao,
+            ganhos,
+            utilizados,
+            pendentes,
+            ciclo
+        } = await saldosCartao(tx, cliente_id);
+
+        if (pendentes > 0) {
+            throw criarErro(
+                409,
+                "O cartao esta completo (5/5). Registe a utilizacao do 6.º servico gratuito antes de adicionar novas marcas"
+            );
+        }
+
         const marcasAtuais = await Fidelizacao.marcasNoCiclo(tx, cartao.id, ciclo);
-        const beneficiosAGerar = Math.floor((marcasAtuais + total) / META);
+
+        if (marcasAtuais + total > META) {
+            throw criarErro(
+                409,
+                `O cartao so pode ter ${META} marcas neste ciclo. Acrescente no maximo ${Math.max(META - marcasAtuais, 0)} marca(s)`
+            );
+        }
+
+        const beneficiosAGerar = marcasAtuais + total === META ? 1 : 0;
 
         if (beneficiosAGerar > 0 && confirmar_beneficio !== true) {
             const erro = criarErro(
                 409,
-                `Esta operacao gera ${beneficiosAGerar} beneficio(s) de fidelizacao. Confirme para continuar.`
+                "Esta operacao completa o cartao e deixa o 6.º servico gratuito. Confirme para continuar."
             );
             erro.details = {
                 requer_confirmacao: true,
@@ -243,84 +370,56 @@ const marcarManual = async (cliente_id, { quantidade, confirmar_beneficio }, reg
     };
 };
 
-//remocao de uma marca manual, com recalculo do trecho manual a partir do ciclo
-//onde a marca se encontra. Para nao reescrever historico de atendimento, a
-//operacao e bloqueada se existirem atendimentos ou beneficios utilizados no
-//mesmo ciclo ou em ciclos posteriores.
-const removerMarcaManual = async (cliente_id, movimento_id, registado_por) => {
-    if (!(await verificarSexoMasculino(cliente_id))) {
-        throw criarErro(403, "Apenas clientes do sexo masculino podem ter cartão de fidelização");
-    }
-
+//remocao de uma marca do ciclo actual, quer tenha sido introduzida manualmente
+//quer tenha vindo de um atendimento. Ciclos ja fechados nao sao alterados:
+//para esses casos existe a correcao de fidelizacao.
+const removerMarca = async (cliente_id, movimento_id, registado_por) => {
     await db.transaction(async (tx) => {
         const cartao = await Fidelizacao.getOrCreateCartao(tx, cliente_id);
+        const { ciclo } = await saldosCartao(tx, cliente_id);
         const movimentos = await Fidelizacao.findMovimentos(tx, cartao.id);
         const alvo = movimentos.find((movimento) => String(movimento.id) === String(movimento_id));
 
         if (!alvo) {
             throw criarErro(404, "Movimento de fidelizacao nao encontrado");
         }
-        if (alvo.tipo_movimento !== "marca" || alvo.origem !== "manual") {
-            throw criarErro(409, "Apenas marcas introduzidas manualmente podem ser removidas");
+        if (alvo.tipo_movimento !== "marca") {
+            throw criarErro(409, "Apenas marcas podem ser removidas do cartao");
         }
-
-        const ciclo = alvo.ciclo;
-        const temAtendimentoNoCicloOuDepois = movimentos.some((movimento) => (
-            movimento.tipo_movimento === "marca"
-            && movimento.origem === "atendimento"
-            && movimento.ciclo >= ciclo
-        ));
-        const temBeneficioUtilizadoNoCicloOuDepois = movimentos.some((movimento) => (
-            movimento.tipo_movimento === "beneficio_utilizado"
-            && movimento.ciclo >= ciclo
-        ));
-
-        if (temAtendimentoNoCicloOuDepois || temBeneficioUtilizadoNoCicloOuDepois) {
+        if (Number(alvo.ciclo) !== Number(ciclo)) {
             throw criarErro(
                 409,
-                "Nao e possivel remover esta marca: ja existem atendimentos ou beneficios utilizados neste ciclo. Use a correcao de fidelizacao."
+                "So e possivel remover marcas do ciclo actual. Use a correcao de fidelizacao para ciclos anteriores."
             );
         }
 
-        const marcasAntes = await Fidelizacao.marcasNoCiclo(tx, cartao.id, ciclo);
-        const manuaisNoTrecho = movimentos.filter((movimento) => (
-            movimento.tipo_movimento === "marca"
-            && movimento.origem === "manual"
-            && movimento.ciclo >= ciclo
-        ));
-        const beneficiosManuaisNoTrecho = movimentos.filter((movimento) => (
+        const beneficiosDoCiclo = movimentos.filter((movimento) => (
             movimento.tipo_movimento === "beneficio_ganho"
-            && movimento.origem === "manual"
-            && movimento.ciclo >= ciclo
+            && Number(movimento.ciclo) === Number(ciclo)
         ));
+
+        const marcasAntes = await Fidelizacao.marcasNoCiclo(tx, cartao.id, ciclo);
         const idsParaApagar = [
-            ...manuaisNoTrecho.map((movimento) => movimento.id),
-            ...beneficiosManuaisNoTrecho.map((movimento) => movimento.id)
+            alvo.id,
+            ...beneficiosDoCiclo.map((movimento) => movimento.id)
         ];
-        const restantes = manuaisNoTrecho.filter(
-            (movimento) => String(movimento.id) !== String(movimento_id)
-        );
 
         await Fidelizacao.deleteMovimentos(tx, idsParaApagar);
-
-        for (let i = 0; i < restantes.length; i++) {
-            await registarCorte(tx, {
-                cliente_id,
-                origem: 'manual',
-                registado_por,
-                observacao: 'Preenchimento manual do cartao (administrador)'
-            });
-        }
 
         await AuditoriaService.registar({
             id_utilizador: registado_por,
             entidade: "fidelizacao",
             id_registo: cartao.id,
-            operacao: "remover_marca_manual",
-            antes: { movimento_id: alvo.id, ciclo, marcas_no_ciclo: marcasAntes },
+            operacao: "remover_marca",
+            antes: {
+                movimento_id: alvo.id,
+                origem: alvo.origem,
+                ciclo,
+                marcas_no_ciclo: marcasAntes
+            },
             depois: {
-                marcas_manuais_recalculadas: restantes.length,
-                beneficios_manuais_removidos: beneficiosManuaisNoTrecho.length
+                beneficios_pendentes_removidos: beneficiosDoCiclo.length,
+                marcas_no_ciclo: await Fidelizacao.marcasNoCiclo(tx, cartao.id, ciclo)
             }
         }, tx);
     });
@@ -328,23 +427,20 @@ const removerMarcaManual = async (cliente_id, movimento_id, registado_por) => {
     return progresso(cliente_id);
 };
 
-//regista a utilizacao de um beneficio que ja existe no cartao.
-//Nao cria marca: serve para corrigir o saldo de beneficios disponiveis.
+//regista a utilizacao do 6.º servico gratuito que esta pendente no cartao.
+//Nao cria marca: fecha o ciclo completo e o cartao reinicia em 0/5.
 const utilizarBeneficioManual = async (cliente_id, { observacao } = {}, registado_por) => {
-    if (!(await verificarSexoMasculino(cliente_id))) {
-        throw criarErro(403, "Apenas clientes do sexo masculino podem ter cartão de fidelização");
-    }
-
     await db.transaction(async (tx) => {
-        const cartao = await Fidelizacao.getOrCreateCartao(tx, cliente_id);
-        const ganhos = await Fidelizacao.countPorTipo(tx, cartao.id, "beneficio_ganho");
-        const utilizados = await Fidelizacao.countPorTipo(tx, cartao.id, "beneficio_utilizado");
+        const {
+            cartao,
+            pendentes,
+            ciclo
+        } = await saldosCartao(tx, cliente_id);
 
-        if (ganhos - utilizados <= 0) {
-            throw criarErro(409, "O cliente nao tem beneficios disponiveis para utilizar");
+        if (pendentes <= 0) {
+            throw criarErro(409, "O cliente nao tem o 6.º servico gratuito pendente");
         }
 
-        const ciclo = ganhos + 1;
         const nota = observacao ? String(observacao).trim().slice(0, 255) : null;
 
         await Fidelizacao.insertMovimento(tx, {
@@ -353,7 +449,7 @@ const utilizarBeneficioManual = async (cliente_id, { observacao } = {}, registad
             ciclo,
             registado_por,
             origem: "manual",
-            observacao: nota || "Beneficio utilizado (registo manual)"
+            observacao: nota || "6.º servico gratuito utilizado (registo manual)"
         });
 
         await AuditoriaService.registar({
@@ -361,8 +457,8 @@ const utilizarBeneficioManual = async (cliente_id, { observacao } = {}, registad
             entidade: "fidelizacao",
             id_registo: cartao.id,
             operacao: "utilizar_beneficio_manual",
-            antes: { beneficios_disponiveis: ganhos - utilizados },
-            depois: { beneficios_disponiveis: ganhos - utilizados - 1, observacao: nota }
+            antes: { beneficios_pendentes: pendentes },
+            depois: { beneficios_pendentes: pendentes - 1, observacao: nota }
         }, tx);
     });
 
@@ -371,12 +467,15 @@ const utilizarBeneficioManual = async (cliente_id, { observacao } = {}, registad
 
 const FidelizacaoService = {
     META,
+    LIMITE_BENEFICIO,
     MAX_MARCAS_MANUAIS,
+    saldosCartao,
     registarCorte,
+    registarAtendimento,
     progresso,
     corrigir,
     marcarManual,
-    removerMarcaManual,
+    removerMarca,
     utilizarBeneficioManual
 };
 

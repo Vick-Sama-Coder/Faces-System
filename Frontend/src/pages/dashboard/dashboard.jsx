@@ -22,6 +22,7 @@ import {
     Tags
 } from "lucide-react"
 import { getDashboard, getApiError } from "../../services/api.js"
+import { LIMITE_FIDELIZACAO, META_FIDELIZACAO } from "../../utils/validacoes.js"
 import { useAuthStore } from "../../store/authStore.js"
 import "./dashboard.css"
 
@@ -296,7 +297,9 @@ function DashBoard() {
                                 </div>
 
                                 <p className="dash-fidelity-hint">
-                                    As marcas sao acumuladas por cliente. Cada 5 completam um corte gratuito.
+                                    As marcas sao acumuladas por cliente, para ambos os sexos. Ao completar{" "}
+                                    {META_FIDELIZACAO} marcas (uma por dia), o 6.º servico e gratuito
+                                    ate {LIMITE_FIDELIZACAO} MT.
                                 </p>
                             </article>
                         </section>

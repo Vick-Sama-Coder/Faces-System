@@ -203,8 +203,11 @@ Limpa o cookie `token`.
 - `POST /api/servicos` 🔒🛠️ — corpo: `{ nome, valor, categoria_id, descricao?, duracao_min?,
   tipo_preco?, elegivel_fidelizacao? }`. `201`
   - `400` se faltar campo ou `valor <= 0`; `409` se já existir um serviço **ativo** com o nome
+  - `400` se `elegivel_fidelizacao: true` e o valor ultrapassar **200 MT**
 - `PUT /api/servicos/:id` 🔒🛠️ — actualização parcial. `200` / `404` / `400`
   - Alterar `valor` grava automaticamente o histórico de preços
+  - Se o estado final continuar elegível, o valor não pode ultrapassar **200 MT**;
+    para aumentar o preço acima do limite, envie também `elegivel_fidelizacao: false`
 - `PATCH /api/servicos/:id/estado` 🔒🛠️ — `{ "estado": "Ativo" | "Inativo" }`
 - `DELETE /api/servicos/:id` 🔒🛠️ — `204` / `404`
   - `409` se existirem atendimentos que usam o serviço
@@ -276,12 +279,26 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 - `GET /api/atendimentos?de=&ate=&cliente=&funcionario=&estado=` 🔒 — lista com filtros
 - `GET /api/atendimentos/:id` 🔒 — detalhe + `servicos`
 - `POST /api/atendimentos` 🔒🛠️ — corpo:
-  `{ cliente_id, servicos: [{ servico_id, funcionario_id, preco_praticado, desconto?, tipo_preco? }] }`.
-  Cria cabeçalho + linhas **numa transação**. `201`
+  `{ cliente_id, servicos: [{ servico_id, funcionario_id, preco_praticado, desconto?, tipo_preco?, usar_beneficio_fidelizacao? }] }`.
+  Cria cabeçalho + linhas **numa transação**. `201`; a resposta inclui `fidelizacao`
+  com o progresso já atualizado (por exemplo, `0/5` depois de usar o 6.º serviço gratuito).
   - `400` se faltar `cliente_id`/`servicos` ou campos de cada serviço
+  - `400` se `usar_beneficio_fidelizacao: true` num serviço não elegível, acima de 200 MT
+    ou sem preço praticado válido
   - `409` se algum serviço estiver **inativo**
+  - `409` se o cartão estiver completo (5/5) e o atendimento tiver serviços elegíveis sem
+    exatamente um deles marcado como gratuito; o 6.º serviço não pode ser pago
+  - `409` se for indicado `usar_beneficio_fidelizacao: true` sem o 6.º serviço pendente ou
+    se forem indicados dois serviços gratuitos no mesmo atendimento
+  - `usar_beneficio_fidelizacao: true` aplica 100% de desconto a **uma única** linha; o
+    `desconto` enviado nessa linha é ignorado. O atendimento que usa o 6.º serviço gratuito
+    não gera marca em nenhum dos seus serviços
 - `PUT /api/atendimentos/:id` 🔒🛠️ — corpo: `{ cliente_id }`
-- `POST /api/atendimentos/:id/servicos` 🔒🛠️ — adiciona serviço (recalcula totais)
+- `POST /api/atendimentos/:id/servicos` 🔒🛠️ — adiciona serviço (recalcula totais).
+  Aceita os mesmos campos, incluindo `usar_beneficio_fidelizacao`; rejeita com `409` se o
+  atendimento já tiver um serviço gratuito, se o cartão estiver completo e o novo serviço
+  for elegível sem ser o gratuito, ou se o serviço gratuito for acrescentado depois de o
+  atendimento já ter gerado marca
 - `DELETE /api/atendimentos/:id/servicos/:itemId` 🔒🛠️ — `204` (recalcula totais)
 - `PATCH /api/atendimentos/:id/concluir` 🔒🛠️ — marca `Concluido`
 - `POST /api/atendimentos/:id/anular` 🔒🛠️(`atendimentos:anular`) — corpo: `{ motivo }`
@@ -346,40 +363,58 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 ## Fidelização — `/api/clientes/:id/fidelizacao`
 
 - `GET /api/clientes/:id/fidelizacao` 🔒 — progresso:
-  `{ ciclo_atual, meta, marcas_no_ciclo, beneficios_disponiveis, beneficios_utilizados, historico }`.
-  Cada item do `historico` inclui `origem` (`atendimento` | `manual`).
+  `{ ciclo_atual, meta, limite_beneficio, marcas_no_ciclo, beneficios_disponiveis, beneficios_utilizados, beneficio_pendente, historico }`.
+  Com o 6.º serviço pendente, o cartão mantém `marcas_no_ciclo: 5` e
+  `beneficio_pendente: true`; depois de o usar, passa para `marcas_no_ciclo: 0` no ciclo
+  seguinte. Cada item do `historico` inclui `origem` (`atendimento` | `manual`). O cartão
+  aplica-se a clientes de ambos os sexos.
 - `POST /api/clientes/:id/fidelizacao/correcao` 🔒(`fidelizacao:corrigir`) — corpo:
   `{ tipo_movimento?, ciclo?, observacao? }`
 - `POST /api/clientes/:id/fidelizacao/marcas` 🔒👑 — preenchimento manual de cartões físicos.
-  Corpo: `{ quantidade: 1..20, confirmar_beneficio?: boolean }`. Insere as marcas no ciclo
-  actual através do mesmo serviço usado pelo atendimento. Se a operação gerar benefícios e
-  `confirmar_beneficio` não for `true`, devolve `409` com
+  Corpo: `{ quantidade: 1..20, confirmar_beneficio?: boolean }`, limitado às marcas que
+  faltam até 5/5. Com o 6.º serviço pendente devolve `409`. Se a operação
+  completar o cartão e `confirmar_beneficio` não for `true`, devolve `409` com
   `{ requer_confirmacao: true, beneficios_a_gerar, marcas_no_ciclo, marcas_apos }`.
-- `DELETE /api/clientes/:id/fidelizacao/marcas/:movimentoId` 🔒👑 — remove uma marca manual.
-  Se a marca tiver completado um ciclo, o benefício manual correspondente é removido e as
-  marcas seguintes são recalculadas. É bloqueado (`409`) se o benefício já foi utilizado ou
-  se existirem marcas de atendimento no mesmo ciclo ou em ciclos posteriores.
+- `DELETE /api/clientes/:id/fidelizacao/marcas/:movimentoId` 🔒👑 — remove uma marca do
+  ciclo atual, manual ou de atendimento. Se o cartão estava 5/5, o `beneficio_ganho`
+  pendente também é removido. É bloqueado (`409`) para marcas de ciclos anteriores; nesses
+  casos usa-se a correção de fidelização. Remover uma marca de atendimento não altera o
+  atendimento nem os serviços registados.
 - `POST /api/clientes/:id/fidelizacao/beneficios/utilizar` 🔒👑 — corpo: `{ observacao? }`.
-  Consome um benefício disponível, sem criar marca. `409` se não existirem benefícios.
+  Regista a utilização do 6.º serviço gratuito, sem criar marca, e reinicia o cartão em
+  0/5. `409` se não existir o 6.º serviço pendente.
 
-> Só serviços com `elegivel_fidelizacao` contam. Marcas de atendimento contam uma vez por
-> dia (RN17); marcas manuais contam individualmente e entram no mesmo ciclo. Ao 5.º
-> movimento do ciclo gera-se um benefício (acumulam), seja a marca manual ou de
-> atendimento. Um corte gratuito consome um benefício e conta para o ciclo seguinte. A
-> geração é idempotente por `atendimento_servico_id`.
+> Só serviços com `elegivel_fidelizacao` **e valor até 200 MT** contam. Marcas de
+> atendimento contam uma vez por dia (RN17); marcas manuais contam individualmente e entram
+> no mesmo ciclo. Ao 5.º movimento o cartão fica completo (5/5) e o **6.º serviço é
+> obrigatoriamente gratuito**, seja a marca manual ou de atendimento. O direito não acumula
+> nem pode ser guardado para depois: enquanto estiver pendente, o próximo atendimento com
+> serviços elegíveis tem de indicar exatamente um deles como gratuito. No 6.º serviço o
+> cliente escolhe **um único** serviço elegível até 200 MT; se escolher um valor inferior, o
+> remanescente não é reutilizado. O serviço gratuito consome o benefício e **não** cria
+> marca; os restantes serviços desse atendimento também não criam marca e o ciclo seguinte
+> começa em zero. A geração é idempotente por `atendimento_servico_id`.
 
 ---
 
 ## Horários — `/api/funcionarios/:id/horarios`
 
 - `GET /api/funcionarios/:id/horarios` 🔒 — programação do funcionário (`404` se o
-  funcionário não existir)
+  funcionário não existir). Quem tem `horarios:gerir` consulta qualquer funcionário; os
+  restantes só podem consultar o próprio horário (`403` caso contrário)
 - `POST /api/funcionarios/:id/horarios` 🔒(`horarios:gerir`) — corpo:
   `{ dia_semana, hora_entrada, hora_saida }`. `201`
   - `dia_semana`: `0` = Domingo … `6` = Sábado
+  - `hora_entrada`/`hora_saida`: `HH:MM`; a saída tem de ser posterior à entrada
+  - São permitidos vários turnos no mesmo dia, desde que não se sobreponham (`409`)
 - `PUT /api/funcionarios/:id/horarios` 🔒(`horarios:gerir`) — corpo:
-  `{ horarios: [{ dia_semana, hora_entrada, hora_saida, ... }] }` — **substitui** toda a
-  programação (transação)
+  `{ horarios: [{ dia_semana, hora_entrada, hora_saida }] }` — **substitui** toda a
+  programação (transação); valida sobreposições dentro da lista
+- `PUT /api/horarios/:id` 🔒(`horarios:gerir`) — atualiza **um único turno**, sem afetar
+  os restantes. Corpo: `{ dia_semana, hora_entrada, hora_saida }`
+- `DELETE /api/horarios/:id` 🔒(`horarios:gerir`) — remove **um único turno**
+- `DELETE /api/funcionarios/:id/horarios/:dia_semana` 🔒(`horarios:gerir`) —
+  compatibilidade: remove todos os turnos desse dia
 
 ## Assiduidade — `/api/assiduidade`
 
@@ -390,7 +425,19 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
     `saida_antecipada` | `ausencia` | `sem_registo`
   - `409` se já existir registo do funcionário nesse dia; `400` se o funcionário não existir
 - `PUT /api/assiduidade/:id` 🔒(`assiduidade:gerir`) — correção parcial
-  (`hora_entrada_real`, `hora_saida_real`, `tipo_ocorrencia`, `justificacao`, `estado`)
+  (`hora_entrada_real`, `hora_saida_real`, `tipo_ocorrencia`, `justificacao`, `estado`).
+  Enviar `null` nas horas limpa o valor
+- `PUT /api/assiduidade/dia` 🔒(`assiduidade:gerir`) — cria ou atualiza o dia
+  `(funcionario_id, data)` sem duplicar. Corpo:
+  `{ funcionario_id, data, hora_entrada_real, hora_saida_real }`
+  - `data` no formato `AAAA-MM-DD`; horas em `HH:MM` ou `null` (registo parcial permitido)
+  - Um dia novo exige pelo menos uma hora; se o dia já existir, `null` limpa a hora
+  - Se ambas as horas forem enviadas, a saída tem de ser posterior à entrada
+  - Preserva ocorrência/justificação existentes; `201` ao criar e `200` ao atualizar
+
+> A página `/horarios` usa `PUT /api/assiduidade/dia` para o controlo mensal: base
+> `09:00–19:00` (10h por dia), em todos os dias. Dias sem entrada e saída não contam
+> para as horas previstas e não há desconto de almoço.
 
 > A ocorrência é registada separadamente do efeito salarial (RN15).
 

@@ -54,7 +54,7 @@ Desenvolver um sistema integrado para automatizar e centralizar a gestão operac
 3. Controlar a entrada e saída de dinheiro.
 4. Automatizar o cálculo das comissões e apoiar o processamento salarial.
 5. Registar a assiduidade e gerir os horários dos funcionários.
-6. Implementar o cartão de fidelização de cortes de cabelo.
+6. Implementar o cartão de fidelização para serviços elegíveis até 200 MT, aplicável a ambos os sexos.
 7. Registar as despesas com produtos utilizados nos serviços.
 8. Produzir relatórios operacionais e financeiros.
 9. Controlar os acessos através de perfis e permissões individuais.
@@ -631,27 +631,32 @@ O sistema deverá distinguir o processamento preparado, aprovado e pago.
 
 ## RF20 — Cartão de fidelização
 
-O cartão de fidelização aplica-se exclusivamente aos cortes de cabelo.
+O cartão de fidelização aplica-se a clientes de **ambos os sexos** e aos serviços
+marcados como elegíveis no catálogo. Um serviço elegível não pode custar mais de
+**200 MT**.
 
 As regras definidas são:
 
-1. O cliente recebe uma marca por cada dia em que realiza um corte pago elegível.
-2. A regra normal é uma marca por cliente por dia, mesmo que sejam registados vários cortes no mesmo dia.
-3. Ao completar cinco cortes elegíveis, o cliente ganha direito a um corte gratuito.
-4. O cliente pode utilizar o benefício ou pagar normalmente e guardá-lo.
-5. Os benefícios podem acumular-se.
-6. O corte gratuito utilizado conta para o ciclo seguinte de fidelização, mas não gera uma marca visível no cartão.
-7. O sistema deverá manter o histórico de marcas e benefícios.
+1. O cliente recebe uma marca por cada dia em que realiza um serviço pago elegível.
+2. A regra normal é uma marca por cliente por dia, mesmo que sejam registados vários serviços no mesmo dia.
+3. Ao completar cinco marcas, o cartão fica completo (5/5) e o **6.º serviço é obrigatoriamente gratuito**.
+4. No sexto serviço, o cliente escolhe **um único** serviço elegível do atendimento, até 200 MT, para ser gratuito.
+5. Se o serviço escolhido custar menos de 200 MT, o valor restante não pode ser usado noutro serviço.
+6. O direito ao 6.º serviço não pode ser guardado para depois nem acumulado. Enquanto estiver pendente, um atendimento com serviços elegíveis tem de indicar exatamente um deles como gratuito; um atendimento só com serviços não elegíveis não consome o benefício.
+7. O serviço gratuito consome o benefício e não gera uma marca; os restantes serviços desse atendimento também não geram marca e o ciclo seguinte começa em zero.
+8. O sistema deverá manter o histórico de marcas e benefícios.
 
 O cartão deverá estar associado ao cliente, não ao funcionário.
 
-O sistema deverá permitir consultar o progresso do cartão, os benefícios disponíveis e os benefícios utilizados.
+O sistema deverá permitir consultar o progresso do cartão, o 6.º serviço pendente e os benefícios utilizados.
 
 As correções de marcas e benefícios apenas poderão ser realizadas por utilizadores autorizados, ficando registadas na auditoria.
 
-O administrador poderá preencher manualmente o cartão de clientes que já possuíam um cartão físico antes da entrada em funcionamento do sistema. As marcas manuais entram no ciclo actual e contam individualmente; o 5.º movimento do ciclo gera o benefício, quer seja uma marca manual quer seja uma marca de atendimento. A remoção de marcas manuais fica limitada às que não tenham atendimentos ou benefícios utilizados dependentes.
+O administrador poderá preencher manualmente o cartão de clientes que já possuíam um cartão físico antes da entrada em funcionamento do sistema. As marcas manuais entram no ciclo actual e contam individualmente; o 5.º movimento do ciclo deixa o cartão completo, quer seja uma marca manual quer seja uma marca de atendimento. O preenchimento para em 5/5: para acrescentar novas marcas é necessário registar primeiro a utilização do 6.º serviço gratuito. O administrador pode remover marcas do ciclo actual, manuais ou de atendimento, com recálculo do cartão; marcas de ciclos anteriores exigem correção de fidelização.
 
-A implementação deverá distinguir o histórico real dos cortes, as marcas visíveis e o progresso interno do ciclo de fidelização. Essa separação é necessária para respeitar a regra de que um corte gratuito contribui para o ciclo seguinte sem produzir uma nova marca visível.
+A implementação deverá distinguir o histórico real dos serviços, as marcas visíveis e o
+progresso interno do ciclo de fidelização. O serviço gratuito é registado como utilização
+do 6.º serviço, não como marca, e o ciclo seguinte começa em zero marcas.
 
 ## RF21 — Relatórios operacionais e financeiros
 
@@ -777,15 +782,15 @@ As seguintes regras deverão ser tratadas como regras centrais da aplicação.
 
 **RN15 — Assiduidade:** o sistema deverá distinguir o registo da ocorrência e o cálculo de qualquer dedução salarial.
 
-**RN16 — Fidelização:** o cartão aplica-se apenas aos cortes de cabelo.
+**RN16 — Fidelização:** o cartão aplica-se a clientes de ambos os sexos e apenas a serviços marcados como elegíveis, com valor até 200 MT.
 
-**RN17 — Marca diária:** a regra normal é uma marca por cliente por dia, mesmo que existam vários cortes registados no mesmo dia.
+**RN17 — Marca diária:** a regra normal é uma marca por cliente por dia, mesmo que existam vários serviços registados no mesmo dia.
 
-**RN18 — Benefício gratuito:** ao completar cinco cortes elegíveis, o cliente ganha direito a um corte gratuito.
+**RN18 — Sexto serviço gratuito:** ao completar cinco marcas, o cartão fica completo (5/5) e o 6.º serviço é obrigatoriamente gratuito, escolhido entre os serviços elegíveis do atendimento até 200 MT.
 
-**RN19 — Benefício acumulado:** o cliente poderá utilizar um benefício disponível ou pagar normalmente e guardá-lo.
+**RN19 — Sem acumulação:** o direito ao 6.º serviço não pode ser guardado para depois nem acumulado. Enquanto estiver pendente, o próximo atendimento com serviços elegíveis tem de indicar exatamente um deles como gratuito. Cada utilização cobre apenas um serviço.
 
-**RN20 — Ciclo seguinte:** um corte gratuito utilizado conta para o ciclo seguinte, mas não gera uma marca visível.
+**RN20 — Ciclo seguinte:** o serviço gratuito consome o benefício e não conta como marca. Os restantes serviços desse atendimento também não contam; o ciclo seguinte começa em zero marcas.
 
 **RN21 — Auditoria:** as operações relevantes deverão deixar um histórico protegido contra alterações e eliminações pela aplicação.
 
@@ -1164,7 +1169,9 @@ Os tipos de movimento deverão permitir distinguir:
 
 O progresso do ciclo deverá ser calculado de forma consistente a partir dos movimentos registados, evitando que a mesma operação gere marcas ou benefícios duplicados.
 
-O corte gratuito utilizado deverá avançar o ciclo seguinte sem produzir uma marca visível.
+O serviço gratuito utilizado deverá consumir o benefício sem produzir uma marca; os
+restantes serviços do mesmo atendimento também não produzem marca, deixando o ciclo
+seguinte em zero marcas.
 
 ## 7.8. Auditoria
 
@@ -1292,12 +1299,15 @@ As chaves primárias deverão ser identificadores estáveis. As chaves estrangei
 ## 9.5. Utilização do cartão de fidelização
 
 1. O utilizador identifica o cliente.
-2. O sistema consulta o cartão e os benefícios disponíveis.
-3. O cliente escolhe utilizar um benefício ou pagar normalmente, guardando o benefício.
-4. O sistema valida a elegibilidade do serviço.
-5. O corte é registado.
+2. O sistema consulta o cartão e verifica se o 6.º serviço está pendente.
+3. Se o cartão estiver completo (5/5), o atendimento com serviços elegíveis tem de marcar
+   **um único** serviço elegível, até 200 MT, como gratuito. O 6.º serviço não pode ser
+   registado como pago e o direito não pode ser guardado para depois.
+4. O sistema valida a elegibilidade e o limite de preço do serviço.
+5. O serviço é registado com desconto integral na linha escolhida.
 6. O sistema atualiza o ciclo e o histórico de fidelização.
-7. O benefício utilizado é marcado como consumido.
+7. O benefício utilizado é marcado como consumido e não gera marca; os restantes serviços
+   do atendimento também não geram marca.
 8. A operação fica registada na auditoria, quando aplicável.
 
 A lógica de fidelização deverá ser implementada de modo transacional para impedir que operações repetidas, erros ou sincronizações duplicadas produzam benefícios indevidos.
@@ -1468,7 +1478,7 @@ Deverá incluir:
 - Edição.
 - Histórico de atendimentos.
 - Cartão de fidelização.
-- Benefícios disponíveis.
+- 6.º serviço pendente.
 
 ## 12.3. Serviços
 
@@ -1621,8 +1631,7 @@ Objetivos:
 
 - Criar cartões.
 - Implementar marcas.
-- Calcular benefícios.
-- Permitir acumular benefícios.
+- Calcular o 6.º serviço gratuito sem acumulação.
 - Registar utilizações.
 - Implementar o ciclo seguinte.
 - Preservar o histórico.
@@ -1738,12 +1747,15 @@ A primeira versão deverá ser considerada funcional quando os seguintes cenári
 
 ## Fidelização
 
-- O cartão aplica-se apenas aos cortes de cabelo.
+- O cartão aplica-se a clientes de ambos os sexos.
+- Apenas serviços elegíveis com valor até 200 MT contam.
 - A marca diária respeita a regra de uma marca por cliente por dia.
-- O quinto corte elegível gera um benefício gratuito.
-- O cliente pode utilizar o benefício ou guardá-lo.
-- Os benefícios acumulados são corretamente controlados.
-- O corte gratuito contribui para o ciclo seguinte sem gerar marca visível.
+- O quinto serviço elegível deixa o cartão completo (5/5).
+- No sexto serviço, o cliente escolhe um único serviço elegível, até 200 MT, que é
+  obrigatoriamente gratuito.
+- O 6.º serviço não pode ser pago nem guardado para depois; não há acumulação.
+- O serviço gratuito não gera marca; os restantes serviços desse atendimento também não, e
+  o ciclo seguinte começa em zero.
 - Uma operação repetida não cria benefícios duplicados.
 
 ## Permissões e auditoria
@@ -1824,7 +1836,7 @@ As seguintes questões deverão ser confirmadas antes de fechar o desenho técni
 9. **Relatórios:** confirmar os formatos de exportação necessários, nomeadamente PDF e Excel.
 10. **Migração:** definir quais os dados históricos dos cadernos que serão recuperados, para além dos clientes e cartões.
 11. **Offline:** definir o dispositivo principal, a instalação local e a estratégia de sincronização com a base de dados online.
-12. **Fidelização:** validar os casos excecionais de vários cortes no mesmo dia e a forma exata de apresentar o progresso interno do ciclo.
+12. **Fidelização:** ~~validar os casos excecionais de vários cortes no mesmo dia e a forma exata de apresentar o progresso interno do ciclo.~~ **Resolvido:** mantém-se uma marca por cliente por dia; o cartão fica 5/5 e o 6.º serviço é obrigatoriamente gratuito, sem acumulação; o serviço gratuito não gera marca e o ciclo seguinte começa em zero.
 13. **Reservas de clientes:** confirmar se o agendamento de clientes será introduzido numa fase futura, dado que o fluxo atual regista o serviço depois de realizado.
 14. **Controlo de stock:** definir os requisitos detalhados quando o módulo de stock for desenvolvido.
 
@@ -1840,7 +1852,7 @@ A arquitetura proposta, baseada em React, CSS puro, Node.js, Express e PostgreSQ
 
 O desenvolvimento deverá começar pelas entidades e funcionalidades isoladas, avançando gradualmente para os processos que dependem da integração entre módulos.
 
-A gestão financeira e a fidelização exigirão especial cuidado, porque dependem de regras consistentes para pagamentos, anulações, comissões, fecho de caixa e benefícios acumulados.
+A gestão financeira e a fidelização exigirão especial cuidado, porque dependem de regras consistentes para pagamentos, anulações, comissões, fecho de caixa e controlo do 6.º serviço gratuito.
 
 O funcionamento offline deverá ser tratado como uma capacidade arquitetural específica, e não como uma simples característica da interface web. A persistência local, a sincronização e a recuperação dos dados terão de ser desenhadas e testadas.
 

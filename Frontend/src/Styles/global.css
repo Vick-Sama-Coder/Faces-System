@@ -25,6 +25,41 @@ body{
     color: var(--text);
     background: var(--primary-soft-strong);
 }
+
+/* As paginas da app ocupam exatamente o ecra no desktop/tablet.
+   A sidebar e o conteudo principal passam a rolar de forma independente. */
+@media (min-width: 679px) {
+    .dashboard-main,
+    .clientes-main,
+    .servicos-main,
+    .newbookmark-main,
+    .admin-main {
+        height: 100vh;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .dash-content,
+    .clientes-content,
+    .servicos-content,
+    .newbookmark-content,
+    .admin-content {
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+}
+
+/* Os blocos das paginas devem manter a altura natural dentro do scroll.
+   Sem isto, paineis com overflow (ex.: tabelas de horarios) encolhem e
+   ficam cortados quando o conteudo e maior do que o ecra. */
+.dash-content > *,
+.clientes-content > *,
+.servicos-content > *,
+.newbookmark-content > *,
+.admin-content > * {
+    flex-shrink: 0;
+}
 body > .heady{
     position: sticky;
 }

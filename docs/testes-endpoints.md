@@ -181,7 +181,7 @@ Legenda: ✅ implementado · ⚠️ implementado com desvio/lacuna · ❌ não i
 | **RF17 — Salários** | ✅ | `services/salario.js` | Base + comissões − deduções, estados `Preparado → Aprovado → Pago`, data de pagamento e só funcionários ativos. |
 | **RF18 — Comissões** | ✅ | `repository/comissao.js` | 30% por omissão (ou taxa do funcionário/serviço), sobre `valor_final` após desconto, só com pagamento liquidado; consulta por funcionário/período. |
 | **RF19 — Aprovação salarial** | ✅ | `services/salario.js` | Consulta, deduções, aprovação (`salarios:aprovar`), pagamento e histórico; comissões passam a `Paga` ao pagar. |
-| **RF20 — Fidelização** | ⚠️ | `services/fidelizacao.js` | Uma marca por dia, 5 → benefício, acumulação, histórico e correção auditada. O corte gratuito cria uma marca **visível no ciclo seguinte**; a leitura de “sem marca visível” precisa de confirmação (§16.12). |
+| **RF20 — Fidelização** | ✅ | `services/fidelizacao.js` | Ambos os sexos; serviços elegíveis até 200 MT; uma marca por dia; 5 marcas → cartão 5/5; o 6.º serviço é obrigatoriamente gratuito, escolhido pelo cliente dentro do limite, sem acumulação; histórico e correção auditada. O serviço gratuito e os restantes serviços desse atendimento não geram marca. |
 | **RF21 — Relatórios** | ⚠️ | `repository/relatorio.js` | Os 9 conjuntos de dados existem, mas o filtro é só `de`/`ate` (sem filtro por funcionário/serviço/método/estado em todos) e **não há exportação/impressão** (formatos pendentes, §16.9). |
 | **RF22 — Catálogo público** | ✅ | `routes/publico.js`, `repository/servico.js` | Sem autenticação; só ativos e campos de divulgação; inativo devolve `404`. |
 | **RF23 — Logs de auditoria** | ⚠️ | `services/auditoria.js`, `repository/auditoria.js` | Utilizador, data/hora, tipo, entidade, id e valores antes/depois; append-only por trigger. **Não** guarda “resultado da operação” nem registos de falhas (só grava em sucesso); **não** audita criação/edição/estado de contas. |
@@ -386,19 +386,20 @@ curl -s -b "$JAR" -X DELETE "$BASE/categorias/999" -o /dev/null -w '%{http_code}
 
 Corpo de criação: `nome` (obrigatório), `valor` (obrigatório, > 0), `categoria_id`
 (obrigatório), `descricao`, `duracao_min`, `tipo_preco` (`fixo`|`variavel`, omissão
-`fixo`), `elegivel_fidelizacao` (bool, omissão `false`).
+`fixo`), `elegivel_fidelizacao` (bool, omissão `false`). Se `elegivel_fidelizacao` for
+`true`, o `valor` não pode ultrapassar **200 MT**.
 
 ```bash
 curl -s -b "$JAR" -X POST "$BASE/servicos" -H 'Content-Type: application/json' -d '{
   "nome": "Corte",
   "descricao": "Corte simples",
-  "valor": 2500,
+  "valor": 150,
   "duracao_min": 30,
   "tipo_preco": "fixo",
   "elegivel_fidelizacao": true,
   "categoria_id": 1
 }'
-# 201 {id, nome, descricao, valor:2500, duracao_min:30, tipo_preco:"fixo",
+# 201 {id, nome, descricao, valor:150, duracao_min:30, tipo_preco:"fixo",
 #      elegivel_fidelizacao:true, categoria_id:1, estado:"Ativo"}
 ```
 
@@ -544,30 +545,43 @@ configuração → `400` (`field: "servico_id"`).
 
 | Método | Rota | Permissão | Esperado |
 | --- | --- | --- | --- |
-| GET | `/funcionarios/:id/horarios` | autenticado | `200` array / `404` funcionário |
-| POST | `/funcionarios/:id/horarios` | `horarios:gerir` | `201` |
+| GET | `/funcionarios/:id/horarios` | autenticado (gestor ou próprio) | `200` array / `403` / `404` funcionário |
+| POST | `/funcionarios/:id/horarios` | `horarios:gerir` | `201` / `409` sobreposição |
 | PUT | `/funcionarios/:id/horarios` | `horarios:gerir` | `200` lista substituída |
+| PUT | `/horarios/:id` | `horarios:gerir` | `200` turno atualizado / `409` |
+| DELETE | `/horarios/:id` | `horarios:gerir` | `200` / `404` |
 
 `dia_semana`: `0` = Domingo … `6` = Sábado. `hora_entrada`/`hora_saida` em `HH:MM`.
+Pode haver **vários turnos no mesmo dia**, desde que não se sobreponham.
 
 ```bash
 curl -s -b "$JAR" -X POST "$BASE/funcionarios/1/horarios" \
   -H 'Content-Type: application/json' \
-  -d '{"dia_semana":1,"hora_entrada":"09:00","hora_saida":"17:00"}'
-# 201 {id, funcionario_id:1, dia_semana:1, hora_entrada:"09:00:00", hora_saida:"17:00:00",
+  -d '{"dia_semana":1,"hora_entrada":"09:00","hora_saida":"12:00"}'
+# 201 {id, funcionario_id:1, dia_semana:1, hora_entrada:"09:00:00", hora_saida:"12:00:00",
 #      estado:"Ativo"}
+
+curl -s -b "$JAR" -X PUT "$BASE/horarios/1" \
+  -H 'Content-Type: application/json' \
+  -d '{"dia_semana":1,"hora_entrada":"09:30","hora_saida":"12:30"}'
+# 200 {id:1, ...} — atualiza apenas este turno
+
+curl -s -b "$JAR" -X DELETE "$BASE/horarios/1"
+# 200 {"message":"Horario deletado com sucesso"}
 
 curl -s -b "$JAR" -X PUT "$BASE/funcionarios/1/horarios" \
   -H 'Content-Type: application/json' -d '{
     "horarios": [
-      {"dia_semana":1,"hora_entrada":"08:00","hora_saida":"16:00"},
+      {"dia_semana":1,"hora_entrada":"08:00","hora_saida":"12:00"},
+      {"dia_semana":1,"hora_entrada":"13:00","hora_saida":"17:00"},
       {"dia_semana":3,"hora_entrada":"10:00","hora_saida":"18:00"}
     ]
   }'
-# 200 [ ... 2 registos ... ]  (substitui toda a programação)
+# 200 [ ... 3 registos ... ]  (substitui toda a programação)
 ```
 
-**Erros:** `dia_semana` fora de `0..6` → `400` (CHECK); horas em falta → `400`;
+**Erros:** `dia_semana` fora de `0..6` → `400`; horas em falta ou inválidas → `400`;
+saída não posterior à entrada → `400`; turnos sobrepostos → `409`;
 `horarios` não ser lista → `400`.
 
 ---
@@ -581,6 +595,7 @@ curl -s -b "$JAR" -X PUT "$BASE/funcionarios/1/horarios" \
 | GET | `/assiduidade?funcionario=&de=&ate=&tipo=` | `assiduidade:gerir` | `200` array |
 | POST | `/assiduidade` | `assiduidade:gerir` | `201` / `409` duplicado `(funcionario,data)` |
 | PUT | `/assiduidade/:id` | `assiduidade:gerir` | `200` + auditoria antes/depois |
+| PUT | `/assiduidade/dia` | `assiduidade:gerir` | `201` criado / `200` atualizado (upsert por funcionário/data) |
 
 ```bash
 curl -s -b "$JAR" -X POST "$BASE/assiduidade" -H 'Content-Type: application/json' -d '{
@@ -599,7 +614,21 @@ curl -s -b "$JAR" -X POST "$BASE/assiduidade" -H 'Content-Type: application/json
 curl -s -b "$JAR" -X PUT "$BASE/assiduidade/1" \
   -H 'Content-Type: application/json' -d '{"justificacao":"consulta medica"}'
 # 200 { ... justificacao: "consulta medica" ... }
+
+# controlo mensal: cria ou atualiza o dia sem duplicar
+curl -s -b "$JAR" -X PUT "$BASE/assiduidade/dia" \
+  -H 'Content-Type: application/json' -d '{
+    "funcionario_id": 1,
+    "data": "2026-10-05",
+    "hora_entrada_real": "09:00",
+    "hora_saida_real": "19:00"
+  }'
+# 201 na primeira vez; 200 nas seguintes (mesmo id)
 ```
+
+**Erros:** data ou horas inválidas → `400`; saída não posterior à entrada → `400`;
+dia novo sem horas → `400`; funcionário inexistente → `400`; `PUT /assiduidade/:id`
+inexistente → `404`.
 
 **Verificação de auditoria:**
 
@@ -913,15 +942,15 @@ categoria/produto inexistente → `400`; editar sem nenhum campo → `400`.
 
 ### 4.13. Fidelização — `/api/clientes/:id/fidelizacao`
 
-**Porquê:** RF20 (marca diária, 5 → benefício, acúmulo, histórico, correção auditada).
+**Porquê:** RF20 (marca diária, 5 → 6.º serviço obrigatório, sem acúmulo, histórico, correção auditada).
 
 | Método | Rota | Permissão | Esperado |
 | --- | --- | --- | --- |
 | GET | `/clientes/:id/fidelizacao` | autenticado | `200` progresso / `404` cliente |
 | POST | `/clientes/:id/fidelizacao/correcao` | `fidelizacao:corrigir` | `200` progresso + auditoria |
-| POST | `/clientes/:id/fidelizacao/marcas` | Administrador | `200` progresso + marcas / `409` se exigir confirmação |
-| DELETE | `/clientes/:id/fidelizacao/marcas/:movimentoId` | Administrador | `200` progresso / `409` se houver dependências |
-| POST | `/clientes/:id/fidelizacao/beneficios/utilizar` | Administrador | `200` progresso / `409` sem benefícios |
+| POST | `/clientes/:id/fidelizacao/marcas` | Administrador | `200` progresso + marcas / `409` se exigir confirmação, se passar de 5/5 ou se o 6.º serviço estiver pendente |
+| DELETE | `/clientes/:id/fidelizacao/marcas/:movimentoId` | Administrador | `200` progresso / `409` para marcas de ciclos anteriores |
+| POST | `/clientes/:id/fidelizacao/beneficios/utilizar` | Administrador | `200` progresso / `409` sem 6.º serviço pendente |
 
 ```bash
 curl -s -b "$JAR" "$BASE/clientes/1/fidelizacao"
@@ -935,9 +964,11 @@ Esperado `200`:
   "cartao": { "id": 1, "cliente_id": 1, "estado": "Ativo" },
   "ciclo_atual": 1,
   "meta": 5,
+  "limite_beneficio": 200,
   "marcas_no_ciclo": 1,
   "beneficios_disponiveis": 0,
   "beneficios_utilizados": 0,
+  "beneficio_pendente": false,
   "historico": [
     { "tipo_movimento": "marca", "origem": "atendimento", "ciclo": 1, "data_hora": "..." }
   ]
@@ -946,15 +977,24 @@ Esperado `200`:
 
 Sem cartão, devolve `cartao: null`, `marcas_no_ciclo: 0` e `historico: []`.
 
-**Como gerar marcas:** cria atendimentos com um serviço `elegivel_fidelizacao: true` e
-liquida-os. Regras a confirmar nos testes:
+**Como gerar marcas:** cria atendimentos com um serviço `elegivel_fidelizacao: true`,
+com valor até 200 MT, e liquida-os. Regras a verificar nos testes:
 
-1. Vários cortes do mesmo cliente no mesmo dia → **1 marca**.
-2. Ao chegar a 5 marcas no ciclo → aparece `beneficio_ganho` e
-   `beneficios_disponiveis: 1`.
-3. Um corte com `preco_praticado: 0` consome o benefício (`beneficio_utilizado`) e conta
-   para o ciclo seguinte. A implementação atual cria também uma `marca` no ciclo seguinte
-   — confirmar se é o pretendido (§16.12).
+1. Vários serviços do mesmo cliente no mesmo dia → **1 marca**.
+2. Ao chegar a 5 marcas no ciclo → aparece `beneficio_ganho`, o cartão continua em
+   `marcas_no_ciclo: 5`, `beneficios_disponiveis: 1` e `beneficio_pendente: true`.
+3. Com o cartão completo, um atendimento com serviço elegível **sem** a flag gratuita →
+   `409`; o 6.º serviço não pode ser pago.
+4. No 6.º serviço, envia `usar_beneficio_fidelizacao: true` na linha escolhida, mantendo o
+   `preco_praticado` normal. O backend aplica 100% de desconto a **essa única linha**.
+5. O benefício passa a `beneficios_utilizados: 1`, `beneficio_pendente: false`, e o ciclo
+   seguinte começa em **0 marcas**.
+6. Se o atendimento do 6.º serviço tiver outros serviços pagos, esses serviços também não
+   geram marca.
+7. Tentar dois serviços gratuitos no mesmo atendimento → `409`.
+8. Tentar usar o benefício num serviço não elegível ou acima de 200 MT → `400`.
+9. Tentar usar o benefício sem o cartão completo → `409`.
+10. Cliente feminino e cliente masculino seguem exatamente as mesmas regras.
 
 **Correção**
 
@@ -977,7 +1017,7 @@ curl -s -b "$JAR" -X POST "$BASE/clientes/1/fidelizacao/marcas" \
   -d '{"quantidade":2}'
 # 200 { marcas_no_ciclo:2, beneficios_gerados:0, ... }
 
-# mais 3 marcas: o 5.º movimento gera benefício -> 409 se não confirmar
+# mais 3 marcas: o 5.º movimento completa o cartão -> 409 se não confirmar
 curl -s -b "$JAR" -X POST "$BASE/clientes/1/fidelizacao/marcas" \
   -H 'Content-Type: application/json' \
   -d '{"quantidade":3}'
@@ -986,18 +1026,38 @@ curl -s -b "$JAR" -X POST "$BASE/clientes/1/fidelizacao/marcas" \
 curl -s -b "$JAR" -X POST "$BASE/clientes/1/fidelizacao/marcas" \
   -H 'Content-Type: application/json' \
   -d '{"quantidade":3,"confirmar_beneficio":true}'
-# 200 { ciclo_atual:2, marcas_no_ciclo:0, beneficios_disponiveis:1, beneficios_gerados:1 }
+# 200 { ciclo_atual:1, marcas_no_ciclo:5, beneficios_disponiveis:1, beneficio_pendente:true, beneficios_gerados:1 }
 
-# remover uma marca manual (só funciona sem atendimentos/benefícios utilizados dependentes)
+# o cartão está 5/5: não aceita mais marcas
+curl -s -b "$JAR" -X POST "$BASE/clientes/1/fidelizacao/marcas" \
+  -H 'Content-Type: application/json' -d '{"quantidade":1}'
+# 409
+
+# antes de consumir o 6.º, é possível remover uma marca do ciclo atual,
+# manual ou de atendimento (remove também o benefício pendente)
 curl -s -b "$JAR" -X DELETE "$BASE/clientes/1/fidelizacao/marcas/123"
-# 200 progresso actualizado
+# 200 { marcas_no_ciclo:4, beneficio_pendente:false, ... }
 
-# consumir um benefício disponível
+# marcas de ciclos anteriores devolvem 409
+curl -s -b "$JAR" -X DELETE "$BASE/clientes/1/fidelizacao/marcas/1"
+# 409
+
+# repor a 5.ª marca
+curl -s -b "$JAR" -X POST "$BASE/clientes/1/fidelizacao/marcas" \
+  -H 'Content-Type: application/json' \
+  -d '{"quantidade":1,"confirmar_beneficio":true}'
+# 200 { marcas_no_ciclo:5, beneficio_pendente:true, ... }
+
+# cartão físico em que o 6.º serviço já foi prestado: registar a utilização manual
 curl -s -b "$JAR" -X POST "$BASE/clientes/1/fidelizacao/beneficios/utilizar" \
   -H 'Content-Type: application/json' -d '{}'
-# 200 { beneficios_disponiveis:0, ... }
+# 200 { marcas_no_ciclo:0, beneficios_disponiveis:0, beneficio_pendente:false, ... }
 ```
 
+> Para consumir o 6.º serviço num atendimento em vez do registo manual, use
+> `usar_beneficio_fidelizacao: true` (ver as regras desta secção). Os dois caminhos não
+> devem ser usados em conjunto para o mesmo cartão completo.
+>
 > Um utilizador sem perfil `Administrador` recebe `403` nas três rotas de preenchimento
 > manual, mesmo que tenha `clientes:escrever`.
 
@@ -1365,18 +1425,29 @@ curl -s -b "$JAR" -X POST "$BASE/caixa/fechar" -H 'Content-Type: application/jso
 # 200 { valor_esperado:2800, valor_contado:2800, diferenca:0, estado:"Fechada" }
 ```
 
-### 5.3. Fidelização (5 cortes → benefício)
+### 5.3. Fidelização (5 serviços → 6.º gratuito)
 
-1. Cria serviço `elegivel_fidelizacao: true`.
+1. Cria um serviço `elegivel_fidelizacao: true` com valor até 200 MT.
 2. Regista e liquida 1 atendimento por dia (dias diferentes).
 3. Após o 5.º, `GET /clientes/:id/fidelizacao` deve mostrar:
-   - `marcas_no_ciclo: 0` (novo ciclo) ou `5` no ciclo anterior, conforme o momento;
-   - `beneficios_disponiveis: 1`;
+   - `marcas_no_ciclo: 5` e `ciclo_atual` do ciclo completo;
+   - `beneficios_disponiveis: 1` e `beneficio_pendente: true`;
+   - `limite_beneficio: 200`;
    - histórico com `beneficio_ganho`.
-4. Cria atendimento com `preco_praticado: 0` no mesmo serviço e liquida:
-   - `beneficios_disponiveis: 0`;
+4. Tenta criar o 6.º atendimento com um serviço elegível **sem** a flag gratuita → `409`.
+5. Cria o 6.º atendimento com um serviço elegível até 200 MT e
+   `usar_beneficio_fidelizacao: true`; mantém o `preco_praticado` original. O backend
+   aplica o desconto integral a essa linha.
+   - `beneficios_disponiveis: 0` e `beneficio_pendente: false`;
    - `beneficios_utilizados: 1`;
-   - surge `marca` no ciclo seguinte.
+   - não surge `marca` no ciclo seguinte; `marcas_no_ciclo` fica em `0`.
+6. Adiciona outros serviços pagos ao atendimento do 6.º serviço e confirma que nenhum
+   deles gera marca.
+7. Repete com um cliente feminino: o comportamento tem de ser idêntico.
+8. Tenta enviar dois itens com `usar_beneficio_fidelizacao: true` no mesmo atendimento →
+   `409`.
+9. Tenta acrescentar a 6.ª marca manual com o cartão completo → `409`; regista a
+   utilização do 6.º serviço pelo endpoint manual e confirma que volta a 0/5.
 
 ### 5.4. Auditoria de uma anulação
 
@@ -1413,7 +1484,7 @@ Copia para o teu caderno de testes:
 [ ] Anulacao exige motivo e gera auditoria
 [ ] Caixa: abrir, entrada, saida, levantamento, saldo, fecho e diferenca
 [ ] Despesa com caixa_sessao_id gera movimento Saida
-[ ] Fidelizacao: 1 marca/dia, 5 -> beneficio, gratuito consome beneficio
+[ ] Fidelizacao: ambos os sexos, servico elegivel <=200 MT, 1 marca/dia, 5 -> 1 gratis, sem marca no ciclo seguinte
 [ ] Salario: Preparado -> Aprovado -> Pago; comissoes passam a Paga
 [ ] Relatorios devolvem arrays/objetos conforme a tabela
 [ ] Catalogo publico funciona sem cookie e nao expoe campos internos

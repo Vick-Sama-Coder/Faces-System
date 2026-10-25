@@ -54,6 +54,9 @@ const createAtendimento = async (req, res, next) => {
 
         const atendimento = await Atendimento.findById(id);
         atendimento.servicos = await Atendimento.findServicos(id);
+        //devolve o progresso ja actualizado para a UI reflectir o reset do
+        //cartao logo apos o 6.º servico gratuito.
+        atendimento.fidelizacao = await FidelizacaoService.progresso(atendimento.cliente_id);
         res.status(201).json(atendimento);
     } catch (error) {
         //23503 = cliente ou funcionario inexistente
@@ -89,7 +92,14 @@ const updateAtendimento = async (req, res, next) => {
 const addServico = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { servico_id, funcionario_id, preco_praticado, desconto, tipo_preco } = req.body;
+        const {
+            servico_id,
+            funcionario_id,
+            preco_praticado,
+            desconto,
+            tipo_preco,
+            usar_beneficio_fidelizacao
+        } = req.body;
 
         if (!servico_id || !funcionario_id || preco_praticado === undefined) {
             return res.status(400).json({ message: "servico_id, funcionario_id e preco_praticado sao obrigatorios" });
@@ -97,12 +107,20 @@ const addServico = async (req, res, next) => {
 
         await AtendimentoService.adicionarServico(
             id,
-            { servico_id, funcionario_id, preco_praticado, desconto, tipo_preco },
+            {
+                servico_id,
+                funcionario_id,
+                preco_praticado,
+                desconto,
+                tipo_preco,
+                usar_beneficio_fidelizacao
+            },
             req.user.id
         );
 
         const atendimento = await Atendimento.findById(id);
         atendimento.servicos = await Atendimento.findServicos(id);
+        atendimento.fidelizacao = await FidelizacaoService.progresso(atendimento.cliente_id);
         res.status(201).json(atendimento);
     } catch (error) {
         if (error.code === "23503") {

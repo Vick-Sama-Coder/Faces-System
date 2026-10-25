@@ -91,7 +91,10 @@ app.use((err, req, res, next) => {
     console.error("Erro no servidor:", err.message);
   }
 
-  res.status(status).json({ message });
+  const resposta = { message };
+  if (err.field) resposta.field = err.field;
+
+  res.status(status).json(resposta);
 });
 
 export default app;

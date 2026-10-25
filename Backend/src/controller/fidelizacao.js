@@ -60,7 +60,7 @@ const marcarFidelizacaoManual = async (req, res, next) => {
     }
 };
 
-const removerMarcaFidelizacaoManual = async (req, res, next) => {
+const removerMarcaFidelizacao = async (req, res, next) => {
     try {
         const cliente = await Cliente.findById(req.params.id);
 
@@ -68,7 +68,7 @@ const removerMarcaFidelizacaoManual = async (req, res, next) => {
             return res.status(404).json({ message: "Cliente nao encontrado" });
         }
 
-        const progresso = await FidelizacaoService.removerMarcaManual(
+        const progresso = await FidelizacaoService.removerMarca(
             cliente.id,
             req.params.movimentoId,
             req.user.id
@@ -104,7 +104,7 @@ const FidelizacaoController = {
     getFidelizacao,
     corrigirFidelizacao,
     marcarFidelizacaoManual,
-    removerMarcaFidelizacaoManual,
+    removerMarcaFidelizacao,
     utilizarBeneficioFidelizacaoManual
 };
 

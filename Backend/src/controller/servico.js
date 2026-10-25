@@ -1,4 +1,5 @@
 import Servico from "../repository/servico.js";
+import { validarElegibilidadeFidelizacao } from "../utils/validacoes.js";
 
 const getServicos = async (req, res, next) => {
     try {
@@ -28,6 +29,11 @@ const createServico = async (req, res, next) => {
 
         if (!nome || valor === undefined || !categoria_id) {
             return res.status(400).json({ message: "Os campos nome, valor e categoria_id sao obrigatorios" });
+        }
+
+        const erroFidelizacao = validarElegibilidadeFidelizacao(valor, elegivel_fidelizacao);
+        if (erroFidelizacao) {
+            return res.status(400).json({ field: "elegivel_fidelizacao", message: erroFidelizacao });
         }
 
         const servico = await Servico.create({ nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id });
@@ -62,10 +68,21 @@ const updateServico = async (req, res, next) => {
             return res.status(404).json({ message: "Servico nao encontrado" });
         }
 
+        //ao alterar o preco ou a elegibilidade, valida o estado final do servico
+        const erroFidelizacao = validarElegibilidadeFidelizacao(
+            valor !== undefined && valor !== null ? valor : atual.valor,
+            elegivel_fidelizacao !== undefined && elegivel_fidelizacao !== null
+                ? elegivel_fidelizacao
+                : atual.elegivel_fidelizacao
+        );
+        if (erroFidelizacao) {
+            return res.status(400).json({ field: "elegivel_fidelizacao", message: erroFidelizacao });
+        }
+
         const servico = await Servico.update(id, { nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id });
 
         //alterar o preco grava historico e nao afeta atendimentos passados (RN15/RN19/RN20)
-        if (valor !== undefined && Number(valor) !== atual.valor) {
+        if (valor !== undefined && valor !== null && Number(valor) !== atual.valor) {
             await Servico.registrarHistoricoPreco({
                 servico_id: id,
                 valor_anterior: atual.valor,

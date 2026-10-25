@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { X, Scissors, Save, Edit2, Tag, Heart } from "lucide-react";
 import { createServico, updateServico, getCategorias, getApiError, getApiErrorField } from "../../../services/api.js";
+import { LIMITE_FIDELIZACAO } from "../../../utils/validacoes.js";
 import './ServicoModal.css'
 
 function ServicoModal({ onclose, servico = null, onSuccess }) {
@@ -193,7 +194,9 @@ function ServicoModal({ onclose, servico = null, onSuccess }) {
                         <div className="servico-modal-note">
                             <Heart size={18} />
                             <span>
-                                A fidelizacao e configurada no botao <strong>Eleger fidelizacao</strong> na pagina de servicos.
+                                A fidelizacao e configurada no botao <strong>Eleger fidelizacao</strong> na
+                                pagina de servicos. So servicos ate {LIMITE_FIDELIZACAO} MT podem ser
+                                elegiveis e o cartao aplica-se a todos os clientes.
                             </span>
                         </div>
 

@@ -26,6 +26,7 @@ import {
     X
 } from "lucide-react"
 import { getServicos, deleteServico, updateServicoEstado, getApiError } from "../../services/api.js"
+import { LIMITE_FIDELIZACAO, servicoContaParaFidelizacao } from "../../utils/validacoes.js"
 import { useAuthStore } from "../../store/authStore.js"
 
 function formatarMoeda(valor) {
@@ -72,14 +73,24 @@ function DuracaoCell({ value }) {
     )
 }
 
-function FidelizacaoCell({ value }) {
-    return value ? (
+function FidelizacaoCell({ data }) {
+    if (!data.elegivel_fidelizacao) {
+        return <span className="mgmt-badge neutral">Não elegível</span>
+    }
+
+    if (!servicoContaParaFidelizacao(data)) {
+        return (
+            <span className="mgmt-badge warning" title={`O limite de fidelização é ${LIMITE_FIDELIZACAO} MT`}>
+                Limite excedido
+            </span>
+        )
+    }
+
+    return (
         <span className="mgmt-loyalty">
             <Heart size={13} />
             Elegível
         </span>
-    ) : (
-        <span className="mgmt-badge neutral">Não elegível</span>
     )
 }
 
@@ -422,7 +433,7 @@ function Servicos() {
                             <h2 className="mgmt-title">Serviços com identidade</h2>
                             <p className="mgmt-subtitle">
                                 Organize o catálogo por categorias, ajuste preços e destaque os serviços
-                                que acumulam pontos de fidelização.
+                                elegíveis para fidelização até {LIMITE_FIDELIZACAO} MT.
                             </p>
                         </div>
                         {podeEscrever && (

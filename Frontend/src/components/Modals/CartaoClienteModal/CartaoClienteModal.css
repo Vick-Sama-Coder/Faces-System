@@ -6,7 +6,7 @@
     align-items: center;
     justify-content: center;
     padding: 24px;
-    background: rgba(20, 16, 30, 0.45);
+    background: var(--overlay);
     backdrop-filter: blur(5px);
 }
 
@@ -17,10 +17,10 @@
     max-width: 720px;
     max-height: 90vh;
     overflow: hidden;
-    background: #ffffff;
-    border: 1px solid #eee9f5;
-    border-radius: 18px;
-    box-shadow: 0 20px 60px rgba(30, 15, 50, 0.18);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 20px 60px var(--shadow-color-strong);
     animation: cartao-cliente-enter 0.2s ease-out;
 }
 
@@ -40,7 +40,7 @@
     align-items: flex-start;
     gap: 12px;
     padding: 20px 24px;
-    border-bottom: 1px solid #eeeaf3;
+    border-bottom: 1px solid var(--border);
 }
 
 .cartao-cliente-icon {
@@ -51,8 +51,8 @@
     width: 44px;
     height: 44px;
     border-radius: 12px;
-    color: var(--Primary-faces);
-    background: #f2ecfc;
+    color: var(--primary-text);
+    background: var(--primary-soft);
 }
 
 .cartao-cliente-header > div {
@@ -62,7 +62,7 @@
 
 .cartao-cliente-header h2 {
     margin: 0 0 4px;
-    color: #25212d;
+    color: var(--text);
     font-family: "Manrope", sans-serif;
     font-size: 18px;
     font-weight: 800;
@@ -70,7 +70,7 @@
 
 .cartao-cliente-header p {
     margin: 0;
-    color: #6f6b78;
+    color: var(--text-muted);
     font-size: 13px;
 }
 
@@ -85,13 +85,13 @@
     border: none;
     border-radius: 9px;
     background: transparent;
-    color: #6f6b78;
+    color: var(--text-muted);
     cursor: pointer;
 }
 
 .cartao-cliente-close:hover:not(:disabled) {
-    background: #f3eff9;
-    color: var(--Primary-faces);
+    background: var(--primary-soft-subtle);
+    color: var(--primary-text);
 }
 
 .cartao-cliente-close:disabled {
@@ -113,41 +113,12 @@
     justify-content: center;
     gap: 10px;
     min-height: 180px;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: 13px;
 }
 
 .cartao-cliente-spin {
     animation: cartao-cliente-rotate 0.9s linear infinite;
-}
-
-.cartao-cliente-genero-bloqueio {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    min-height: 200px;
-    padding: 24px;
-    text-align: center;
-    color: var(--Error);
-}
-
-.cartao-cliente-genero-bloqueio svg {
-    flex-shrink: 0;
-}
-
-.cartao-cliente-genero-bloqueio p {
-    margin: 0;
-    font-size: 15px;
-    font-weight: 600;
-    line-height: 1.5;
-}
-
-.cartao-cliente-genero-detalhe {
-    color: var(--Secundary-text) !important;
-    font-weight: 400 !important;
-    font-size: 13px !important;
 }
 
 @keyframes cartao-cliente-rotate {
@@ -181,15 +152,15 @@
 }
 
 .cartao-cliente-alert.error {
-    border: 1px solid rgba(224, 75, 75, 0.25);
-    background: rgba(224, 75, 75, 0.08);
-    color: var(--Error);
+    border: 1px solid var(--danger-soft-strong);
+    background: var(--danger-soft);
+    color: var(--danger-text);
 }
 
 .cartao-cliente-alert.success {
-    border: 1px solid rgba(33, 163, 102, 0.25);
-    background: rgba(33, 163, 102, 0.08);
-    color: var(--Sucess);
+    border: 1px solid var(--success-border);
+    background: var(--success-soft);
+    color: var(--success-text);
 }
 
 .cartao-cliente-section {
@@ -197,27 +168,27 @@
     flex-direction: column;
     gap: 10px;
     padding: 16px;
-    border: 1px solid var(--Border);
+    border: 1px solid var(--border);
     border-radius: 14px;
-    background: #fdfcff;
+    background: var(--surface-muted);
 }
 
 .cartao-cliente-section-title {
     display: flex;
     align-items: center;
     gap: 8px;
-    color: var(--Principal-text);
+    color: var(--text);
     font-size: 13px;
     font-weight: 800;
 }
 
 .cartao-cliente-section-title svg {
-    color: var(--Primary-faces);
+    color: var(--primary-text);
 }
 
 .cartao-cliente-hint {
     margin: 0;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: 12px;
     line-height: 1.5;
 }
@@ -230,7 +201,7 @@
 }
 
 .cartao-cliente-add label {
-    color: var(--Principal-text);
+    color: var(--text);
     font-size: 12px;
     font-weight: 700;
 }
@@ -238,18 +209,18 @@
 .cartao-cliente-add input {
     width: 100%;
     padding: 10px 12px;
-    border: 1px solid #e5e3ea;
+    border: 1px solid var(--input-border);
     border-radius: 9px;
-    background: #ffffff;
-    color: var(--Principal-text);
+    background: var(--input-bg);
+    color: var(--text);
     font-family: inherit;
     font-size: 13px;
     outline: none;
 }
 
 .cartao-cliente-add input:focus {
-    border-color: var(--Primary-faces);
-    box-shadow: 0 0 0 3px rgba(109, 53, 200, 0.1);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--focus-ring-soft);
 }
 
 .cartao-cliente-add input:disabled {
@@ -264,8 +235,8 @@
     margin: 0;
     padding: 9px 11px;
     border-radius: 9px;
-    background: rgba(109, 53, 200, 0.07);
-    color: #5e35a7;
+    background: var(--primary-soft-subtle);
+    color: var(--primary-text);
     font-size: 12px;
     line-height: 1.45;
 }
@@ -277,16 +248,16 @@
     gap: 14px;
     flex-wrap: wrap;
     padding: 12px;
-    border: 1px solid #f0e4cf;
+    border: 1px solid var(--warning-soft-strong);
     border-radius: 11px;
-    background: #fffaf0;
+    background: var(--warning-soft);
 }
 
 .cartao-cliente-beneficio > div {
     display: flex;
     align-items: baseline;
     gap: 7px;
-    color: #8a4b00;
+    color: var(--warning-text);
 }
 
 .cartao-cliente-beneficio strong {
@@ -302,9 +273,9 @@
 .cartao-cliente-empty {
     margin: 0;
     padding: 14px;
-    border: 1px dashed #ddd6e8;
+    border: 1px dashed var(--border-strong);
     border-radius: 10px;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: 12px;
     line-height: 1.5;
     text-align: center;
@@ -325,7 +296,7 @@
     flex-wrap: wrap;
     gap: 7px;
     padding: 10px 2px;
-    border-bottom: 1px dashed #eeeaf3;
+    border-bottom: 1px dashed var(--border-subtle);
 }
 
 .cartao-cliente-historico li:last-child {
@@ -333,20 +304,20 @@
 }
 
 .cartao-cliente-movimento-data {
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: 11px;
     white-space: nowrap;
 }
 
 .cartao-cliente-movimento-ciclo {
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: 11px;
     white-space: nowrap;
 }
 
 .cartao-cliente-movimento-obs {
     flex: 1 1 100%;
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: 11px;
     line-height: 1.4;
 }
@@ -359,15 +330,15 @@
     width: 30px;
     height: 30px;
     padding: 0;
-    border: 1px solid rgba(224, 75, 75, 0.2);
+    border: 1px solid var(--danger-soft-strong);
     border-radius: 8px;
-    background: rgba(224, 75, 75, 0.07);
-    color: var(--Error);
+    background: var(--danger-soft);
+    color: var(--danger-text);
     cursor: pointer;
 }
 
 .cartao-cliente-remove:hover:not(:disabled) {
-    background: rgba(224, 75, 75, 0.14);
+    background: var(--danger-soft-strong);
 }
 
 .cartao-cliente-remove:disabled {
@@ -381,12 +352,12 @@
     justify-content: space-between;
     gap: 14px;
     padding: 14px 24px;
-    border-top: 1px solid #eeeaf3;
-    background: #fdfcff;
+    border-top: 1px solid var(--border);
+    background: var(--surface-muted);
 }
 
 .cartao-cliente-footer > span {
-    color: var(--Secundary-text);
+    color: var(--text-muted);
     font-size: 11px;
     line-height: 1.4;
 }

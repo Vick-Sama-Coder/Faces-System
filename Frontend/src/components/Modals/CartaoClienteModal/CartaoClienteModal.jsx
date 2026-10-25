@@ -13,20 +13,21 @@ import {
 import {
     getFidelizacao,
     marcarFidelizacaoManual,
-    removerMarcaFidelizacaoManual,
+    removerMarcaFidelizacao,
     registarBeneficioFidelizacaoManual,
     getApiError
 } from "../../../services/api.js"
 import FidelizacaoCard from "../../FidelizacaoCard/FidelizacaoCard.jsx"
 import ConfirmDialog from "../../ConfirmDialog/ConfirmDialog.jsx"
+import { LIMITE_FIDELIZACAO, META_FIDELIZACAO } from "../../../utils/validacoes.js"
 import "./CartaoClienteModal.css"
 
 const MAX_MARCAS = 20
 
 const TIPOS = {
     marca: { label: "Marca", tone: "primary" },
-    beneficio_ganho: { label: "Benefício ganho", tone: "warning" },
-    beneficio_utilizado: { label: "Benefício utilizado", tone: "success" },
+    beneficio_ganho: { label: "Cartão completo", tone: "warning" },
+    beneficio_utilizado: { label: "6.º serviço grátis usado", tone: "success" },
     correcao: { label: "Correção", tone: "neutral" }
 }
 
@@ -58,12 +59,6 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
     const [error, setError] = useState(null)
     const [sucesso, setSucesso] = useState(null)
 
-    //verifica se o cliente e masculino (apenas homens podem ter cartao)
-    const clienteMasculino = cliente?.sexo === 'M'
-    const mensagemGenero = !clienteMasculino && cliente?.sexo
-        ? "Apenas clientes do sexo masculino podem ter cartão de fidelização."
-        : null
-
     useEffect(() => {
         let activo = true
 
@@ -81,13 +76,17 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
         return () => { activo = false }
     }, [cliente.id])
 
-    const meta = Number(fidelizacao?.meta) || 5
+    const meta = Number(fidelizacao?.meta) || META_FIDELIZACAO
     const marcasAtuais = Number(fidelizacao?.marcas_no_ciclo) || 0
     const beneficiosDisponiveis = Number(fidelizacao?.beneficios_disponiveis) || 0
+    const beneficioPendente = beneficiosDisponiveis > 0
+    const marcasRestantes = Math.max(meta - marcasAtuais, 0)
+    const quantidadeMaxima = Math.max(Math.min(MAX_MARCAS, marcasRestantes), 1)
     const quantidadeNumero = Number(quantidade)
-    const quantidadeValida = Number.isInteger(quantidadeNumero)
+    const quantidadeValida = !beneficioPendente
+        && Number.isInteger(quantidadeNumero)
         && quantidadeNumero >= 1
-        && quantidadeNumero <= MAX_MARCAS
+        && quantidadeNumero <= quantidadeMaxima
 
     const previsao = useMemo(() => {
         if (!quantidadeValida) return null
@@ -96,8 +95,7 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
 
         return {
             marcasDepois: total,
-            beneficios: Math.floor(total / meta),
-            restantes: total % meta
+            completa: total === meta
         }
     }, [marcasAtuais, quantidadeNumero, quantidadeValida, meta])
 
@@ -134,7 +132,7 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
             setQuantidade("1")
             setSucesso(
                 res.data?.beneficios_gerados > 0
-                    ? `${total} marca(s) adicionada(s). ${res.data.beneficios_gerados} benefício(s) gerado(s).`
+                    ? `${total} marca(s) adicionada(s). Cartão completo: o 6.º serviço é gratuito.`
                     : `${total} marca(s) adicionada(s) ao cartão.`
             )
         } catch (err) {
@@ -158,18 +156,23 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
     function pedirAdicao(evento) {
         evento.preventDefault()
 
+        if (beneficioPendente) {
+            setError("O cartão está completo (5/5). Registe o 6.º serviço gratuito antes de adicionar novas marcas.")
+            return
+        }
+
         if (!quantidadeValida) {
-            setError(`Indique uma quantidade entre 1 e ${MAX_MARCAS}.`)
+            setError(`Indique uma quantidade entre 1 e ${quantidadeMaxima}.`)
             return
         }
 
         setError(null)
         setSucesso(null)
 
-        if (previsao?.beneficios > 0) {
+        if (previsao?.completa) {
             setConfirmacaoAdicao({
                 quantidade: quantidadeNumero,
-                beneficios: previsao.beneficios,
+                beneficios: 1,
                 marcasAtuais,
                 marcasApos: previsao.marcasDepois
             })
@@ -187,10 +190,10 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
         setSucesso(null)
 
         try {
-            const res = await removerMarcaFidelizacaoManual(cliente.id, remocao.id)
+            const res = await removerMarcaFidelizacao(cliente.id, remocao.id)
             atualizarProgresso(res)
             setRemocao(null)
-            setSucesso("Marca manual removida e cartão recalculado.")
+            setSucesso("Marca removida e cartão recalculado.")
         } catch (err) {
             setError(getApiError(err))
             setRemocao(null)
@@ -210,7 +213,7 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
             const res = await registarBeneficioFidelizacaoManual(cliente.id)
             atualizarProgresso(res)
             setConfirmacaoBeneficio(false)
-            setSucesso("Benefício registado como utilizado.")
+            setSucesso("6.º serviço gratuito registado como utilizado. O cartão reiniciou em 0/5.")
         } catch (err) {
             setError(getApiError(err))
             setConfirmacaoBeneficio(false)
@@ -270,23 +273,6 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
                                 <Loader2 size={22} className="cartao-cliente-spin" />
                                 <span>A carregar o cartão...</span>
                             </div>
-                        ) : !clienteMasculino ? (
-                            <div className="cartao-cliente-genero-bloqueio">
-                                <AlertCircle size={32} />
-                                <p>
-                                    {mensagemGenero || "Apenas clientes do sexo masculino podem ter cartão de fidelização."}
-                                </p>
-                                {cliente?.sexo === 'F' && (
-                                    <p className="cartao-cliente-genero-detalhe">
-                                        Este cliente está registado como Feminino. Atualize o sexo no cadastro do cliente para ativar o cartão.
-                                    </p>
-                                )}
-                                {!cliente?.sexo && (
-                                    <p className="cartao-cliente-genero-detalhe">
-                                        O sexo do cliente não está definido. Atualize o cadastro do cliente para ativar o cartão.
-                                    </p>
-                                )}
-                            </div>
                         ) : (
                             <>
                                 <FidelizacaoCard
@@ -301,8 +287,9 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
                                         <span>Adicionar marcas</span>
                                     </div>
                                     <p className="cartao-cliente-hint">
-                                        Use esta opção para preencher cartões físicos já existentes.
-                                        As marcas entram no ciclo actual e contam como um corte elegível.
+                                        {beneficioPendente
+                                            ? "O cartão está completo (5/5). Registe o 6.º serviço gratuito na secção abaixo antes de adicionar novas marcas."
+                                            : "Use esta opção para preencher cartões físicos já existentes. As marcas entram no ciclo actual e contam como um serviço elegível (uma marca por dia)."}
                                     </p>
 
                                     <form className="cartao-cliente-add" onSubmit={pedirAdicao}>
@@ -311,7 +298,7 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
                                             id="cartao-marcas-quantidade"
                                             type="number"
                                             min="1"
-                                            max={MAX_MARCAS}
+                                            max={quantidadeMaxima}
                                             step="1"
                                             value={quantidade}
                                             onChange={(evento) => {
@@ -319,12 +306,12 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
                                                 setError(null)
                                                 setSucesso(null)
                                             }}
-                                            disabled={aAdicionar}
+                                            disabled={aAdicionar || beneficioPendente}
                                         />
                                         <button
                                             type="submit"
                                             className="mgmt-btn primary"
-                                            disabled={aAdicionar || !quantidadeValida}
+                                            disabled={aAdicionar || !quantidadeValida || beneficioPendente}
                                         >
                                             {aAdicionar ? <Loader2 size={16} className="cartao-cliente-spin" /> : <Plus size={16} />}
                                             {aAdicionar ? "A adicionar..." : "Adicionar marcas"}
@@ -333,17 +320,10 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
 
                                     {previsao && (
                                         <p className="cartao-cliente-preview">
-                                            {previsao.beneficios > 0 ? (
-                                                <>
-                                                    Com mais <strong>{quantidadeNumero}</strong> marca(s):{" "}
-                                                    <strong>{previsao.beneficios}</strong> benefício(s) e{" "}
-                                                    <strong>{previsao.restantes}/{meta}</strong> no novo ciclo.
-                                                </>
-                                            ) : (
-                                                <>
-                                                    Com mais <strong>{quantidadeNumero}</strong> marca(s):{" "}
-                                                    <strong>{previsao.marcasDepois}/{meta}</strong> no ciclo.
-                                                </>
+                                            Com mais <strong>{quantidadeNumero}</strong> marca(s):{" "}
+                                            <strong>{previsao.marcasDepois}/{meta}</strong> no ciclo.
+                                            {previsao.completa && (
+                                                <> O cartão fica completo e o 6.º serviço será gratuito.</>
                                             )}
                                         </p>
                                     )}
@@ -352,16 +332,16 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
                                 <section className="cartao-cliente-section">
                                     <div className="cartao-cliente-section-title">
                                         <Gift size={17} />
-                                        <span>Benefícios</span>
+                                        <span>6.º serviço gratuito</span>
                                     </div>
 
                                     <div className="cartao-cliente-beneficio">
                                         <div>
-                                            <strong>{beneficiosDisponiveis}</strong>
+                                            <strong>{beneficiosDisponiveis > 0 ? 1 : 0}</strong>
                                             <span>
-                                                {beneficiosDisponiveis === 1
-                                                    ? "benefício disponível"
-                                                    : "benefícios disponíveis"}
+                                                {beneficiosDisponiveis > 0
+                                                    ? "6.º serviço grátis pendente"
+                                                    : "sem 6.º serviço pendente"}
                                             </span>
                                         </div>
                                         <button
@@ -371,14 +351,15 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
                                             disabled={beneficiosDisponiveis <= 0 || aUtilizar || aAdicionar || aRemover}
                                         >
                                             <Gift size={16} />
-                                            Registar benefício utilizado
+                                            Registar 6.º serviço como utilizado
                                         </button>
                                     </div>
 
                                     <p className="cartao-cliente-hint">
-                                        Só é possível registar a utilização de um benefício que já exista
-                                        no sistema. Para cartões físicos com um corte gratuito já usado,
-                                        acrescente primeiro as 5 marcas desse ciclo.
+                                        O 6.º serviço é gratuito num único serviço elegível até{" "}
+                                        {LIMITE_FIDELIZACAO} MT. Ao registar a utilização, o cartão
+                                        reinicia em 0/{META_FIDELIZACAO}. Use esta opção para cartões
+                                        físicos em que o serviço gratuito já foi prestado.
                                     </p>
                                 </section>
 
@@ -387,6 +368,10 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
                                         <History size={17} />
                                         <span>Histórico</span>
                                     </div>
+                                    <p className="cartao-cliente-hint">
+                                        Pode remover marcas do ciclo atual, manuais ou de atendimento.
+                                        Ciclos anteriores usam a correção de fidelização.
+                                    </p>
 
                                     {historico.length === 0 ? (
                                         <p className="cartao-cliente-empty">
@@ -401,7 +386,8 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
                                                     tone: "neutral"
                                                 }
                                                 const manual = movimento.origem === "manual"
-                                                const podeRemover = movimento.tipo_movimento === "marca" && manual
+                                                const podeRemover = movimento.tipo_movimento === "marca"
+                                                    && Number(movimento.ciclo) === Number(fidelizacao?.ciclo_atual)
 
                                                 return (
                                                     <li key={movimento.id}>
@@ -417,6 +403,9 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
                                                         {manual && (
                                                             <span className="mgmt-badge neutral">Manual</span>
                                                         )}
+                                                        {!manual && movimento.tipo_movimento === "marca" && (
+                                                            <span className="mgmt-badge neutral">Atendimento</span>
+                                                        )}
                                                         {movimento.observacao && (
                                                             <span className="cartao-cliente-movimento-obs">
                                                                 {movimento.observacao}
@@ -428,8 +417,8 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
                                                                 className="cartao-cliente-remove"
                                                                 onClick={() => setRemocao(movimento)}
                                                                 disabled={aAdicionar || aRemover || aUtilizar}
-                                                                title="Remover marca manual"
-                                                                aria-label="Remover marca manual"
+                                                                title="Remover marca do ciclo atual"
+                                                                aria-label="Remover marca do ciclo atual"
                                                             >
                                                                 <Trash2 size={15} />
                                                             </button>
@@ -462,11 +451,11 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
 
             <ConfirmDialog
                 open={Boolean(confirmacaoAdicao)}
-                title="Gerar benefício de fidelização?"
+                title="Completar o cartão de fidelização?"
                 description={confirmacaoAdicao
-                    ? `Ao adicionar ${confirmacaoAdicao.quantidade} marca(s), o cliente ganha ${confirmacaoAdicao.beneficios} corte(s) gratuito(s). O cartão ficará com ${confirmacaoAdicao.marcasApos % meta}/${meta} marcas no novo ciclo.`
+                    ? `Ao adicionar ${confirmacaoAdicao.quantidade} marca(s), o cartão fica completo (${meta}/${meta}). O 6.º serviço será gratuito até ${LIMITE_FIDELIZACAO} MT e não pode ser guardado para depois.`
                     : ""}
-                confirmLabel="Adicionar e gerar"
+                confirmLabel="Adicionar e completar"
                 tone="warning"
                 icon={Gift}
                 loading={aAdicionar}
@@ -476,9 +465,9 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
 
             <ConfirmDialog
                 open={Boolean(remocao)}
-                title="Remover marca manual?"
+                title="Remover marca?"
                 description={remocao
-                    ? `A marca de ${formatarDataHora(remocao.data_hora)} será removida. Se tinha gerado um benefício ainda disponível, o benefício e as marcas seguintes serão recalculados.`
+                    ? `A marca de ${formatarDataHora(remocao.data_hora)} será removida do cartão. Se o cartão estava completo, o 6.º serviço gratuito pendente também é removido.${remocao.origem === "atendimento" ? " O atendimento e os serviços registados não são alterados." : ""}`
                     : ""}
                 confirmLabel="Remover marca"
                 tone="danger"
@@ -490,8 +479,8 @@ function CartaoClienteModal({ cliente, onclose, onSuccess }) {
 
             <ConfirmDialog
                 open={confirmacaoBeneficio}
-                title="Registar benefício utilizado?"
-                description={`O cliente tem ${beneficiosDisponiveis} benefício(s) disponível(eis). O saldo passará para ${Math.max(beneficiosDisponiveis - 1, 0)}.`}
+                title="Registar o 6.º serviço como utilizado?"
+                description={`O cartão está completo (${meta}/${meta}). Ao confirmar, o 6.º serviço gratuito é fechado e o cartão reinicia em 0/${meta}.`}
                 confirmLabel="Registar utilização"
                 tone="warning"
                 icon={Gift}

@@ -1078,7 +1078,7 @@ function Relatorio() {
                                     </div>
 
                                     <p className="relatorio-note">
-                                        As marcas sao acumuladas por visita. Cada beneficio ganho deve ser utilizado no atendimento seguinte.
+                                        As marcas sao acumuladas por dia. Ao completar 5/5, o 6.º servico tem de ser gratuito e nao pode ser guardado para depois.
                                     </p>
                                 </article>
                             </div>

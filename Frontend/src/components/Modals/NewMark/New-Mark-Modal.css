@@ -542,6 +542,12 @@
     font-size: 13px;
 }
 
+.nm-hint-warning {
+    background: var(--warning-soft);
+    color: var(--warning-text);
+    font-weight: 600;
+}
+
 .nm-item {
     border: 1px solid var(--border);
     border-radius: 12px;
@@ -715,6 +721,75 @@
     border-radius: 999px;
     background: var(--primary-soft);
     color: var(--primary-text);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.nm-loyalty-tag.free {
+    background: var(--success-soft);
+    color: var(--success-text);
+}
+
+.nm-item.free {
+    border-color: var(--success);
+    background: var(--success-soft);
+}
+
+.nm-benefit-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border);
+}
+
+.nm-benefit-row > span {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.nm-benefit-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 11px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.nm-benefit-btn:hover:not(:disabled) {
+    border-color: var(--primary);
+    color: var(--primary-text);
+    background: var(--primary-soft-subtle);
+}
+
+.nm-benefit-btn.active {
+    border-color: var(--success);
+    background: var(--success-soft);
+    color: var(--success-text);
+}
+
+.nm-benefit-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.nm-field input:disabled {
+    opacity: 0.75;
+    cursor: not-allowed;
+}
+
+.nm-free-note {
+    color: var(--success-text);
     font-size: 11px;
     font-weight: 700;
 }

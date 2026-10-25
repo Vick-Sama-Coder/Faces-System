@@ -35,6 +35,19 @@ const findById = async (id) => {
     return linha || null;
 };
 
+//usado para permitir que uma conta consulte apenas o proprio horario
+const findByUsuarioId = async (usuario_id) => {
+    const [linha] = await db.select({
+        id: funcionario.id,
+        nome: funcionario.nome
+    })
+        .from(funcionario)
+        .where(eq(funcionario.id_usuario, usuario_id))
+        .limit(1);
+
+    return linha || null;
+};
+
 const create = async ({
     nome,
     telefone,
@@ -142,6 +155,7 @@ const findDesempenho = async (funcionario_id, { de, ate }) => {
 const Funcionario = {
     findAll,
     findById,
+    findByUsuarioId,
     create,
     update,
     updateEstado,

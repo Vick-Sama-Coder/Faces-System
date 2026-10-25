@@ -10,7 +10,7 @@ router.post('/clientes/:id/fidelizacao/correcao', authenticate, authorizePermiss
 
 //Preenchimento manual de cartoes fisicos: exclusivo do Administrador
 router.post('/clientes/:id/fidelizacao/marcas', authenticate, authorize('Administrador'), FidelizacaoController.marcarFidelizacaoManual);
-router.delete('/clientes/:id/fidelizacao/marcas/:movimentoId', authenticate, authorize('Administrador'), FidelizacaoController.removerMarcaFidelizacaoManual);
+router.delete('/clientes/:id/fidelizacao/marcas/:movimentoId', authenticate, authorize('Administrador'), FidelizacaoController.removerMarcaFidelizacao);
 router.post('/clientes/:id/fidelizacao/beneficios/utilizar', authenticate, authorize('Administrador'), FidelizacaoController.utilizarBeneficioFidelizacaoManual);
 
 export default router;

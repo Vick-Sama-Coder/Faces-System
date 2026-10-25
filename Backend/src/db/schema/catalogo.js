@@ -25,6 +25,7 @@ export const servico = pgTable('servico', {
     valor: integer('valor').notNull(),
     duracao_min: integer('duracao_min'),
     tipo_preco: varchar('tipo_preco', { length: 20 }).notNull().default('fixo'),
+    // marcado manualmente; a aplicacao so permite valores ate 200 MT
     elegivel_fidelizacao: boolean('elegivel_fidelizacao').notNull().default(false),
     categoria_id: integer('categoria_id').notNull().references(() => categoriaSalao.id),
     estado: varchar('estado', { length: 20 }).notNull().default('Ativo'),

@@ -6,6 +6,7 @@ import {
     categoriaSalao,
     cliente,
     funcionario,
+    movimentoFidelizacao,
     servico,
     usuario
 } from '../db/schema/index.js';
@@ -189,6 +190,40 @@ const deleteServicoItem = async (tx, item_id) => {
         .where(eq(atendimentoServico.id, item_id));
 };
 
+//um atendimento pode consumir no maximo um beneficio gratuito
+const temBeneficioFidelizacao = async (executor, atendimento_id) => {
+    const linhas = await executor.select({ id: movimentoFidelizacao.id })
+        .from(movimentoFidelizacao)
+        .innerJoin(
+            atendimentoServico,
+            eq(atendimentoServico.id, movimentoFidelizacao.atendimento_servico_id)
+        )
+        .where(and(
+            eq(atendimentoServico.atendimento_id, atendimento_id),
+            eq(movimentoFidelizacao.tipo_movimento, 'beneficio_utilizado')
+        ))
+        .limit(1);
+
+    return linhas.length > 0;
+};
+
+//o atendimento ja gerou uma marca? (a marca pertence ao primeiro servico elegivel)
+const temMarcaFidelizacao = async (executor, atendimento_id) => {
+    const linhas = await executor.select({ id: movimentoFidelizacao.id })
+        .from(movimentoFidelizacao)
+        .innerJoin(
+            atendimentoServico,
+            eq(atendimentoServico.id, movimentoFidelizacao.atendimento_servico_id)
+        )
+        .where(and(
+            eq(atendimentoServico.atendimento_id, atendimento_id),
+            eq(movimentoFidelizacao.tipo_movimento, 'marca')
+        ))
+        .limit(1);
+
+    return linhas.length > 0;
+};
+
 //---- atualizacoes simples (db) ----
 
 const updateHeader = async (id, { cliente_id }) => {
@@ -236,6 +271,8 @@ const Atendimento = {
     recalcular,
     findServicoItem,
     deleteServicoItem,
+    temBeneficioFidelizacao,
+    temMarcaFidelizacao,
     updateHeader,
     updateEstado
 };

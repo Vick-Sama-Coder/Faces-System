@@ -14,13 +14,19 @@
 
     width: 215px;
     min-width: 215px;
-    min-height: 100vh;
+    height: 100vh;
+    min-height: 0;
+    max-height: 100vh;
     padding: 15px;
+
+    overflow-x: hidden;
+    overflow-y: scroll;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
 
     background-color: var(--sidebar-bg);
     color: var(--text);
     font-size: var(--text-sm);
-    height: max-content;
 }
 
 /* ===========================

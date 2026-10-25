@@ -67,7 +67,7 @@ export default function AppRoutes(){
                 <RequirePermission permissoes={["auditoria:ler"]}><Logs/></RequirePermission>
             }/>
             <Route path="/horarios" element={
-                <RequirePermission permissoes={["funcionarios:ler", "funcionarios:escrever"]}><HorarioPage/></RequirePermission>
+                <RequirePermission permissoes={["assiduidade:gerir"]}><HorarioPage/></RequirePermission>
             }/>
             <Route path="*" element={<h1>Not Found</h1>}/>
         </Routes>

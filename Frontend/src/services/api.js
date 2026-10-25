@@ -4,7 +4,7 @@ import axios from 'axios';
 
 
 
-const DEFAULT_API_URL = import.meta.env.DEV ? "http://localhost:5000" : "";
+const DEFAULT_API_URL = import.meta.env.DEV ? "http://192.168.0.104:5000" : "";
 const BASE_API = (
     import.meta.env.VITE_API_URL || DEFAULT_API_URL
 ).replace(/\/+$/, "");
@@ -147,7 +147,7 @@ export const marcarFidelizacaoManual = (clienteId, data) => {
     return server.post(`api/clientes/${clienteId}/fidelizacao/marcas`, data);
 };
 
-export const removerMarcaFidelizacaoManual = (clienteId, movimentoId) => {
+export const removerMarcaFidelizacao = (clienteId, movimentoId) => {
     return server.delete(`api/clientes/${clienteId}/fidelizacao/marcas/${movimentoId}`);
 };
 
@@ -354,8 +354,12 @@ export const substituirHorariosFuncionario = (funcionarioId, horarios) => {
     return server.put(`api/funcionarios/${funcionarioId}/horarios`, { horarios });
 };
 
-export const deleteHorarioFuncionario = (funcionarioId, horarioId) => {
-    return server.delete(`api/funcionarios/${funcionarioId}/horarios/${horarioId}`);
+export const updateHorarioFuncionario = (horarioId, data) => {
+    return server.put(`api/horarios/${horarioId}`, data);
+};
+
+export const deleteHorarioFuncionario = (horarioId) => {
+    return server.delete(`api/horarios/${horarioId}`);
 };
 
 //---- assiduidade ----
@@ -369,6 +373,10 @@ export const createAssiduidade = (data) => {
 
 export const updateAssiduidade = (id, data) => {
     return server.put(`api/assiduidade/${id}`, data);
+};
+
+export const registarDiaAssiduidade = (data) => {
+    return server.put("api/assiduidade/dia", data);
 };
 
 //---- salarios ----

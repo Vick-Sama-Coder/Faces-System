@@ -44,7 +44,7 @@ const GRUPOS = [
             { nome: "Funcionarios",           path: "/funcionarios",        Icone: Users,  perfis: [], title: "Funcionarios"        },
             { nome: "Gestao de Utilizadores", path: "/gestao-utilizadores", Icone: UserCog,       perfis: [], title: "Gestao de Utilizadores" },
             { nome: "Permissoes",             path: "/permissoes",          Icone: ShieldCheck,   perfis: [], title: "Permissoes" },
-            { nome: "Horario",                     path: "/horarios",                  Icone: CalendarPlus,  perfis: [], title: "Horario" },
+            { nome: "Horários",                    path: "/horarios",                  Icone: CalendarPlus,  perfis: [], title: "Horários" },
             { nome: "Logs",             path: "/logs",          Icone: LogsIcon,   perfis: [], title: "logs" }
         ]
     },

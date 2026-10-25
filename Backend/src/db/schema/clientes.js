@@ -14,7 +14,7 @@ export const cliente = pgTable('cliente', {
     telefone: integer('telefone').notNull().unique(),
     endereco: varchar('endereco', { length: 255 }),
     data_nascimento: date('data_nascimento'),
-    // 'M' = Masculino, 'F' = Feminino — apenas clientes masculinos podem ter cartão de fidelização
+    // 'M' = Masculino, 'F' = Feminino — o cartão de fidelização aplica-se a todos os clientes
     sexo: varchar('sexo', { length: 1 }),
     data_registo: timestamp('data_registo').notNull().defaultNow(),
     saldo_pendente: integer('saldo_pendente').notNull().default(0),
