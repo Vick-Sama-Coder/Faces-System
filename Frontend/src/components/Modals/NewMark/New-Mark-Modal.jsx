@@ -11,7 +11,15 @@ import {
     Heart,
     Gift,
     CheckCircle2,
-    Wallet
+    Wallet,
+    Tag,
+    Layers,
+    Minus,
+    Percent,
+    ChevronDown,
+    ChevronUp,
+    UserCheck,
+    UserX
 } from "lucide-react";
 import {
     createAtendimento,
@@ -20,6 +28,9 @@ import {
     getServicos,
     getFuncionarios,
     getFidelizacao,
+    getServicoModalidades,
+    getServicoAplicacoes,
+    aplicarDesconto,
     getApiError,
     getApiErrorField
 } from "../../../services/api.js";
@@ -38,7 +49,11 @@ const FORMAS_PAGAMENTO = ["Dinheiro", "M-Pesa", "e-Mola", "Cartao", "Transferenc
 const itemVazio = () => ({
     categoria_id: "",
     servico_id: "",
+    servico_principal_id: null,
     funcionario_id: "",
+    modalidade_id: "",
+    modalidade_nome: "",
+    tipo_servico: "Servico",
     preco_praticado: "",
     usar_beneficio_fidelizacao: false
 });
@@ -77,6 +92,22 @@ function NewMarkModal({ onclose, onSuccess }) {
     const [sucesso, setSucesso] = useState(null);
     const [error, setError] = useState(null);
 
+    // Cache de modalidades e aplicações por servico
+    const [modalidadesCache, setModalidadesCache] = useState({});
+    const [aplicacoesCache, setAplicacoesCache] = useState({});
+
+    // Descontos
+    const [descontos, setDescontos] = useState([]);
+    const [showDescontoModal, setShowDescontoModal] = useState(false);
+    const [descontoForm, setDescontoForm] = useState({
+        escopo: "Servico",
+        tipo: "Percentagem",
+        percentagem: "",
+        valor_desconto: "",
+        atendimento_servico_id: "",
+        valor_bruto: ""
+    });
+
     useEffect(() => {
         let activo = true;
 
@@ -101,7 +132,7 @@ function NewMarkModal({ onclose, onSuccess }) {
                     : (resFuncionarios.data?.funcionarios || []);
 
                 setClientes(listaClientes.filter((c) => c.estado === "Ativo"));
-                setServicos(listaServicos.filter((s) => s.estado === "Ativo"));
+                setServicos(listaServicos.filter((s) => s.estado === "Ativo" && s.tipo_servico === "Servico"));
                 setFuncionarios(listaFuncionarios.filter((f) => f.estado === "Ativo"));
             } catch (err) {
                 if (activo) setError(getApiError(err));
@@ -133,6 +164,39 @@ function NewMarkModal({ onclose, onSuccess }) {
 
         return () => { activo = false };
     }, [clienteId]);
+
+    // Carregar modalidades quando um servico e selecionado
+    useEffect(() => {
+        const servicoIds = [...new Set(itens.map(i => i.servico_id).filter(Boolean))];
+        servicoIds.forEach(async (id) => {
+            if (!modalidadesCache[id]) {
+                try {
+                    const res = await getServicoModalidades(id);
+                    const lista = Array.isArray(res.data) ? res.data : [];
+                    setModalidadesCache(prev => ({ ...prev, [id]: lista }));
+                } catch (err) {
+                    console.error("Erro ao carregar modalidades:", err);
+                }
+            }
+        });
+    }, [itens, modalidadesCache]);
+
+    // Carregar aplicações quando um servico que permite aplicações é selecionado
+    useEffect(() => {
+        const servicoIds = [...new Set(itens.filter(i => i.tipo_servico === 'Servico').map(i => i.servico_id).filter(Boolean))];
+        servicoIds.forEach(async (id) => {
+            const servico = servicos.find(s => String(s.id) === String(id));
+            if (servico?.permite_aplicacoes && !aplicacoesCache[id]) {
+                try {
+                    const res = await getServicoAplicacoes(id);
+                    const lista = Array.isArray(res.data) ? res.data : [];
+                    setAplicacoesCache(prev => ({ ...prev, [id]: lista }));
+                } catch (err) {
+                    console.error("Erro ao carregar aplicações:", err);
+                }
+            }
+        });
+    }, [itens, servicos, aplicacoesCache]);
 
     const categoriasServicos = useMemo(() => {
         const mapa = new Map()
@@ -178,13 +242,7 @@ function NewMarkModal({ onclose, onSuccess }) {
     function handleCategoriaChange(index, categoriaId) {
         setItens((anteriores) => anteriores.map((item, i) => (
             i === index
-                ? {
-                    ...item,
-                    categoria_id: categoriaId,
-                    servico_id: "",
-                    preco_praticado: "",
-                    usar_beneficio_fidelizacao: false
-                }
+                ? { ...item, categoria_id: categoriaId, servico_id: "", modalidade_id: "", modalidade_nome: "", preco_praticado: "", usar_beneficio_fidelizacao: false }
                 : item
         )));
         limparErro(`servico_${index}`);
@@ -206,13 +264,35 @@ function NewMarkModal({ onclose, onSuccess }) {
                 ? {
                     ...item,
                     servico_id: servicoId,
+                    tipo_servico: servico?.tipo_servico || "Servico",
                     preco_praticado: servico ? String(servico.valor) : "",
+                    modalidade_id: "",
+                    modalidade_nome: "",
+                    servico_principal_id: null,
                     usar_beneficio_fidelizacao: false
                 }
                 : item
         )));
 
         limparErro(`servico_${index}`);
+        limparErro(`preco_${index}`);
+    }
+
+    function handleModalidadeChange(index, modalidadeId) {
+        const servico = itens[index];
+        const modalidades = modalidadesCache[servico.servico_id] || [];
+        const modalidade = modalidades.find(m => String(m.id) === String(modalidadeId));
+
+        setItens((anteriores) => anteriores.map((item, i) => (
+            i === index
+                ? {
+                    ...item,
+                    modalidade_id: modalidadeId,
+                    modalidade_nome: modalidade?.nome || "",
+                    preco_praticado: modalidade ? String(modalidade.valor) : item.preco_praticado
+                }
+                : item
+        )));
         limparErro(`preco_${index}`);
     }
 
@@ -223,9 +303,32 @@ function NewMarkModal({ onclose, onSuccess }) {
     function removerItem(index) {
         setItens((anteriores) => {
             if (anteriores.length === 1) return [itemVazio()];
-            return anteriores.filter((_, i) => i !== index);
+            const novo = anteriores.filter((_, i) => i !== index);
+            // Se removeu um servico principal, remover aplicações associadas
+            const removido = anteriores[index];
+            if (removido.tipo_servico === 'Servico') {
+                return novo.filter(item => item.servico_principal_id !== String(removido.id) && item.servico_principal_id !== removido.id);
+            }
+            return novo;
         });
         setErrors({});
+    }
+
+    function adicionarAplicacao(servicoPrincipalId, aplicacao) {
+        setItens((anteriores) => [...anteriores, {
+            ...itemVazio(),
+            servico_id: aplicacao.id,
+            servico_principal_id: servicoPrincipalId,
+            funcionario_id: anteriores.find(a => String(a.servico_id) === String(servicoPrincipalId))?.funcionario_id || "",
+            tipo_servico: "Aplicacao",
+            preco_praticado: String(aplicacao.valor)
+        }]);
+    }
+
+    function removerAplicacao(aplicacaoId, servicoPrincipalId) {
+        setItens((anteriores) => anteriores.filter((item, i) =>
+            !(String(item.servico_id) === String(aplicacaoId) && String(item.servico_principal_id) === String(servicoPrincipalId))
+        ));
     }
 
     async function handleNovoCliente(clienteCriado) {
@@ -251,11 +354,16 @@ function NewMarkModal({ onclose, onSuccess }) {
         ), 0)
     ), [itens]);
 
+    const totalDescontos = useMemo(() => (
+        descontos.reduce((acc, d) => acc + (Number(d.valor_desconto) || 0), 0)
+    ), [descontos]);
+
+    const totalComDescontos = total - totalDescontos;
     const valorPagamentoAtual = pagamentoManual
         ? pagamento.valor
-        : (total > 0 ? String(total) : "");
+        : (totalComDescontos > 0 ? String(totalComDescontos) : "");
     const valorPago = Math.max(Number(valorPagamentoAtual) || 0, 0);
-    const saldo = Math.max(total - valorPago, 0);
+    const saldo = Math.max(totalComDescontos - valorPago, 0);
     const clienteSelecionado = clientes.find((cliente) => String(cliente.id) === String(clienteId));
     const itensComServico = itens.filter((item) => item.servico_id);
     const fidelizacao = clienteId && String(fidelizacaoCarregada.clienteId) === String(clienteId)
@@ -289,6 +397,86 @@ function NewMarkModal({ onclose, onSuccess }) {
         limparErro("pagamento");
     }
 
+    // Descontos
+    function abrirDescontoModal(item = null) {
+        if (item) {
+            setDescontoForm({
+                escopo: "Servico",
+                tipo: "Percentagem",
+                percentagem: "",
+                valor_desconto: "",
+                atendimento_servico_id: item.id,
+                valor_bruto: String(item.preco_praticado)
+            });
+        } else {
+            setDescontoForm({
+                escopo: "Atendimento",
+                tipo: "Percentagem",
+                percentagem: "",
+                valor_desconto: "",
+                atendimento_servico_id: "",
+                valor_bruto: String(total)
+            });
+        }
+        setShowDescontoModal(true);
+    }
+
+    function fecharDescontoModal() {
+        setShowDescontoModal(false);
+        setDescontoForm({
+            escopo: "Servico",
+            tipo: "Percentagem",
+            percentagem: "",
+            valor_desconto: "",
+            atendimento_servico_id: "",
+            valor_bruto: ""
+        });
+    }
+
+    function handleDescontoChange(campo, value) {
+        setDescontoForm(prev => ({ ...prev, [campo]: value }));
+    }
+
+    function handleAplicarDesconto(e) {
+        e.preventDefault();
+        const { escopo, tipo, percentagem, valor_desconto, atendimento_servico_id, valor_bruto } = descontoForm;
+
+        let valorDescontoNum = Number(valor_desconto) || 0;
+        const valorBrutoNum = Number(valor_bruto) || 0;
+
+        if (tipo === "Percentagem" && percentagem) {
+            const perc = Number(percentagem);
+            if (perc < 0 || perc > 100) {
+                setErrors({ desconto: "Percentagem deve estar entre 0 e 100" });
+                return;
+            }
+            valorDescontoNum = Math.round(valorBrutoNum * perc / 100);
+        }
+
+        if (valorDescontoNum <= 0) {
+            setErrors({ desconto: "Valor do desconto deve ser maior que zero" });
+            return;
+        }
+        if (valorDescontoNum > valorBrutoNum) {
+            setErrors({ desconto: "Desconto não pode exceder o valor elegível" });
+            return;
+        }
+
+        const novoDesconto = {
+            ...descontoForm,
+            valor_desconto: valorDescontoNum,
+            valor_final: valorBrutoNum - valorDescontoNum
+        };
+
+        setDescontos(prev => [...prev, novoDesconto]);
+        fecharDescontoModal();
+        setErrors({});
+    }
+
+    function removerDesconto(index) {
+        setDescontos(prev => prev.filter((_, i) => i !== index));
+    }
+
     function handleSubmit(e) {
         e.preventDefault();
         if (loading) return;
@@ -302,7 +490,7 @@ function NewMarkModal({ onclose, onSuccess }) {
         if (podePagar) {
             if (Number(valorPagamentoAtual) < 0) {
                 erros.pagamento = "O valor pago nao pode ser negativo";
-            } else if (valorPago > total) {
+            } else if (valorPago > totalComDescontos) {
                 erros.pagamento = "O valor pago nao pode exceder o total do atendimento";
             } else if (valorPago > 0 && !pagamento.metodo) {
                 erros.pagamento = "Selecione a forma de pagamento";
@@ -324,15 +512,27 @@ function NewMarkModal({ onclose, onSuccess }) {
         setSucesso(null);
 
         try {
-            const payload = {
-                cliente_id: Number(clienteId),
-                servicos: itens.map((item) => ({
+            // Preparar servicos com modalidades, aplicações e benefício
+            const servicosParaEnviar = itens.map((item) => {
+                const base = {
                     servico_id: Number(item.servico_id),
                     funcionario_id: Number(item.funcionario_id),
                     preco_praticado: Number(item.preco_praticado),
                     desconto: 0,
-                    usar_beneficio_fidelizacao: item.usar_beneficio_fidelizacao === true
-                }))
+                    usar_beneficio_fidelizacao: item.usar_beneficio_fidelizacao === true,
+                    tipo_servico: item.tipo_servico
+                };
+
+                if (item.modalidade_id) base.modalidade_id = Number(item.modalidade_id);
+                if (item.modalidade_nome) base.modalidade_nome = item.modalidade_nome;
+                if (item.servico_principal_id) base.servico_principal_id = Number(item.servico_principal_id);
+
+                return base;
+            });
+
+            const payload = {
+                cliente_id: Number(clienteId),
+                servicos: servicosParaEnviar
             };
 
             const resposta = await createAtendimento(payload);
@@ -340,13 +540,31 @@ function NewMarkModal({ onclose, onSuccess }) {
             const usouBeneficio = payload.servicos.some((item) => item.usar_beneficio_fidelizacao);
             let avisoPagamento = "";
 
-            //actualiza o cartao dentro do proprio modal antes de fechar, para
-            //que o reset para 0/5 fique visivel imediatamente.
+            // Actualiza o cartão dentro do próprio modal antes de fechar
             if (novoAtendimento?.fidelizacao) {
                 setFidelizacaoCarregada({
                     clienteId: String(clienteId),
                     dados: novoAtendimento.fidelizacao
                 });
+            }
+
+            // Aplicar descontos se houver
+            if (descontos.length > 0 && novoAtendimento?.id) {
+                for (const desconto of descontos) {
+                    try {
+                        await aplicarDesconto(novoAtendimento.id, {
+                            atendimento_servico_id: Number(desconto.atendimento_servico_id) || (novoAtendimento.servicos?.[0]?.id),
+                            escopo: desconto.escopo,
+                            tipo: desconto.tipo,
+                            percentagem: desconto.tipo === "Percentagem" ? Number(desconto.percentagem) : undefined,
+                            valor_bruto: Number(desconto.valor_bruto),
+                            valor_desconto: Number(desconto.valor_desconto),
+                            valor_final: Number(desconto.valor_final)
+                        }, user.id);
+                    } catch (err) {
+                        console.error("Erro ao aplicar desconto:", err);
+                    }
+                }
             }
 
             if (podePagar && valorPago > 0 && novoAtendimento?.id) {
@@ -470,6 +688,7 @@ function NewMarkModal({ onclose, onSuccess }) {
                                 <p className="nm-hint">
                                     {clienteSelecionado.telefone}
                                     {clienteSelecionado.endereco ? ` · ${clienteSelecionado.endereco}` : ""}
+                                    {clienteSelecionado.idade ? ` · Idade: ${clienteSelecionado.idade} anos` : ""}
                                 </p>
                             )}
 
@@ -504,9 +723,17 @@ function NewMarkModal({ onclose, onSuccess }) {
                                 const servicosDoItem = servicos.filter((servico) => (
                                     String(servico.categoria_id) === String(item.categoria_id)
                                 ));
+                                const modalidades = modalidadesCache[item.servico_id] || [];
+                                const aplicacoes = servicoSelecionado?.permite_aplicacoes ? (aplicacoesCache[item.servico_id] || []) : [];
+                                const aplicacoesAssociadas = itens.filter(a =>
+                                    a.tipo_servico === 'Aplicacao' &&
+                                    String(a.servico_principal_id) === String(item.servico_id)
+                                );
+                                const isServicoPrincipal = item.tipo_servico === 'Servico';
                                 const contaParaFidelizacao = servicoContaParaFidelizacao(servicoSelecionado);
                                 const podeUsarBeneficio = beneficiosDisponiveis > 0
                                     && itemPodeSerGratuito(item, servicoSelecionado);
+
                                 return (
                                     <div className={`nm-item ${item.usar_beneficio_fidelizacao ? "free" : ""}`} key={index}>
                                         <div className="nm-item-fields">
@@ -525,7 +752,7 @@ function NewMarkModal({ onclose, onSuccess }) {
                                             </div>
 
                                             <div className="nm-field">
-                                                <label>Servico</label>
+                                                <label>{isServicoPrincipal ? 'Serviço' : 'Aplicação'}</label>
                                                 <select
                                                     className={`nm-select ${errors[`servico_${index}`] ? "input-invalido" : ""}`}
                                                     value={item.servico_id}
@@ -537,11 +764,15 @@ function NewMarkModal({ onclose, onSuccess }) {
                                                             ? "Escolha primeiro a categoria"
                                                             : servicosDoItem.length === 0
                                                                 ? "Sem servicos nesta categoria"
-                                                                : "Selecione o servico..."}
+                                                                : isServicoPrincipal ? "Selecione o servico..." : "Selecione a aplicação..."}
                                                     </option>
-                                                    {servicosDoItem.map((servico) => (
+                                                    {isServicoPrincipal ? servicosDoItem.map((servico) => (
                                                         <option key={servico.id} value={servico.id}>
                                                             {servico.nome} ({Number(servico.valor).toLocaleString("pt-MZ")} MT){servico.elegivel_fidelizacao ? " · fidelizacao" : ""}
+                                                        </option>
+                                                    )) : servicos.filter(s => s.tipo_servico === 'Aplicacao' && s.estado === 'Ativo').map((aplicacao) => (
+                                                        <option key={aplicacao.id} value={aplicacao.id}>
+                                                            {aplicacao.nome} ({Number(aplicacao.valor).toLocaleString("pt-MZ")} MT)
                                                         </option>
                                                     ))}
                                                 </select>
@@ -550,7 +781,7 @@ function NewMarkModal({ onclose, onSuccess }) {
                                                         {errors[`servico_${index}`]}
                                                     </span>
                                                 )}
-                                                {contaParaFidelizacao && !item.usar_beneficio_fidelizacao && (
+                                                {(contaParaFidelizacao || isServicoPrincipal) && servicoSelecionado?.elegivel_fidelizacao && !item.usar_beneficio_fidelizacao && (
                                                     <span className="nm-loyalty-tag">
                                                         <Heart size={12} /> Conta para fidelizacao
                                                     </span>
@@ -561,6 +792,27 @@ function NewMarkModal({ onclose, onSuccess }) {
                                                     </span>
                                                 )}
                                             </div>
+
+                                            {isServicoPrincipal && modalidades.length > 0 && (
+                                                <div className="nm-field">
+                                                    <label>Modalidade</label>
+                                                    <select
+                                                        className="nm-select"
+                                                        value={item.modalidade_id}
+                                                        onChange={(e) => handleModalidadeChange(index, e.target.value)}
+                                                    >
+                                                        <option value="">Usar preço base</option>
+                                                        {modalidades.map((m) => (
+                                                            <option key={m.id} value={m.id}>
+                                                                {m.nome} ({m.faixa_etaria}) - {Number(m.valor).toLocaleString("pt-MZ")} MT
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    {item.modalidade_nome && (
+                                                        <span className="nm-hint">Modalidade: {item.modalidade_nome}</span>
+                                                    )}
+                                                </div>
+                                            )}
 
                                             <div className="nm-field">
                                                 <label>Funcionario</label>
@@ -588,7 +840,7 @@ function NewMarkModal({ onclose, onSuccess }) {
                                                 <input
                                                     type="number"
                                                     className={errors[`preco_${index}`] ? "input-invalido" : ""}
-                                                    min="1"
+                                                    min="0"
                                                     step="1"
                                                     value={item.preco_praticado}
                                                     onChange={(e) => handleItemChange(index, "preco_praticado", e.target.value)}
@@ -604,11 +856,46 @@ function NewMarkModal({ onclose, onSuccess }) {
                                                 )}
                                             </div>
 
+                                            {isServicoPrincipal && servicoSelecionado?.permite_aplicacoes && aplicacoes.length > 0 && (
+                                                <div className="nm-field nm-field-aplicacoes">
+                                                    <label>
+                                                        <Tag size={14} /> Aplicações associadas
+                                                    </label>
+                                                    <div className="aplicacoes-inline">
+                                                        {aplicacoesAssociadas.length > 0 && (
+                                                            <div className="aplicacoes-associadas-lista">
+                                                                {aplicacoesAssociadas.map((app, i) => (
+                                                                    <span key={i} className="aplicacao-tag">
+                                                                        {app.preco_praticado ? `${app.preco_praticado} MT` : '0 MT'} {servicos.find(s => String(s.id) === String(app.servico_id))?.nome || 'Aplicação'}
+                                                                        <button type="button" onClick={() => removerAplicacao(app.servico_id, item.servico_id)} className="btn-remove-inline" title="Remover">
+                                                                            <X size={12} />
+                                                                        </button>
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        <div className="aplicacoes-disponiveis-inline">
+                                                            {aplicacoes.filter(a => !aplicacoesAssociadas.some(aa => String(aa.servico_id) === String(a.id))).map((app) => (
+                                                                <button
+                                                                    key={app.id}
+                                                                    type="button"
+                                                                    className="btn-add-aplicacao"
+                                                                    onClick={() => adicionarAplicacao(item.servico_id, app)}
+                                                                    title="Adicionar aplicação"
+                                                                >
+                                                                    <Plus size={12} /> {app.nome} ({Number(app.valor).toLocaleString("pt-MZ")} MT)
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             <button
                                                 type="button"
                                                 className="nm-remove-btn"
                                                 onClick={() => removerItem(index)}
-                                                title="Remover servico"
+                                                title={isServicoPrincipal ? "Remover servico (e aplicações)" : "Remover aplicação"}
                                             >
                                                 <Trash2 size={18} />
                                             </button>
@@ -662,6 +949,69 @@ function NewMarkModal({ onclose, onSuccess }) {
                             )}
                         </div>
 
+                        {/* Resumo com descontos */}
+                        {(itensComServico.length > 0 || descontos.length > 0) && (
+                            <div className="nm-section nm-section-wide">
+                                <div className="nm-section-title">
+                                    <Receipt size={18} />
+                                    <span>Resumo e Descontos</span>
+                                </div>
+
+                                <div className="nm-resumo">
+                                    <div className="resumo-linha">
+                                        <span>Subtotal</span>
+                                        <strong>{total.toLocaleString("pt-MZ")} MT</strong>
+                                    </div>
+
+                                    {descontos.length > 0 && (
+                                        <>
+                                            {descontos.map((d, i) => (
+                                                <div key={i} className="resumo-linha desconto-linha">
+                                                    <span>
+                                                        {d.escopo === 'Atendimento' ? 'Desconto no atendimento' : `Desconto: ${itens.find(it => String(it.id) === String(d.atendimento_servico_id) || String(it.servico_id) === String(d.atendimento_servico_id))?.modalidade_nome || itens.find(it => String(it.servico_id) === String(d.atendimento_servico_id))?.nome || 'Serviço'}`}
+                                                        {d.tipo === 'Percentagem' && d.percentagem && ` (${d.percentagem}%)`}
+                                                    </span>
+                                                    <strong>- {Number(d.valor_desconto).toLocaleString("pt-MZ")} MT</strong>
+                                                    <button
+                                                        type="button"
+                                                        className="btn-remove-inline"
+                                                        onClick={() => removerDesconto(i)}
+                                                        title="Remover desconto"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            <div className="resumo-linha total-com-desconto">
+                                                <span>Total com descontos</span>
+                                                <strong>{totalComDescontos.toLocaleString("pt-MZ")} MT</strong>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    <div className="desconto-acoes">
+                                        <button
+                                            type="button"
+                                            className="nm-secondary-btn"
+                                            onClick={() => abrirDescontoModal()}
+                                        >
+                                            <Percent size={16} /> Desconto no Atendimento
+                                        </button>
+                                        {itensComServico.map((item) => (
+                                            <button
+                                                key={item.id}
+                                                type="button"
+                                                className="nm-secondary-btn"
+                                                onClick={() => abrirDescontoModal(item)}
+                                            >
+                                                <Minus size={16} /> Desconto: {item.modalidade_nome || 'Serviço'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {clienteId && (
                             <div className="nm-section nm-section-wide">
                                 <div className="nm-section-title">
@@ -669,40 +1019,10 @@ function NewMarkModal({ onclose, onSuccess }) {
                                     <span>Fidelizacao</span>
                                 </div>
                                 <FidelizacaoCard fidelizacao={fidelizacao} loading={carregandoFidelizacao} />
-                                {beneficiosDisponiveis > 0 && (
+                                {temServicoElegivel && (
                                     <p className="nm-hint">
-                                        O cartão está completo (5/5). Se este atendimento incluir serviços
-                                        elegíveis, o <strong>6.º serviço</strong> tem de ser gratuito, até{" "}
-                                        {LIMITE_FIDELIZACAO} MT. Marque <strong>apenas um</strong> serviço
-                                        como gratuito.
-                                    </p>
-                                )}
-                                {beneficiosDisponiveis > 0 && temServicoElegivel && !temServicoGratuito && (
-                                    <p className="nm-hint nm-hint-warning">
-                                        Falta selecionar qual dos serviços elegíveis será o 6.º gratuito.
-                                    </p>
-                                )}
-                                {beneficiosDisponiveis > 0
-                                    && !temServicoElegivel
-                                    && !temServicoGratuito
-                                    && itensComServico.length === itens.length
-                                    && itens.length > 0 && (
-                                        <p className="nm-hint nm-hint-warning">
-                                            Este atendimento não inclui serviços elegíveis. O 6.º serviço
-                                            gratuito continua pendente; escolha um serviço elegível até{" "}
-                                            {LIMITE_FIDELIZACAO} MT para o consumir.
-                                        </p>
-                                    )}
-                                {beneficiosDisponiveis === 0 && temServicoElegivel && (
-                                    <p className="nm-hint">
-                                        Este atendimento inclui serviço pago elegível: a marca será registada
-                                        automaticamente (uma marca por cliente por dia).
-                                    </p>
-                                )}
-                                {beneficiosDisponiveis > 0 && temServicoGratuito && (
-                                    <p className="nm-hint">
-                                        O 6.º serviço gratuito será consumido neste atendimento. Nenhum
-                                        serviço deste atendimento gera marca; o cartão reinicia em 0/5.
+                                        Este atendimento inclui servico elegivel: a marca sera registada automaticamente
+                                        (uma marca por cliente por dia).
                                     </p>
                                 )}
                             </div>
@@ -734,7 +1054,7 @@ function NewMarkModal({ onclose, onSuccess }) {
                                         <input
                                             type="number"
                                             min="0"
-                                            max={total || undefined}
+                                            max={totalComDescontos || undefined}
                                             step="1"
                                             value={valorPagamentoAtual}
                                             onChange={(e) => alterarPagamento("valor", e.target.value)}
@@ -746,13 +1066,11 @@ function NewMarkModal({ onclose, onSuccess }) {
 
                                 <div className={`nm-payment-balance ${saldo > 0 ? "pending" : "settled"}`}>
                                     <Wallet size={16} />
-                                    {total <= 0
-                                        ? "Sem valor a pagar: atendimento gratuito."
-                                        : valorPago <= 0
-                                            ? "Pagamento depois: o atendimento fica pendente."
-                                            : saldo > 0
-                                                ? `${valorPago.toLocaleString("pt-MZ")} MT pagos · faltam ${saldo.toLocaleString("pt-MZ")} MT.`
-                                                : "Pagamento total: o atendimento fica liquidado."}
+                                    {valorPago <= 0
+                                        ? "Pagamento depois: o atendimento fica pendente."
+                                        : saldo > 0
+                                            ? `${valorPago.toLocaleString("pt-MZ")} MT pagos · faltam ${saldo.toLocaleString("pt-MZ")} MT.`
+                                            : "Pagamento total: o atendimento fica liquidado."}
                                 </div>
 
                                 {errors.pagamento && (
@@ -767,7 +1085,7 @@ function NewMarkModal({ onclose, onSuccess }) {
                         <div className="nm-total">
                             <Receipt size={20} />
                             <span>Total do atendimento</span>
-                            <strong>{total.toLocaleString("pt-MZ")} MT</strong>
+                            <strong>{totalComDescontos.toLocaleString("pt-MZ")} MT</strong>
                         </div>
 
                         <div className="nm-footer-actions">
@@ -780,6 +1098,107 @@ function NewMarkModal({ onclose, onSuccess }) {
                         </div>
                     </footer>
                 </form>
+
+                {/* Modal de Desconto */}
+                {showDescontoModal && (
+                    <div className="modal-backdrop" onClick={fecharDescontoModal}>
+                        <section className="servico-modal open" onClick={(e) => e.stopPropagation()}>
+                            <header className="header-modal">
+                                <div className="header-text-modal">
+                                    <p className="headerer">
+                                        <strong>Aplicar Desconto</strong>
+                                        <span>{descontoForm.escopo === 'Atendimento' ? 'Desconto sobre o total do atendimento' : 'Desconto sobre um serviço específico'}</span>
+                                    </p>
+                                </div>
+                                <p className="plusIcon"><X onClick={fecharDescontoModal} /></p>
+                            </header>
+
+                            <form onSubmit={handleAplicarDesconto}>
+                                <div className="main-content">
+                                    <div className="form-group">
+                                        <label>Escopo</label>
+                                        <select
+                                            value={descontoForm.escopo}
+                                            onChange={(e) => handleDescontoChange("escopo", e.target.value)}
+                                        >
+                                            <option value="Servico">Serviço / Aplicação</option>
+                                            <option value="Atendimento">Atendimento completo</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="form-group">
+                                        <label>Tipo de desconto</label>
+                                        <select
+                                            value={descontoForm.tipo}
+                                            onChange={(e) => handleDescontoChange("tipo", e.target.value)}
+                                        >
+                                            <option value="Percentagem">Percentagem (%)</option>
+                                            <option value="Valor">Valor fixo (MT)</option>
+                                        </select>
+                                    </div>
+
+                                    {descontoForm.tipo === 'Percentagem' && (
+                                        <div className="form-group">
+                                            <label>Percentagem (%)</label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                step="0.01"
+                                                value={descontoForm.percentagem}
+                                                onChange={(e) => handleDescontoChange("percentagem", e.target.value)}
+                                                placeholder="Ex.: 10"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {descontoForm.tipo === 'Valor' && (
+                                        <div className="form-group">
+                                            <label>Valor do desconto (MT)</label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max={Number(descontoForm.valor_bruto) || undefined}
+                                                step="1"
+                                                value={descontoForm.valor_desconto}
+                                                onChange={(e) => handleDescontoChange("valor_desconto", e.target.value)}
+                                                placeholder="Ex.: 50"
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div className="form-group">
+                                        <label>Valor elegível</label>
+                                        <input
+                                            type="text"
+                                            value={Number(descontoForm.valor_bruto).toLocaleString("pt-MZ") + " MT"}
+                                            readOnly
+                                        />
+                                    </div>
+
+                                    {errors.desconto && (
+                                        <span className="field-error" role="alert">{errors.desconto}</span>
+                                    )}
+
+                                    <div className="desconto-preview">
+                                        <strong>Prévia: Desconto de {descontoForm.tipo === 'Percentagem' ? descontoForm.percentagem + '%' : (Number(descontoForm.valor_desconto) || 0).toLocaleString("pt-MZ") + ' MT'}</strong>
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        className="submit-btn"
+                                        disabled={loading}
+                                    >
+                                        <span className="btn-icon">
+                                            <CheckCircle2 size={16} />
+                                        </span>
+                                        Aplicar Desconto
+                                    </button>
+                                </div>
+                            </form>
+                        </section>
+                    </div>
+                )}
 
                 {confirmOpen && (
                     <div
@@ -825,19 +1244,27 @@ function NewMarkModal({ onclose, onSuccess }) {
                                         <strong>{itensComServico.length}</strong>
                                     </div>
                                     <div className="nm-summary-row">
-                                        <span>Total</span>
+                                        <span>Subtotal</span>
                                         <strong>{total.toLocaleString("pt-MZ")} MT</strong>
+                                    </div>
+                                    {totalDescontos > 0 && (
+                                        <div className="nm-summary-row">
+                                            <span>Descontos</span>
+                                            <strong>- {totalDescontos.toLocaleString("pt-MZ")} MT</strong>
+                                        </div>
+                                    )}
+                                    <div className="nm-summary-row">
+                                        <span>Total</span>
+                                        <strong>{totalComDescontos.toLocaleString("pt-MZ")} MT</strong>
                                     </div>
                                     <div className="nm-summary-row">
                                         <span>Pagamento</span>
                                         <strong>
-                                            {total <= 0
-                                                ? "Sem valor a pagar"
-                                                : !podePagar
-                                                    ? "Sem permissao para registar"
-                                                    : valorPago <= 0
-                                                        ? "Pendente"
-                                                        : `${pagamento.metodo} · ${valorPago.toLocaleString("pt-MZ")} MT`}
+                                            {!podePagar
+                                                ? "Sem permissao para registar"
+                                                : valorPago <= 0
+                                                    ? "Pendente"
+                                                    : `${pagamento.metodo} · ${valorPago.toLocaleString("pt-MZ")} MT`}
                                         </strong>
                                     </div>
                                     <div className="nm-summary-row">
@@ -846,7 +1273,6 @@ function NewMarkModal({ onclose, onSuccess }) {
                                             {fidelizacao?.cartao
                                                 ? `${fidelizacao.marcas_no_ciclo}/${fidelizacao.meta} marcas`
                                                 : "Sem cartao ativo"}
-                                            {temServicoGratuito ? " · 6.º serviço grátis" : ""}
                                         </strong>
                                     </div>
                                 </div>
@@ -860,43 +1286,48 @@ function NewMarkModal({ onclose, onSuccess }) {
                                                 <li key={index}>
                                                     <span>
                                                         <strong>{servico?.nome || "Servico"}</strong>
+                                                        {item.modalidade_nome && <small> · {item.modalidade_nome}</small>}
                                                         <small>{servico?.categoria_nome || "Sem categoria"}</small>
+                                                        {item.usar_beneficio_fidelizacao && <span className="nm-loyalty-tag free"><Gift size={10} /> Grátis</span>}
                                                     </span>
                                                     <span>{funcionario?.nome || "Sem funcionario"}</span>
-                                                    <strong>
-                                                        {item.usar_beneficio_fidelizacao
-                                                            ? "Grátis"
-                                                            : `${Number(item.preco_praticado || 0).toLocaleString("pt-MZ")} MT`}
-                                                    </strong>
+                                                    <strong>{Number(item.preco_praticado || 0).toLocaleString("pt-MZ")} MT</strong>
                                                 </li>
                                             );
                                         })}
                                     </ul>
                                 )}
 
+                                {descontos.length > 0 && (
+                                    <ul className="nm-summary-services">
+                                        {descontos.map((d, i) => (
+                                            <li key={i} style={{ color: '#e74c3c' }}>
+                                                <span>
+                                                    {d.escopo === 'Atendimento' ? 'Desconto no atendimento' : 'Desconto no serviço'}
+                                                    {d.tipo === 'Percentagem' && d.percentagem && ` (${d.percentagem}%)`}
+                                                </span>
+                                                <span></span>
+                                                <strong>- {Number(d.valor_desconto).toLocaleString("pt-MZ")} MT</strong>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+
                                 <div className={`nm-payment-balance ${saldo > 0 ? "pending" : "settled"}`}>
                                     <Wallet size={16} />
-                                    {total <= 0
-                                        ? "Sem valor a pagar: atendimento gratuito."
-                                        : !podePagar
-                                            ? "Sem permissao para registar pagamento; o atendimento fica pendente."
-                                            : valorPago <= 0
-                                                ? `Pagamento pendente: faltam ${total.toLocaleString("pt-MZ")} MT.`
-                                                : saldo > 0
-                                                    ? `${valorPago.toLocaleString("pt-MZ")} MT pagos · faltam ${saldo.toLocaleString("pt-MZ")} MT.`
-                                                    : "Pagamento total: o atendimento fica liquidado."}
+                                    {!podePagar
+                                        ? "Sem permissao para registar pagamento; o atendimento fica pendente."
+                                        : valorPago <= 0
+                                            ? `Pagamento pendente: faltam ${totalComDescontos.toLocaleString("pt-MZ")} MT.`
+                                            : saldo > 0
+                                                ? `${valorPago.toLocaleString("pt-MZ")} MT pagos · faltam ${saldo.toLocaleString("pt-MZ")} MT.`
+                                                : "Pagamento total: o atendimento fica liquidado."}
                                 </div>
 
-                                {temServicoGratuito && (
+                                {temServicoElegivel && (
                                     <p className="nm-hint">
-                                        Será usado o <strong>6.º serviço grátis</strong>, num único serviço
-                                        elegível até {LIMITE_FIDELIZACAO} MT. O cartão reinicia em 0/5.
-                                    </p>
-                                )}
-                                {temServicoElegivel && !temServicoGratuito && (
-                                    <p className="nm-hint">
-                                        Este atendimento inclui serviço pago elegível. A marca de fidelização
-                                        do cliente será registada automaticamente (uma por cliente por dia).
+                                        Este atendimento inclui servico elegivel. A marca de fidelizacao do cliente
+                                        sera registada automaticamente (uma por cliente por dia).
                                     </p>
                                 )}
                             </div>

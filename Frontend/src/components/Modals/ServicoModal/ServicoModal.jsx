@@ -488,8 +488,8 @@ function ServicoModal({ onclose, servico = null, onSuccess }) {
                                                         onChange={(e) => handleNovaModalidadeChange("faixa_etaria", e.target.value)}
                                                     >
                                                         <option value="Geral">Geral (qualquer idade)</option>
-                                                        <option value="Adulto">Adulto (≥ 18 anos)</option>
-                                                        <option value="Crianca">Criança (< 18 anos)</option>
+                                                        <option value="Adulto">Adulto (18+ anos)</option>
+                                                        <option value="Crianca">Crian&ccedil;a (at&eacute; 17 anos)</option>
                                                     </select>
                                                 </div>
                                                 <div className="modalidade-field">

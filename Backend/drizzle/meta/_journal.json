@@ -43,6 +43,13 @@
       "when": 1792955987770,
       "tag": "0005_dapper_harry_osborn",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792959254907,
+      "tag": "0006_powerful_firelord",
+      "breakpoints": true
     }
   ]
 }
