@@ -5,5 +5,6 @@ export * from './rh.js';
 export * from './atendimentos.js';
 export * from './fidelizacao.js';
 export * from './financeiro.js';
+export * from './movimento_estoque.js';
 export * from './auditoria.js';
 export * from './legacy.js';

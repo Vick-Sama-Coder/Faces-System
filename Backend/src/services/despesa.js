@@ -2,6 +2,7 @@ import db from '../db/client.js';
 import Despesa from '../repository/despesa.js';
 import Caixa from '../repository/caixa.js';
 import AuditoriaService from './auditoria.js';
+import MovimentoEstoqueService from './movimento_estoque.js';
 import { criarErro } from '../utils/erro.js';
 
 //derivar o total dos itens evita divergencia entre o detalhe e o valor guardado
@@ -40,6 +41,15 @@ const criar = async (dados, registado_por) => {
                     quantidade: item.quantidade,
                     preco_unitario: item.preco_unitario,
                     valor_total: Number(item.quantidade) * Number(item.preco_unitario)
+                });
+
+                // Registar automaticamente entrada de stock para cada produto da despesa
+                await MovimentoEstoqueService.registrarEntrada({
+                    produto_id: item.produto_id,
+                    quantidade: item.quantidade,
+                    motivo: `Compra de stock para ${dados.descricao}`,
+                    registado_por,
+                    despesa_id
                 });
             }
         }

@@ -16,6 +16,7 @@ import pagamentoRoutes from './routes/pagamento.js'
 import comissaoRoutes from './routes/comissao.js'
 import caixaRoutes from './routes/caixa.js'
 import despesaRoutes from './routes/despesa.js'
+import movimentoEstoqueRoutes from "./routes/movimento_estoque.js";
 import fidelizacaoRoutes from './routes/fidelizacao.js'
 import horarioRoutes from './routes/horario.js'
 import assiduidadeRoutes from './routes/assiduidade.js'
@@ -58,6 +59,7 @@ app.use("/api", pagamentoRoutes);
 app.use("/api", comissaoRoutes);
 app.use("/api", caixaRoutes);
 app.use("/api", despesaRoutes);
+app.use("/api", movimentoEstoqueRoutes);
 app.use("/api", fidelizacaoRoutes);
 app.use("/api", horarioRoutes);
 app.use("/api", assiduidadeRoutes);
