@@ -25,18 +25,17 @@ const getServicoById = async (req, res, next) => {
 
 const createServico = async (req, res, next) => {
     try {
-        const { nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id } = req.body;
+        const { nome, descricao, valor, duracao_min, tipo_preco, tipo_servico, permite_aplicacoes, elegivel_fidelizacao, categoria_id } = req.body;
 
         if (!nome || valor === undefined || !categoria_id) {
             return res.status(400).json({ message: "Os campos nome, valor e categoria_id sao obrigatorios" });
         }
 
-        const erroFidelizacao = validarElegibilidadeFidelizacao(valor, elegivel_fidelizacao);
-        if (erroFidelizacao) {
-            return res.status(400).json({ field: "elegivel_fidelizacao", message: erroFidelizacao });
+        if (valor !== undefined && Number(valor) < 0) {
+            return res.status(400).json({ field: "valor", message: "O valor nao pode ser negativo" });
         }
 
-        const servico = await Servico.create({ nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id });
+        const servico = await Servico.create({ nome, descricao, valor, duracao_min, tipo_preco, tipo_servico, permite_aplicacoes, elegivel_fidelizacao, categoria_id });
 
         res.status(201).json(servico);
     } catch (error) {
@@ -48,6 +47,15 @@ const createServico = async (req, res, next) => {
         if (error.code === "23505") {
             return res.status(409).json({ field: "nome", message: "Ja existe um servico ativo com este nome" });
         }
+        //23514 = check constraint violado
+        if (error.code === "23514") {
+            if (error.message.includes('servico_tipo_servico_check')) {
+                return res.status(400).json({ field: "tipo_servico", message: "Tipo de servico invalido: use 'Servico' ou 'Aplicacao'" });
+            }
+            if (error.message.includes('servico_valor_check')) {
+                return res.status(400).json({ field: "valor", message: "O valor nao pode ser negativo" });
+            }
+        }
         next(error);
     }
 };
@@ -55,12 +63,16 @@ const createServico = async (req, res, next) => {
 const updateServico = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id } = req.body;
+        const { nome, descricao, valor, duracao_min, tipo_preco, tipo_servico, permite_aplicacoes, elegivel_fidelizacao, categoria_id } = req.body;
 
         if (nome === undefined && descricao === undefined && valor === undefined &&
-            duracao_min === undefined && tipo_preco === undefined &&
-            elegivel_fidelizacao === undefined && categoria_id === undefined) {
+            duracao_min === undefined && tipo_preco === undefined && tipo_servico === undefined &&
+            permite_aplicacoes === undefined && elegivel_fidelizacao === undefined && categoria_id === undefined) {
             return res.status(400).json({ message: "Nenhum campo para atualizar foi enviado" });
+        }
+
+        if (valor !== undefined && Number(valor) < 0) {
+            return res.status(400).json({ field: "valor", message: "O valor nao pode ser negativo" });
         }
 
         const atual = await Servico.findById(id);
@@ -68,18 +80,7 @@ const updateServico = async (req, res, next) => {
             return res.status(404).json({ message: "Servico nao encontrado" });
         }
 
-        //ao alterar o preco ou a elegibilidade, valida o estado final do servico
-        const erroFidelizacao = validarElegibilidadeFidelizacao(
-            valor !== undefined && valor !== null ? valor : atual.valor,
-            elegivel_fidelizacao !== undefined && elegivel_fidelizacao !== null
-                ? elegivel_fidelizacao
-                : atual.elegivel_fidelizacao
-        );
-        if (erroFidelizacao) {
-            return res.status(400).json({ field: "elegivel_fidelizacao", message: erroFidelizacao });
-        }
-
-        const servico = await Servico.update(id, { nome, descricao, valor, duracao_min, tipo_preco, elegivel_fidelizacao, categoria_id });
+        const servico = await Servico.update(id, { nome, descricao, valor, duracao_min, tipo_preco, tipo_servico, permite_aplicacoes, elegivel_fidelizacao, categoria_id });
 
         //alterar o preco grava historico e nao afeta atendimentos passados (RN15/RN19/RN20)
         if (valor !== undefined && valor !== null && Number(valor) !== atual.valor) {
@@ -98,6 +99,11 @@ const updateServico = async (req, res, next) => {
         }
         if (error.code === "23505") {
             return res.status(409).json({ field: "nome", message: "Ja existe um servico ativo com este nome" });
+        }
+        if (error.code === "23514") {
+            if (error.message.includes('servico_tipo_servico_check')) {
+                return res.status(400).json({ field: "tipo_servico", message: "Tipo de servico invalido: use 'Servico' ou 'Aplicacao'" });
+            }
         }
         next(error);
     }
@@ -159,6 +165,177 @@ const deleteServico = async (req, res, next) => {
     }
 };
 
+// --- Modalidades ---
+
+const getModalidades = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const servico = await Servico.findById(id);
+
+        if (!servico) {
+            return res.status(404).json({ message: "Servico nao encontrado" });
+        }
+
+        res.status(200).json(await Servico.findModalidades(id));
+    } catch (error) {
+        next(error);
+    }
+};
+
+const createModalidade = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { nome, faixa_etaria, valor, ordem } = req.body;
+
+        const servico = await Servico.findById(id);
+        if (!servico) {
+            return res.status(404).json({ message: "Servico nao encontrado" });
+        }
+
+        if (!nome || valor === undefined) {
+            return res.status(400).json({ message: "Os campos nome e valor sao obrigatorios" });
+        }
+
+        if (valor !== undefined && Number(valor) < 0) {
+            return res.status(400).json({ field: "valor", message: "O valor nao pode ser negativo" });
+        }
+
+        const modalidade = await Servico.createModalidade({ servico_id: id, nome, faixa_etaria, valor, ordem });
+
+        res.status(201).json(modalidade);
+    } catch (error) {
+        if (error.code === "23505") {
+            return res.status(409).json({ field: "nome", message: "Ja existe uma modalidade ativa com este nome neste servico" });
+        }
+        if (error.code === "23514") {
+            if (error.message.includes('servico_modalidade_faixa_check')) {
+                return res.status(400).json({ field: "faixa_etaria", message: "Faixa etaria invalida: use 'Geral', 'Adulto' ou 'Crianca'" });
+            }
+            if (error.message.includes('servico_modalidade_valor_check')) {
+                return res.status(400).json({ field: "valor", message: "O valor nao pode ser negativo" });
+            }
+        }
+        next(error);
+    }
+};
+
+const updateModalidade = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { nome, faixa_etaria, valor, ordem, estado } = req.body;
+
+        if (valor !== undefined && Number(valor) < 0) {
+            return res.status(400).json({ field: "valor", message: "O valor nao pode ser negativo" });
+        }
+
+        const modalidade = await Servico.updateModalidade(id, { nome, faixa_etaria, valor, ordem, estado });
+
+        if (!modalidade) {
+            return res.status(404).json({ message: "Modalidade nao encontrada" });
+        }
+
+        res.status(200).json(modalidade);
+    } catch (error) {
+        if (error.code === "23505") {
+            return res.status(409).json({ field: "nome", message: "Ja existe uma modalidade ativa com este nome neste servico" });
+        }
+        if (error.code === "23514") {
+            if (error.message.includes('servico_modalidade_faixa_check')) {
+                return res.status(400).json({ field: "faixa_etaria", message: "Faixa etaria invalida: use 'Geral', 'Adulto' ou 'Crianca'" });
+            }
+            if (error.message.includes('servico_modalidade_valor_check')) {
+                return res.status(400).json({ field: "valor", message: "O valor nao pode ser negativo" });
+            }
+        }
+        next(error);
+    }
+};
+
+const deleteModalidade = async (req, res, next) => {
+    try {
+        const apagado = await Servico.deleteModalidade(req.params.id);
+
+        if (!apagado) {
+            return res.status(404).json({ message: "Modalidade nao encontrada" });
+        }
+
+        res.status(204).send();
+    } catch (error) {
+        next(error);
+    }
+};
+
+// --- Aplicacoes associadas ---
+
+const getAplicacoes = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const servico = await Servico.findById(id);
+
+        if (!servico) {
+            return res.status(404).json({ message: "Servico nao encontrado" });
+        }
+
+        res.status(200).json(await Servico.findAplicacoes(id));
+    } catch (error) {
+        next(error);
+    }
+};
+
+const associarAplicacao = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { aplicacao_id } = req.body;
+
+        const servico = await Servico.findById(id);
+        if (!servico) {
+            return res.status(404).json({ message: "Servico nao encontrado" });
+        }
+
+        if (!aplicacao_id) {
+            return res.status(400).json({ message: "O campo aplicacao_id e obrigatorio" });
+        }
+
+        // Verificar que a aplicacao existe e e do tipo Aplicacao
+        const aplicacao = await Servico.findById(aplicacao_id);
+        if (!aplicacao) {
+            return res.status(404).json({ message: "Aplicacao nao encontrada" });
+        }
+        if (aplicacao.tipo_servico !== 'Aplicacao') {
+            return res.status(400).json({ message: "O servico selecionado nao e uma aplicacao" });
+        }
+
+        await Servico.associarAplicacao(id, aplicacao_id);
+
+        res.status(200).json({ message: "Aplicacao associada com sucesso" });
+    } catch (error) {
+        if (error.code === "23503") {
+            return res.status(400).json({ message: "Servico ou aplicacao nao encontrado" });
+        }
+        if (error.code === "23514") {
+            return res.status(400).json({ message: "Nao e possivel associar um servico a ele proprio" });
+        }
+        next(error);
+    }
+};
+
+const desassociarAplicacao = async (req, res, next) => {
+    try {
+        const { id, aplicacaoId } = req.params;
+
+        const servico = await Servico.findById(id);
+        if (!servico) {
+            return res.status(404).json({ message: "Servico nao encontrado" });
+        }
+
+        await Servico.desassociarAplicacao(id, aplicacaoId);
+
+        res.status(200).json({ message: "Aplicacao desassociada com sucesso" });
+    } catch (error) {
+        next(error);
+    }
+};
+
 const ServicoController = {
     getServicos,
     getServicoById,
@@ -166,7 +343,14 @@ const ServicoController = {
     updateServico,
     updateEstadoServico,
     getHistoricoPrecos,
-    deleteServico
+    deleteServico,
+    getModalidades,
+    createModalidade,
+    updateModalidade,
+    deleteModalidade,
+    getAplicacoes,
+    associarAplicacao,
+    desassociarAplicacao
 };
 
 export default ServicoController;
