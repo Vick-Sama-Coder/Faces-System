@@ -1,15 +1,7 @@
 import { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore.js';
-
-//Enquanto nao se confere a sessao (/me), mostra o ecra de espera
-function Waiting(){
-    return (
-        <section className="container">
-            <p className="text">A verificar sessao...</p>
-        </section>
-    );
-}
+import AuthLoading from '../pages/auth/AuthLoading.jsx';
 
 //contas com a senha padrao (primeiro acesso) tem de definir uma nova senha
 function precisaDefinirSenha(user){
@@ -28,7 +20,7 @@ export function RequireAuth({ children }){
     }, [initialized, checkAuth]);
 
     if(!initialized){
-        return <Waiting/>;
+        return <AuthLoading/>;
     }
 
     if(!user){
@@ -54,7 +46,7 @@ export function RequirePermission({ children, permissoes }){
     }, [initialized, checkAuth]);
 
     if(!initialized){
-        return <Waiting/>;
+        return <AuthLoading/>;
     }
 
     if(!user){
@@ -86,7 +78,7 @@ export function RequireRole({ children, perfis }){
     }, [initialized, checkAuth]);
 
     if(!initialized){
-        return <Waiting/>;
+        return <AuthLoading/>;
     }
 
     if(!user){
@@ -116,7 +108,7 @@ export function RedirectIfAuth({ children }){
     }, [initialized, checkAuth]);
 
     if(!initialized){
-        return <Waiting/>;
+        return <AuthLoading/>;
     }
 
     if(user){

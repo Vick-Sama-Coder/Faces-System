@@ -2,7 +2,11 @@
 // Servicos geridos (Neon, Supabase, RDS...) exigem SSL; um PostgreSQL local
 // normalmente nao o tem ativo e a ligacao seria recusada com "connection is
 // insecure". Controla-se com DATABASE_SSL no .env.
-const HOSTS_LOCAIS = ['localhost', '127.0.0.1', '::1', ''];
+export const HOSTS_LOCAIS = ['localhost', '127.0.0.1', '::1', ''];
+
+export function hostLocal() {
+    return HOSTS_LOCAIS.includes(String(process.env.DATABASE_HOST ?? '').toLowerCase());
+}
 
 // O certificado e validado por omissao. DATABASE_SSL_REJECT_UNAUTHORIZED=false
 // desativa a validacao (apenas para ambientes com proxies/certificados proprios).
@@ -23,7 +27,7 @@ export function sslConfig() {
     }
 
     // Sem valor explicito: SSL em hosts remotos, desligado em localhost.
-    return HOSTS_LOCAIS.includes(process.env.DATABASE_HOST) ? false : opcoesSsl();
+    return hostLocal() ? false : opcoesSsl();
 }
 
 export default sslConfig;

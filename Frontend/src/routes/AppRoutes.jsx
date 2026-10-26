@@ -1,8 +1,12 @@
 import { Routes, Route } from "react-router";
 
-import Home from '../pages/home.jsx'
-import Register from "../pages/auth/Resgister/SignUp.jsx";
+
+
 import FirstAccess from "../pages/auth/FirstAccess/FirstAccess.jsx";
+import LoginPage from "../pages/auth/Login/LoginPage.jsx";
+import RegisterPage from "../pages/auth/Register/RegisterPage.jsx";
+import ForgotPasswordPage from "../pages/auth/ForgotPassword/ForgotPasswordPage.jsx";
+
 import DashBoard from "../pages/dashboard/dashboard.jsx";
 import Clientes from "../pages/clientes/clientes.jsx";
 import Despesas from "../pages/despesas/despesas.jsx"
@@ -32,8 +36,11 @@ export default function AppRoutes(){
             <Route path="/primeiro-acesso" element={<RequireSession><FirstAccess/></RequireSession>}/>
 
             {/* --- rotas publicas de auth --- */}
-            <Route path="/login" element={<RedirectIfAuth><Home/></RedirectIfAuth>}/>
-            <Route path="/register" element={<RedirectIfAuth><Register/></RedirectIfAuth>} />
+
+            <Route path="/login" element={<RedirectIfAuth><LoginPage/></RedirectIfAuth>}/>
+            <Route path="/register" element={<RedirectIfAuth><RegisterPage/></RedirectIfAuth>} />
+            <Route path="/forgotpass" element={<ForgotPasswordPage/>}/>
+
 
             {/* --- rotas de operacao: exigem a permissao correspondente --- */}
             <Route path="/clientes" element={
