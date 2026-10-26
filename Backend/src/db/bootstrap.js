@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 import pg from 'pg';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import db, { pool } from './client.js';
-import { sslConfig } from '../config/pgSsl.js';
+import { hostLocal, sslConfig } from '../config/pgSsl.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,16 +31,71 @@ function configBase(database) {
     };
 }
 
+function baseManutencao() {
+    if (process.env.DATABASE_MAINTENANCE_DB) {
+        return process.env.DATABASE_MAINTENANCE_DB;
+    }
+
+    // Em localhost usamos "postgres" por omissao. Num host remoto (Neon,
+    // Supabase, RDS...) nao assumimos que essa base exista nem que o role
+    // tenha permissao para CREATE DATABASE.
+    return hostLocal() ? 'postgres' : null;
+}
+
+function erroLigacao(erro) {
+    const host = process.env.DATABASE_HOST || '(host nao definido)';
+    const porta = process.env.DATABASE_PORT || 5432;
+    const base = process.env.DATABASE_NAME || '(base nao definida)';
+
+    if (erro?.code === '28P01') {
+        return new Error(
+            `Falha de autenticacao na base de dados ${host}:${porta}/${base}. ` +
+            'Confirma DATABASE_USER e DATABASE_PASSWORD no Backend/.env. ' +
+            'Devem ser exatamente os valores da connection string do provedor.',
+            { cause: erro }
+        );
+    }
+
+    if (erro?.code === '3D000') {
+        return new Error(
+            `A base de dados "${base}" nao existe em ${host}. ` +
+            'Cria-a no painel do provedor ou define DATABASE_MAINTENANCE_DB para uma base existente.',
+            { cause: erro }
+        );
+    }
+
+    if (['ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED', 'ETIMEDOUT', 'ECONNRESET'].includes(erro?.code)) {
+        return new Error(
+            `Nao foi possivel ligar a base de dados em ${host}:${porta}. ` +
+            'Verifica o host, a porta, a rede e a configuracao SSL.',
+            { cause: erro }
+        );
+    }
+
+    return erro;
+}
+
 // Cria a base de dados se nao existir, ligando a base de manutencao.
 // Substitui o antigo 000_create_database_SalaoFaces.sql, mas sem apagar dados.
 export async function ensureDatabaseExists() {
     const nome = process.env.DATABASE_NAME;
 
+    if (!process.env.DATABASE_HOST) {
+        throw new Error('DATABASE_HOST nao esta definido no .env');
+    }
+
     if (!nome) {
         throw new Error('DATABASE_NAME nao esta definido no .env');
     }
 
-    const client = new Client(configBase(process.env.DATABASE_MAINTENANCE_DB || 'postgres'));
+    const manutencao = baseManutencao();
+
+    if (!manutencao) {
+        console.log('[db] Host remoto sem DATABASE_MAINTENANCE_DB; criacao automatica de base desativada.');
+        return;
+    }
+
+    const client = new Client(configBase(manutencao));
 
     try {
         await client.connect();
@@ -126,10 +181,22 @@ async function estadoDaBase() {
 // O erro anterior era saltar o migrate quando existiam linhas em perfil/usuario,
 // deixando a base presa num schema antigo.
 export async function bootstrapDatabase() {
-    await ensureDatabaseExists();
+    try {
+        await ensureDatabaseExists();
+    } catch (erro) {
+        throw erroLigacao(erro);
+    }
+
     await ensureMigrationsExist();
 
-    const { tabela_principal: tabelaPrincipal, historico } = await estadoDaBase();
+    let estado;
+    try {
+        estado = await estadoDaBase();
+    } catch (erro) {
+        throw erroLigacao(erro);
+    }
+
+    const { tabela_principal: tabelaPrincipal, historico } = estado;
 
     if (tabelaPrincipal && !historico) {
         throw new Error(
@@ -138,7 +205,11 @@ export async function bootstrapDatabase() {
         );
     }
 
-    await migrate(db, { migrationsFolder: MIGRATIONS_DIR });
+    try {
+        await migrate(db, { migrationsFolder: MIGRATIONS_DIR });
+    } catch (erro) {
+        throw erroLigacao(erro);
+    }
 
     if (tabelaPrincipal) {
         console.log('[db] Migracoes pendentes aplicadas.');

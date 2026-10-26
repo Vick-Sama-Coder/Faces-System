@@ -1,7 +1,7 @@
 {
   "type": "module",
   "scripts": {
-    "dev": "nodemon --watch src src/server.js",
+    "dev": "nodemon --watch src --watch .env src/server.js",
     "dev:full":"sudo systemctl start postgresql && npm run dev",
     "start": "node src/server.js",
     "db:generate": "drizzle-kit generate",

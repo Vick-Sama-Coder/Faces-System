@@ -1,8 +1,7 @@
-import pg, { Client } from 'pg';
+import pg from 'pg';
 import dotenv from 'dotenv';
 import path from 'path'
 import { fileURLToPath } from 'url';
-import { error } from 'console';
 import net from 'node:net';
 import { sslConfig } from './pgSsl.js';
 
@@ -24,21 +23,26 @@ const { Pool } = pg;
 //criando a ponte de conxecao na base de dados SalaoFaces
 const pool = new Pool({
   host: process.env.DATABASE_HOST,
-  port: process.env.DATABASE_PORT,
+  port: Number(process.env.DATABASE_PORT) || 5432,
   database: process.env.DATABASE_NAME,
   user: process.env.DATABASE_USER,
   password: process.env.DATABASE_PASSWORD,
   ssl: sslConfig(),
-  connectionTimeoutMillis: 15000
+  connectionTimeoutMillis: 15000,
+  // Ajuda com bases geridas (Neon/Supabase), que podem ter ligacoes idle
+  // fechadas pelo servidor. A pool volta a abrir ligacoes quando necessario.
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000
 });
 
 pool.on("connect", () => {
   console.log("Database conectada ")
 });
 
-pool.on("error" , (err) => {
-  console.error("A conexao falhou com a base de dados: ", err)
-  process.exit(-1);
+// Um erro numa ligacao idle nao deve derrubar o backend. A pool remove a
+// ligacao invalida e cria outra no proximo pedido.
+pool.on("error", (err) => {
+  console.error("[db] Erro numa ligacao inativa da pool:", err.code || "", err.message);
 })
 
 export default pool;
