@@ -25,10 +25,11 @@ Definidas em `Frontend/src/routes/AppRoutes.jsx`:
 
 | Caminho | Página | Protecção |
 | --- | --- | --- |
-| `/` | `DashBoard` | `RequireAuth` |
+| `/` | `LandingPage` | pública (catálogo, sobre nós e contactos) |
+| `/dashboard` | `DashBoard` | `RequireAuth` |
 | `/perfil` | `Perfil` | `RequireAuth` |
-| `/login` | `Home` (login) | `RedirectIfAuth` |
-| `/register` | `SignUp` | `RedirectIfAuth` |
+| `/login` | `LoginPage` | `RedirectIfAuth` |
+| `/register` | `RegisterPage` | `RedirectIfAuth` |
 | `/primeiro-acesso` | `FirstAccess` | `RequireSession` (senha padrão por trocar) |
 | `/clientes` | `Clientes` | `RequirePermission` (`clientes:ler`/`clientes:escrever`) |
 | `/novoAtendimento` | `NovoAtendimento` | `RequirePermission` (`atendimentos:escrever`) |
@@ -46,6 +47,12 @@ Definidas em `Frontend/src/routes/AppRoutes.jsx`:
 `RequireAuth` exige sessão iniciada; `RequireSession` exige sessão mas permite a conta em
 primeiro acesso; `RequirePermission` exige sessão **e** pelo menos uma das permissões
 indicadas; `RedirectIfAuth` impede o login/registo de quem já tem sessão.
+
+As páginas de autenticação usam `AuthLayout`: no desktop o formulário fica à esquerda e o
+painel de marca/informação à direita; em ecrãs pequenos o painel de marca passa para cima.
+A troca entre `/login`, `/register` e `/primeiro-acesso` tem uma animação de entrada suave.
+O fluxo de recuperação de senha por telefone/SMS foi removido e já não existe rota
+`/forgotpass`.
 
 ## Estado global (Zustand)
 
@@ -95,6 +102,9 @@ persistido localmente.
 | `Headers` | `components/headers/header.jsx` | Cabeçalho com título, menu mobile, sino e utilizador |
 | `Card` | `components/card/` | Cartão de conteúdo/indicador |
 | `Logo` | `components/Logo/logo.jsx` | Logótipo |
+| `AuthLayout` | `pages/auth/AuthLayout.jsx` | Moldura das páginas de autenticação (formulário + painel de marca) |
+| `AuthField` / `PasswordField` | `pages/auth/components/` | Campos acessíveis dos formulários de autenticação |
+| `AuthButton` / `AuthAlert` | `pages/auth/components/` | Botão com estado de carregamento e alertas de erro/sucesso/info |
 | `DataGrid` | `components/DataGrid/DataGrid.jsx` | Tabela reutilizável (AG Grid) |
 | `ConfirmDialog` | `components/ConfirmDialog/ConfirmDialog.jsx` | Diálogo de confirmação |
 | `FidelizacaoCard` | `components/FidelizacaoCard/FidelizacaoCard.jsx` | Cartão de fidelização (marcas/benefício) |
@@ -120,9 +130,10 @@ Grupos sem itens visíveis são escondidos automaticamente.
 
 | Página | Caminho | Estado |
 | --- | --- | --- |
-| `home` (login) | `pages/home.jsx` | ✅ Ligada ao `authStore` (nome de utilizador + senha) |
-| `SignUp` (registo) | `pages/auth/Resgister/SignUp.jsx` | ✅ Nome + telefone; senha padrão `12345` |
-| `FirstAccess` | `pages/auth/FirstAccess/FirstAccess.jsx` | ✅ Define a nova senha obrigatória no primeiro acesso |
+| `LandingPage` | `pages/landing/LandingPage.jsx` | 🟡 Página pública com catálogo, sobre nós e contactos; alguns dados ainda são de exemplo |
+| `LoginPage` | `pages/auth/Login/LoginPage.jsx` | ✅ Login por nome de utilizador + senha; redireciona para primeiro acesso quando aplicável |
+| `RegisterPage` | `pages/auth/Register/RegisterPage.jsx` | ✅ Nome + telefone; a conta nasce com a senha inicial `12345` |
+| `FirstAccess` | `pages/auth/FirstAccess/FirstAccess.jsx` | ✅ Define a nova senha obrigatória, com validação local e do backend |
 | `dashboard` | `pages/dashboard/dashboard.jsx` | ✅ Dados reais via `/api/dashboard` |
 | `novoAtendimento` | `pages/novoAtendimento/novoAtendimento.jsx` | ✅ Lista, detalhe, pagamentos e fidelizacao |
 | `categorias` | `pages/categorias/categorias.jsx` | ✅ CRUD de categorias |

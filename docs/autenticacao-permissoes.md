@@ -170,12 +170,12 @@ próprio funcionário, stock e catálogo. A escrita é que exige a permissão in
   - `RequireAuth` — exige sessão; sem sessão redireciona para `/login`; se a conta ainda
     precisa de trocar a senha, redireciona para `/primeiro-acesso`.
   - `RequirePermission permissoes={[...]}` — exige pelo menos uma permissão efetiva;
-    caso contrário volta a `/`.
+    caso contrário volta a `/dashboard`.
   - `RequireRole perfis={[...]}` — mantido para compatibilidade, mas já não é usado nas
     rotas actuais.
   - `RequireSession` — exige apenas sessão (usado em `/primeiro-acesso`).
-  - `RedirectIfAuth` — usado em `/login` e `/register`; se já autenticado, segue para `/`
-    ou `/primeiro-acesso`.
+  - `RedirectIfAuth` — usado em `/login` e `/register`; se já autenticado, segue para
+    `/dashboard` ou `/primeiro-acesso`.
 - A **sidebar** tem grupos com a propriedade `perfis`; actualmente todos os itens têm
   `perfis: []`, pelo que são mostrados a qualquer utilizador autenticado. O controlo real
   de acesso é feito pelas guardas de rota e pelo backend.

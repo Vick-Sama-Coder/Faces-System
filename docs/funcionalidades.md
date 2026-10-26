@@ -24,9 +24,9 @@ Legenda: ✅ implementado · 🟡 parcial (API pronta, interface incompleta) · 
   actual) e altera a própria senha.
 - **Logout**: disponível na sidebar e no cabeçalho; limpa o cookie.
 
-## Dashboard (`/`) ✅
+## Dashboard (`/dashboard`) ✅
 
-Página inicial protegida por sessão, alimentada por `GET /api/dashboard`.
+Painel interno protegido por sessão, alimentado por `GET /api/dashboard`.
 
 - Cartões do **mês actual**: receita, despesas e resultado, com comparação ao mês anterior.
 - Indicadores operacionais: atendimentos de hoje/no mês, em andamento, pagos, clientes,
