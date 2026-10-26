@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import pg from 'pg';
+import { sslConfig } from '../config/pgSsl.js';
 
 dotenv.config();
 
@@ -20,7 +21,9 @@ const client = new Client({
     port: Number(process.env.DATABASE_PORT) || 5432,
     user: process.env.DATABASE_USER,
     password: process.env.DATABASE_PASSWORD,
-    database: process.env.DATABASE_MAINTENANCE_DB || 'postgres'
+    database: process.env.DATABASE_MAINTENANCE_DB || 'postgres',
+    ssl: sslConfig(),
+    connectionTimeoutMillis: 15000
 });
 
 try {

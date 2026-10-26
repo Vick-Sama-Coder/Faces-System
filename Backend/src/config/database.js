@@ -3,6 +3,12 @@ import dotenv from 'dotenv';
 import path from 'path'
 import { fileURLToPath } from 'url';
 import { error } from 'console';
+import net from 'node:net';
+import { sslConfig } from './pgSsl.js';
+
+// Servicos geridos (ex.: Neon) expoem varios IPs. O tempo de tentativa por
+// endereco do Node (250 ms) e curto para redes lentas e provoca ETIMEDOUT.
+net.setDefaultAutoSelectFamilyAttemptTimeout?.(2000);
 
 
 //Caminho do ficheiro atual
@@ -21,7 +27,9 @@ const pool = new Pool({
   port: process.env.DATABASE_PORT,
   database: process.env.DATABASE_NAME,
   user: process.env.DATABASE_USER,
-  password: process.env.DATABASE_PASSWORD
+  password: process.env.DATABASE_PASSWORD,
+  ssl: sslConfig(),
+  connectionTimeoutMillis: 15000
 });
 
 pool.on("connect", () => {

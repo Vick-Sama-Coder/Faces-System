@@ -5,6 +5,7 @@ import { spawnSync } from 'node:child_process';
 import pg from 'pg';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import db, { pool } from './client.js';
+import { sslConfig } from '../config/pgSsl.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,7 +25,9 @@ function configBase(database) {
         port: Number(process.env.DATABASE_PORT) || 5432,
         user: process.env.DATABASE_USER,
         password: process.env.DATABASE_PASSWORD,
-        database
+        database,
+        ssl: sslConfig(),
+        connectionTimeoutMillis: 15000
     };
 }
 
