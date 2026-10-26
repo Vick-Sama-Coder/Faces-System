@@ -110,36 +110,41 @@ export async function ensureMigrationsExist() {
     }
 }
 
-// Verifica se a base ja tem tabelas e/ou o historico de migracoes do Drizzle.
-async function estadoBase() {
+// Verifica se a base tem as tabelas principais e/ou o historico do Drizzle.
+async function estadoDaBase() {
     const { rows } = await pool.query(`
         select
-            (select count(*)::int
-               from information_schema.tables
-              where table_schema = 'public') as tabelas,
-            to_regclass('drizzle.__drizzle_migrations') is not null as historico
+            to_regclass('public.usuario') as tabela_principal,
+            to_regclass('drizzle.__drizzle_migrations') as historico
     `);
 
     return rows[0];
 }
 
 // Fluxo chamado no arranque da aplicacao (e pelo script db:migrate).
+// As migracoes sao sempre aplicadas, mesmo quando a base ja tem dados.
+// O erro anterior era saltar o migrate quando existiam linhas em perfil/usuario,
+// deixando a base presa num schema antigo.
 export async function bootstrapDatabase() {
     await ensureDatabaseExists();
     await ensureMigrationsExist();
 
-    const { tabelas, historico } = await estadoBase();
+    const { tabela_principal: tabelaPrincipal, historico } = await estadoDaBase();
 
-    // Base antiga (scripts SQL manuais): tem tabelas mas nao tem historico do
-    // Drizzle, pelo que o migrate falharia ao tentar recria-las.
-    if (tabelas > 0 && !historico) {
-        console.log('[db] Base de dados existente (schema manual detectado); pulando migracao.');
-        return;
+    if (tabelaPrincipal && !historico) {
+        throw new Error(
+            'A base de dados tem tabelas mas nao tem historico de migracoes Drizzle. ' +
+            'Faz backup e reconcilia o schema antes de arrancar a aplicacao.'
+        );
     }
 
-    // Base vazia (nova) ou ja gerida pelo Drizzle: o migrate e idempotente.
     await migrate(db, { migrationsFolder: MIGRATIONS_DIR });
-    console.log('[db] Migracoes aplicadas.');
+
+    if (tabelaPrincipal) {
+        console.log('[db] Migracoes pendentes aplicadas.');
+    } else {
+        console.log('[db] Base de dados criada e migracoes aplicadas.');
+    }
 }
 
 export { MIGRATIONS_DIR };
