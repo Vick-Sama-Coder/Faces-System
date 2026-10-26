@@ -22,8 +22,8 @@ Para cada módulo indica:
 
 ### 1.1. Requisitos
 
-- Node.js 18+ e npm
-- PostgreSQL a correr
+- Node.js 20+ e npm
+- PostgreSQL 13+ a correr
 - Ficheiro `Backend/.env` com:
 
 ```dotenv
@@ -32,6 +32,8 @@ DATABASE_PORT=5432
 DATABASE_USER=postgres
 DATABASE_PASSWORD=...
 DATABASE_NAME=SalaoFaces
+DATABASE_MAINTENANCE_DB=postgres
+DATABASE_SSL=false
 JWT_SECRET=uma-chave-longa-e-aleatoria
 CLIENT_URL=http://localhost:5173
 PORT=5000
@@ -56,58 +58,59 @@ BASE=http://localhost:5000/api
 
 ### 1.3. Recriar a base de dados do zero (opcional)
 
-O esquema é **recriado a partir dos scripts** (não há migrações `ALTER TABLE`). Isto apaga
-todos os dados:
+O schema e o seed são aplicados pelas migrações Drizzle. O comando seguinte **apaga** a
+base `DATABASE_NAME` e recria-a:
 
 ```bash
 cd Backend
-set -a && source ./.env && set +a
-export PGPASSWORD="$DATABASE_PASSWORD"
-
-# 000 corre contra a base "postgres" e recria a base SalaoFaces
-psql -h "$DATABASE_HOST" -p "$DATABASE_PORT" -U "$DATABASE_USER" -d postgres \
-  -f Database/schema/000_create_database_SalaoFaces.sql
-
-# 001..035 correm dentro da base SalaoFaces, por ordem
-for f in $(ls Database/schema/[0-9]*.sql | sort); do
-  [ "$(basename "$f")" = "000_create_database_SalaoFaces.sql" ] && continue
-  psql -h "$DATABASE_HOST" -p "$DATABASE_PORT" -U "$DATABASE_USER" -d "$DATABASE_NAME" -f "$f"
-done
+npm run db:reset
 ```
+
+O `npm run db:reset` usa as variáveis do `.env` e aplica todas as migrações
+(`drizzle/0000`–`0006`), incluindo o seed de perfis, permissões e categorias de despesa.
+Não é necessário executar os SQL de `Backend/Database/schema/` (referência histórica).
 
 ### 1.4. Criar o primeiro administrador
 
-O registo público cria sempre o perfil **Usuario (2)**. Para o primeiro administrador:
+O registo público cria sempre o perfil **Usuario (2)** com a senha padrão `12345`:
 
 ```bash
 curl -s -X POST "$BASE/auth/register" -H 'Content-Type: application/json' -d '{
   "nome": "Administrador",
-  "telefone": "821111111",
-  "senha": "Admin1234"
+  "telefone": "821111111"
 }'
 ```
 
-Depois promove-se a conta diretamente na base de dados:
+Resposta `201` com `senha_padrao: "12345"`. Depois promove-se a conta na base de dados:
 
 ```bash
 psql -h "$DATABASE_HOST" -p "$DATABASE_PORT" -U "$DATABASE_USER" -d "$DATABASE_NAME" \
-  -c "update usuario set id_perfil = 1 where telefone = 821111111;"
+  -c "update usuario set id_perfil = 1 where telefone = '821111111';"
 ```
 
 ### 1.5. Sessão (cookie) para os restantes testes
 
-A autenticação é feita por **cookie `httpOnly`** chamado `token`. Guarda-o num ficheiro:
+A autenticação é por **nome de utilizador** e cookie `httpOnly` chamado `token`. A conta
+acabada de criar está em primeiro acesso: o login com `12345` devolve
+`deve_alterar_senha: true` e é preciso definir a nova senha antes de continuar.
 
 ```bash
 JAR=/tmp/faces.cookies
 rm -f "$JAR"
 
+# login inicial com a senha padrão
 curl -s -c "$JAR" -X POST "$BASE/auth/login" \
   -H 'Content-Type: application/json' \
-  -d '{"telefone":"821111111","senha":"Admin1234"}'
+  -d '{"nome":"Administrador","senha":"12345"}'
+
+# define a senha definitiva
+curl -s -b "$JAR" -c "$JAR" -X POST "$BASE/auth/primeiro-acesso" \
+  -H 'Content-Type: application/json' \
+  -d '{"senha_nova":"Admin1234"}'
 ```
 
-A partir daqui, todos os pedidos autenticados usam `-b "$JAR" -c "$JAR"`.
+A partir daqui, todos os pedidos autenticados usam `-b "$JAR" -c "$JAR"`. Logins
+posteriores usam `{"nome":"Administrador","senha":"Admin1234"}`.
 
 ### 1.6. Atalho para os exemplos
 
@@ -150,9 +153,10 @@ Erros do PostgreSQL são traduzidos centralmente em `src/app.js`:
 | `23505` | `409` | duplicado (UNIQUE) |
 | `23514` | `400` | valor fora do intervalo (CHECK) |
 
-> **Importante:** o backend valida apenas se os campos obrigatórios estão preenchidos.
-> A validação de formato (datas, valores, máscaras) é responsabilidade do frontend, exceto
-> nas rotas de `auth` (nome/telefone/senha) e no período salarial.
+> **Importante:** o backend valida os campos obrigatórios e um conjunto crescente de
+> formatos (auth: nome/telefone/senha; clientes: sexo/idade e normalização do telefone;
+> atendimentos: preços e benefício; horários: dia/horas; salários: período). Nos restantes
+> recursos, a validação de formato é sobretudo responsabilidade do frontend.
 
 ---
 
@@ -168,7 +172,7 @@ Legenda: ✅ implementado · ⚠️ implementado com desvio/lacuna · ❌ não i
 | **RF04 — Gestão de serviços** | ✅ | `controller/servico.js` | CRUD, ativar/desativar, catálogo e histórico de preços. Serviço usado em atendimento não é apagável (`409`). |
 | **RF05 — Registo de atendimento** | ⚠️ | `services/atendimento.js` | Vários serviços, funcionário por linha, preço/desconto por linha, totais automáticos e `registado_por` OK. Cliente tem de ser criado numa chamada separada. |
 | **RF06 — Preços variáveis** | ✅ | `services/atendimento.js`, `repository/servico.js` | `tipo_preco` e `preco_praticado` por linha; alterar o catálogo não afeta transações antigas. |
-| **RF07 — Descontos** | ⚠️ | `services/atendimento.js` | Só desconto em **valor fixo** (percentagem pendente). Qualquer perfil com `atendimentos:escrever` (inclui `Usuario`) pode conceder desconto; não há permissão dedicada “só administradores”. |
+| **RF07 — Descontos** | ⚠️ | `services/atendimento.js` | Aceita desconto em **valor fixo** e em **percentagem** (`tipo = Valor`/`Percentagem`, com validação 0–100; o valor final é calculado no cliente). Qualquer perfil com `atendimentos:escrever` (inclui `Usuario`) pode conceder desconto; a política (fixo, percentagem ou ambos) continua em decisão na Fase 16. |
 | **RF08 — Pagamentos** | ⚠️ | `services/pagamento.js` | Parcelas e vários métodos OK; impede pagar **acima** do devido; comissão só na liquidação total. **Permite pagamento parcial** (`estado = Parcial`), o que na prática é crédito — RF08 diz “não serão permitidos pagamentos a crédito”. |
 | **RF09 — Anulações** | ⚠️ | `controller/atendimento.js`, `services/pagamento.js` | Preserva registo, exige motivo, audita e recalcula o estado do atendimento. **Mas não** anula o movimento de caixa, **não** invalida/remover a comissão e **não** exclui do relatório de receita os pagamentos de um atendimento anulado — a parte financeira da anulação está por fazer. |
 | **RF10 — Caixa** | ✅ | `services/caixa.js` | Caixa único, abertura, saldo inicial, entradas, saídas, levantamentos, saldo esperado, contagem e diferença. |
@@ -182,7 +186,7 @@ Legenda: ✅ implementado · ⚠️ implementado com desvio/lacuna · ❌ não i
 | **RF18 — Comissões** | ✅ | `repository/comissao.js` | 30% por omissão (ou taxa do funcionário/serviço), sobre `valor_final` após desconto, só com pagamento liquidado; consulta por funcionário/período. |
 | **RF19 — Aprovação salarial** | ✅ | `services/salario.js` | Consulta, deduções, aprovação (`salarios:aprovar`), pagamento e histórico; comissões passam a `Paga` ao pagar. |
 | **RF20 — Fidelização** | ✅ | `services/fidelizacao.js` | Ambos os sexos; serviços elegíveis até 200 MT; uma marca por dia; 5 marcas → cartão 5/5; o 6.º serviço é obrigatoriamente gratuito, escolhido pelo cliente dentro do limite, sem acumulação; histórico e correção auditada. O serviço gratuito e os restantes serviços desse atendimento não geram marca. |
-| **RF21 — Relatórios** | ⚠️ | `repository/relatorio.js` | Os 9 conjuntos de dados existem, mas o filtro é só `de`/`ate` (sem filtro por funcionário/serviço/método/estado em todos) e **não há exportação/impressão** (formatos pendentes, §16.9). |
+| **RF21 — Relatórios** | ⚠️ | `repository/relatorio.js`, `pages/relatorio/relatorio.jsx` | Os 10 conjuntos de dados existem (incluindo `financeiro`), com filtro `de`/`ate`; a interface exporta **CSV** e imprime/gera **PDF pelo browser**. Faltam filtros por funcionário/serviço/método/estado em todos os relatórios e uma exportação PDF gerada no servidor (decisão §16.9). |
 | **RF22 — Catálogo público** | ✅ | `routes/publico.js`, `repository/servico.js` | Sem autenticação; só ativos e campos de divulgação; inativo devolve `404`. |
 | **RF23 — Logs de auditoria** | ⚠️ | `services/auditoria.js`, `repository/auditoria.js` | Utilizador, data/hora, tipo, entidade, id e valores antes/depois; append-only por trigger. **Não** guarda “resultado da operação” nem registos de falhas (só grava em sucesso); **não** audita criação/edição/estado de contas. |
 | **RF24 — Cópias de segurança** | ❌ | — | Não existe script de backup/restauro documentado. |
@@ -229,10 +233,10 @@ POST /api/pagamentos/2/anular {"motivo":"teste"}
      { tipo_movimento:"Entrada", valor:1500, origem:"Pagamento", estado:"Ativo" }
    ]                                                               (RF09)
 
-# 4) conta com senha temporária
-POST /api/usuarios (sem "senha") -> 201 { senha_temporaria: "Faces-XXXXXX" }
-login com essa senha -> user.deve_alterar_senha = true
-GET /api/clientes com o mesmo cookie -> 200                       (RF01)
+# 4) conta criada com a senha padrão
+POST /api/usuarios (sem "senha") -> 201 { senha_padrao: "12345" }
+login com a senha 12345 -> user.deve_alterar_senha = true
+frontend redireciona para /primeiro-acesso; só depois de definir a nova senha entra (RF01)
 ```
 
 Estes quatro pontos são os que justificam as lacunas 1–3 de §3.1.
@@ -247,9 +251,11 @@ Estes quatro pontos são os que justificam as lacunas 1–3 de §3.1.
 
 | Método | Rota | Autenticação | Resultado |
 | --- | --- | --- | --- |
-| POST | `/auth/register` | pública | `201` utilizador criado com perfil `Usuario` (não inicia sessão) |
-| POST | `/auth/login` | pública | `200` + cookie `token` |
+| POST | `/auth/register` | pública | `201` conta criada com senha padrão `12345` (não inicia sessão) |
+| POST | `/auth/login` | pública | `200` + cookie `token` (`deve_alterar_senha` indica primeiro acesso) |
+| POST | `/auth/primeiro-acesso` | sessão | `200` nova senha definida (só com `alteracao_obrigatoria_senha = true`) |
 | GET | `/auth/me` | sessão | `200 { user }` com `permissoes` |
+| PATCH | `/auth/me` | sessão | `200` actualiza nome/telefone; exige `senha_atual` |
 | POST | `/auth/alterar-senha` | sessão | `200` |
 | GET | `/auth/users` | Administrador | `200 { users }` (rota legada) |
 | POST | `/auth/logout` | pública | `200`, limpa o cookie |
@@ -259,8 +265,7 @@ Estes quatro pontos são os que justificam as lacunas 1–3 de §3.1.
 ```bash
 curl -s -X POST "$BASE/auth/register" -H 'Content-Type: application/json' -d '{
   "nome": "Maria Silva",
-  "telefone": "841234567",
-  "senha": "Maria1234"
+  "telefone": "841234567"
 }'
 ```
 
@@ -268,7 +273,8 @@ Esperado `201`:
 
 ```json
 {
-  "message": "usuario registrado com sucesso",
+  "message": "conta criada com sucesso",
+  "senha_padrao": "12345",
   "user": { "id": 2, "nome": "Maria Silva", "telefone": 841234567, "perfil": "Usuario" }
 }
 ```
@@ -278,37 +284,33 @@ Esperado `201`:
 ```bash
 # nome com números -> 400 { field: "nome" }
 curl -s -X POST "$BASE/auth/register" -H 'Content-Type: application/json' \
-  -d '{"nome":"Maria 2","telefone":"841234567","senha":"Maria1234"}'
+  -d '{"nome":"Maria 2","telefone":"841234568"}'
 
 # telefone inválido -> 400 { field: "telefone" }
 curl -s -X POST "$BASE/auth/register" -H 'Content-Type: application/json' \
-  -d '{"nome":"Maria Silva","telefone":"123","senha":"Maria1234"}'
-
-# senha sem número -> 400 { field: "senha" }
-curl -s -X POST "$BASE/auth/register" -H 'Content-Type: application/json' \
-  -d '{"nome":"Maria Silva","telefone":"841234567","senha":"MariaSilva"}'
+  -d '{"nome":"Maria Silva","telefone":"123"}'
 
 # telefone já existente -> 400 { field: "telefone", message: "O usuario ja existe" }
 ```
 
-**Teste — login**
+**Teste — login e primeiro acesso**
 
 ```bash
 curl -s -c "$JAR" -X POST "$BASE/auth/login" -H 'Content-Type: application/json' \
-  -d '{"telefone":"821111111","senha":"Admin1234"}'
+  -d '{"nome":"Maria Silva","senha":"12345"}'
 ```
 
-Esperado `200`:
+Esperado `200` com `user.deve_alterar_senha: true`.
 
-```json
-{
-  "message": "login feito com sucesso",
-  "user": { "id": 1, "nome": "Administrador", "telefone": 821111111,
-            "perfil": "Administrador", "deve_alterar_senha": false }
-}
+```bash
+curl -s -b "$JAR" -c "$JAR" -X POST "$BASE/auth/primeiro-acesso" \
+  -H 'Content-Type: application/json' -d '{"senha_nova":"Maria1234"}'
 ```
 
-Erros: senha errada → `401`; telefone inexistente → `401`; conta `Inativo` → `403`.
+Esperado `200` com `user.deve_alterar_senha: false`. A partir daqui o login
+normal usa a nova senha.
+
+Erros: nome/senha errados → `401`; conta `Inativo` → `403`; nova senha fraca → `400`.
 
 **Teste — sessão**
 
@@ -317,6 +319,18 @@ curl -s -b "$JAR" "$BASE/auth/me"
 ```
 
 Esperado `200` com `user.permissoes` (lista de códigos efetivos).
+
+**Teste — actualizar o próprio perfil**
+
+```bash
+curl -s -b "$JAR" -X PATCH "$BASE/auth/me" \
+  -H 'Content-Type: application/json' \
+  -d '{"nome":"Administrador Geral","senha_atual":"Admin1234"}'
+# 200 { message: "Perfil atualizado com sucesso", user: {...} }
+```
+
+Erros: sem `senha_atual` → `400 { field: "senha_atual" }`; senha errada → `401`;
+nome/telefone já usados → `409`; nada para alterar → `400`.
 
 **Teste — troca de senha**
 
@@ -346,9 +360,9 @@ Esperado `200` e o cookie deixa de autenticar (`/auth/me` passa a `401`).
 | --- | --- | --- | --- |
 | GET | `/categorias` | autenticado | `200` array |
 | GET | `/categorias/:id` | autenticado | `200` / `404` |
-| POST | `/categorias` | Administrador | `201` |
-| PUT | `/categorias/:id` | Administrador | `200` |
-| DELETE | `/categorias/:id` | Administrador | `204` / `409` se tiver serviços |
+| POST | `/categorias` | `servicos:escrever` | `201` |
+| PUT | `/categorias/:id` | `servicos:escrever` | `200` |
+| DELETE | `/categorias/:id` | `servicos:escrever` | `204` / `409` se tiver serviços |
 
 ```bash
 curl -s -b "$JAR" -X POST "$BASE/categorias" \
@@ -366,7 +380,7 @@ curl -s -b "$JAR" -X DELETE "$BASE/categorias/999" -o /dev/null -w '%{http_code}
 # 404
 ```
 
-**Erros:** sem `nome` → `400`; sem sessão → `401`; perfil não Administrador → `403`.
+**Erros:** sem `nome` → `400`; sem sessão → `401`; sem `servicos:escrever` → `403`.
 
 ---
 
@@ -430,6 +444,33 @@ curl -s -b "$JAR" "$BASE/servicos/1"        # 200 (o detalhe continua acessível
 **Erros:** faltar `nome`/`valor`/`categoria_id` → `400`; categoria inexistente → `400`
 (`field: "categoria_id"`); nome ativo duplicado → `409` (`field: "nome"`); apagar serviço
 com atendimentos → `409`.
+
+**Teste — modalidades e aplicações**
+
+```bash
+# modalidades de preço
+curl -s -b "$JAR" -X POST "$BASE/servicos/1/modalidades" \
+  -H 'Content-Type: application/json' -d '{"nome":"Curto","valor":1000}'
+# 201
+curl -s -b "$JAR" "$BASE/servicos/1/modalidades"
+# 200 [ ... ]
+curl -s -b "$JAR" -X PUT "$BASE/servicos/modalidades/1" \
+  -H 'Content-Type: application/json' -d '{"valor":1200}'
+# 200
+curl -s -b "$JAR" -X DELETE "$BASE/servicos/modalidades/1" -o /dev/null -w '%{http_code}\n'
+# 204
+
+# aplicações/variações associadas
+curl -s -b "$JAR" -X POST "$BASE/servicos/1/aplicacoes" \
+  -H 'Content-Type: application/json' -d '{"aplicacao_id":2}'
+# 201
+curl -s -b "$JAR" "$BASE/servicos/1/aplicacoes"
+# 200 [ ... ]
+curl -s -b "$JAR" -X DELETE "$BASE/servicos/1/aplicacoes/2" -o /dev/null -w '%{http_code}\n'
+# 204
+```
+
+> Escrita requer `servicos:escrever`; sem a permissão → `403`.
 
 ---
 
@@ -654,6 +695,7 @@ RF06/RF07 (preço variável e desconto).
 | DELETE | `/atendimentos/:id/servicos/:itemId` | `atendimentos:escrever` | `204` |
 | PATCH | `/atendimentos/:id/concluir` | `atendimentos:escrever` | `200` |
 | POST | `/atendimentos/:id/anular` | `atendimentos:anular` | `200`; exige `motivo` |
+| POST | `/atendimentos/:id/descontos` | `atendimentos:escrever` | `200` atendimento atualizado |
 
 Corpo de criação:
 
@@ -702,6 +744,25 @@ curl -s -b "$JAR" -X POST "$BASE/atendimentos/1/servicos" \
 curl -s -b "$JAR" -X DELETE "$BASE/atendimentos/1/servicos/2" -o /dev/null -w '%{http_code}\n'
 # 204
 ```
+
+**Teste — aplicar desconto numa linha**
+
+```bash
+curl -s -b "$JAR" -X POST "$BASE/atendimentos/1/descontos" \
+  -H 'Content-Type: application/json' -d '{
+    "atendimento_servico_id": 1,
+    "escopo": "Servico",
+    "tipo": "Percentagem",
+    "percentagem": 10,
+    "valor_bruto": 2500,
+    "valor_desconto": 250,
+    "valor_final": 2250
+  }'
+# 200 atendimento com servicos[] e descontos[] atualizados
+```
+
+Erros: faltar campo → `400`; desconto negativo ou acima do valor bruto → `400`;
+percentagem fora de 0–100 → `400`; atendimento anulado → `409`.
 
 **Teste — anular**
 
@@ -1136,6 +1197,7 @@ Todas as rotas exigem `relatorios:ler` e aceitam `?de=AAAA-MM-DD&ate=AAAA-MM-DD`
 | Rota | Conteúdo | Forma |
 | --- | --- | --- |
 | `/relatorios/resumo` | receita, despesas, resultado | objeto |
+| `/relatorios/financeiro` | resumo, comparação, receitas, despesas e fluxo | objeto |
 | `/relatorios/caixa` | entradas, saídas, levantamentos, sessões | objeto |
 | `/relatorios/servicos` | serviços mais realizados | array |
 | `/relatorios/funcionarios` | serviços e comissões por funcionário | array |
@@ -1151,6 +1213,11 @@ curl -s -b "$JAR" "$BASE/relatorios/resumo?de=2026-10-01&ate=2026-10-31"
 
 curl -s -b "$JAR" "$BASE/relatorios/caixa?de=2026-10-01&ate=2026-10-31"
 # 200 { "entradas":2500, "saidas":1500, "levantamentos":200, "sessoes":[...] }
+
+curl -s -b "$JAR" "$BASE/relatorios/financeiro?de=2026-10-01&ate=2026-10-31"
+# 200 { "periodo":{...}, "resumo":{...}, "comparacao":{...},
+#       "receitas":{...}, "despesas":{...}, "fluxo":{...},
+#       "salarios":{...}, "dividas":{...}, "gerado_por":"...", "gerado_em":"..." }
 
 curl -s -b "$JAR" "$BASE/relatorios/servicos"
 # 200 [{servico_id, servico_nome, quantidade, total}]
@@ -1299,10 +1366,10 @@ Todas as rotas exigem `contas:gerir` (por omissão, Administrador).
 | --- | --- | --- |
 | GET | `/usuarios` | `200` array (sem senha) |
 | GET | `/usuarios/:id` | `200` / `404` |
-| POST | `/usuarios` | `201`; sem `senha` gera credencial temporária |
+| POST | `/usuarios` | `201`; sem `senha` usa a senha padrão `12345` e obriga a troca |
 | PUT | `/usuarios/:id` | `200` |
 | PATCH | `/usuarios/:id/estado` | `200` |
-| POST | `/usuarios/:id/repor-senha` | `200 { senha_temporaria }` |
+| POST | `/usuarios/:id/repor-senha` | `200 { senha_padrao: "12345" }` |
 | GET | `/usuarios/:id/permissoes` | `200 { efetivas, overrides }` |
 | PUT | `/usuarios/:id/permissoes` | `200` + auditoria |
 | GET | `/perfis` | `200` array |
@@ -1312,7 +1379,7 @@ Todas as rotas exigem `contas:gerir` (por omissão, Administrador).
 | PUT | `/perfis/:id/permissoes` | `200` + auditoria |
 | GET | `/permissoes` | `200` catálogo |
 
-**Criar conta com senha temporária**
+**Criar conta com a senha padrão**
 
 ```bash
 curl -s -b "$JAR" -X POST "$BASE/usuarios" -H 'Content-Type: application/json' -d '{
@@ -1322,11 +1389,11 @@ curl -s -b "$JAR" -X POST "$BASE/usuarios" -H 'Content-Type: application/json' -
 }'
 # 201 { user: {id, nome, telefone, id_perfil, estado:"Ativo",
 #              alteracao_obrigatoria_senha: true, ...},
-#       senha_temporaria: "Faces-AB12CD" }
+#       senha_padrao: "12345", senha_temporaria: "12345" }
 ```
 
-O login com essa senha devolve `deve_alterar_senha: true`. **Estado atual:** as restantes
-rotas continuam acessíveis (ver §3.1); a troca deve ser feita em `/auth/alterar-senha`.
+O login com `12345` devolve `deve_alterar_senha: true`. O frontend redireciona para
+`/primeiro-acesso` e só permite entrar no sistema depois de definir a nova senha.
 
 **Permissões individuais**
 
@@ -1352,6 +1419,66 @@ curl -s -b "$JAR" -X PUT "$BASE/perfis/2/permissoes" \
 **Erros:** faltar `nome`/`telefone`/`id_perfil` → `400`; telefone duplicado → `409`;
 perfil inexistente → `400`; lista de permissões inválida → `400`; `conceder`/`revogar` com
 código inexistente → erro de FK (`400`/`409`).
+
+---
+
+### 4.19. Dashboard — `/api/dashboard`
+
+**Porquê:** visão inicial com indicadores reais (mês actual, série de 6 meses, tops e
+atendimentos recentes).
+
+| Método | Rota | Autenticação | Esperado |
+| --- | --- | --- | --- |
+| GET | `/dashboard` | autenticado | `200` objeto com `resumo`, `indicadores`, `serie`, `top_servicos`, `top_funcionarios`, `recentes` e `fidelizacao` |
+
+```bash
+curl -s -b "$JAR" "$BASE/dashboard"
+# 200 {
+#   "atualizado_em": "...",
+#   "resumo": {"receita":..., "despesas":..., "resultado":..., ...},
+#   "indicadores": {"atendimentos_hoje":..., ...},
+#   "serie": [{"mes":"2026-05","receita":...,"despesas":...}],
+#   "top_servicos": [...], "top_funcionarios": [...],
+#   "recentes": [...], "fidelizacao": {"marcas":..., ...}
+# }
+```
+
+> Sem sessão → `401`. A receita ignora pagamentos anulados; as despesas contam apenas
+> despesas `Ativo`.
+
+---
+
+### 4.20. Stock — `/api/movimentos`, `/api/stock`, `/api/entrada|saida|ajuste`
+
+**Porquê:** controlo de entradas/saídas de produtos e saldo actual.
+
+| Método | Rota | Permissão | Esperado |
+| --- | --- | --- | --- |
+| GET | `/movimentos?produto_id=&tipo=&data_inicio=&data_fim=` | autenticado | `200` array |
+| GET | `/stock/:produto_id` | autenticado | `200` resumo calculado (entradas/saídas/ajustes) |
+| POST | `/entrada` | `estoque:escrever` | `201` movimento |
+| POST | `/saida` | `estoque:escrever` | `201` movimento |
+| POST | `/ajuste` | `estoque:escrever` | `201` movimento |
+
+```bash
+curl -s -b "$JAR" -X POST "$BASE/entrada" \
+  -H 'Content-Type: application/json' \
+  -d '{"produto_id":1,"quantidade":10,"motivo":"Compra"}'
+# 201 { id, produto_id, tipo, quantidade, ... }
+
+curl -s -b "$JAR" "$BASE/stock/1"
+# 200 { stock_minimo, total_entradas, total_saidas, total_ajustes, nota }
+
+curl -s -b "$JAR" "$BASE/movimentos?produto_id=1&tipo=entrada"
+# 200 [ ... ]
+```
+
+> **Atenção:** a permissão `estoque:escrever` não consta do seed inicial. Sem a conceder
+> manualmente, mesmo o Administrador recebe `403`. Saída sem stock suficiente deve ser
+> rejeitada (`400`/`409`).
+>
+> O frontend chama `POST /api/estoque/entrada|saida|ajuste`, que devolve `404`. As rotas
+> reais são `POST /api/entrada|saida|ajuste`.
 
 ---
 
@@ -1472,11 +1599,14 @@ Copia para o teu caderno de testes:
 ```text
 [ ] Servidor arranca e /api/auth/login devolve cookie
 [ ] /auth/me devolve permissoes do perfil
+[ ] PATCH /auth/me atualiza nome/telefone com senha_atual correta
 [ ] Sem cookie -> 401; com permissao insuficiente -> 403
 [ ] CRUD de categorias/servicos/clientes/funcionarios
+[ ] Modalidades e aplicacoes de servico
 [ ] Servico inativo nao entra no catalogo interno nem no publico
 [ ] Alterar preco cria registo em /servicos/:id/historico-precos
 [ ] Atendimento com 2 servicos soma totais e desconto
+[ ] POST /atendimentos/:id/descontos recalcula totais
 [ ] Servico inativo no atendimento -> 409
 [ ] Pagamento parcelado (Dinheiro + M-Pesa) -> Liquidado
 [ ] Pagar acima do devido -> 400
@@ -1487,6 +1617,9 @@ Copia para o teu caderno de testes:
 [ ] Fidelizacao: ambos os sexos, servico elegivel <=200 MT, 1 marca/dia, 5 -> 1 gratis, sem marca no ciclo seguinte
 [ ] Salario: Preparado -> Aprovado -> Pago; comissoes passam a Paga
 [ ] Relatorios devolvem arrays/objetos conforme a tabela
+[ ] Relatorio financeiro inclui resumo, comparacao, receitas, despesas e fluxo
+[ ] Dashboard devolve resumo, indicadores, serie, tops e recentes
+[ ] Stock: entrada, saida, ajuste e saldo por produto (com estoque:escrever concedido)
 [ ] Catalogo publico funciona sem cookie e nao expoe campos internos
 [ ] Auditoria append-only: UPDATE/DELETE falham na base de dados
 [ ] Conta inativa nao faz login (403)
@@ -1497,8 +1630,10 @@ Copia para o teu caderno de testes:
 
 ## 7. Limpeza após os testes
 
-Os testes criam dados. Para voltar ao estado limpo, apaga primeiro as tabelas dependentes
-(e desativa temporariamente o trigger da auditoria, porque é append-only):
+Os testes criam dados. A forma mais simples de voltar ao estado limpo é `npm run db:reset`
+(apaga e recria a base com o seed). Se preferires limpar só os dados de teste, apaga
+primeiro as tabelas dependentes (e desativa temporariamente o trigger da auditoria, porque
+é append-only):
 
 ```sql
 begin;
@@ -1511,12 +1646,14 @@ delete from cartao_fidelizacao;
 delete from comissao;
 delete from pagamento_parcela;
 delete from pagamento;
+delete from desconto_atendimento;
 delete from atendimento_servico;
 delete from atendimento;
 delete from horario_funcionario;
 delete from assiduidade;
 delete from deducao_salarial;
 delete from processamento_salarial;
+delete from movimento_estoque;
 delete from item_produto;
 delete from despesa;
 delete from movimento_caixa;

@@ -1,5 +1,9 @@
 # Controlo Mensal de Horários — Fase 1
 
+> 📌 **Nota:** este resumo descreve apenas a entrega do controlo mensal de horários. Para
+> o estado geral do projecto, consulte [docs/estado-e-pendencias.md](./docs/estado-e-pendencias.md)
+> e [docs/funcionalidades.md](./docs/funcionalidades.md).
+
 ## Estado
 
 - Página `/horarios` transformada em **controlo mensal de entrada/saída**.

@@ -1,5 +1,11 @@
 # Backlog de Histórias de Usuário — Sistema de Gestão de Salão de Beleza
 
+> 📌 **Nota de implementação:** este backlog descreve o comportamento **esperado**. O
+> estado real de cada módulo está em [funcionalidades.md](./funcionalidades.md) e as
+> lacunas conhecidas em [estado-e-pendencias.md](./estado-e-pendencias.md). Itens como
+> off-line, reservas e exportação PDF gerada no servidor ainda não estão implementados; a
+> impressão/PDF pelo browser já existe.
+
 ---
 
 ## Épico 1: Gestão de Atendimento

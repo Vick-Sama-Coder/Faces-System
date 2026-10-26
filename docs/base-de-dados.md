@@ -6,24 +6,30 @@ Base de dados: **PostgreSQL**, esquema `public`, base `SalaoFaces`.
 
 ## Schema Drizzle (fonte de verdade)
 
-O esquema passou a ser definido com **Drizzle ORM** em `Backend/src/db/schema/`,
-organizado por domínio:
+O esquema é definido com **Drizzle ORM** em `Backend/src/db/schema/`, organizado por
+domínio:
 
 | Ficheiro | Tabelas |
 | --- | --- |
-| `acesso.js` | `perfil`, `usuario`, `permissao`, `perfil_permissao`, `usuario_permissao`, `recuperacao_senha` |
-| `catalogo.js` | `categoria_salao`, `servico`, `historico_preco_servico`, `categoria_produto`, `produto` |
+| `acesso.js` | `perfil`, `usuario`, `permissao`, `perfil_permissao`, `usuario_permissao`, `recuperacao_senha`* |
+| `catalogo.js` | `categoria_salao`, `servico`, `servico_modalidade`, `servico_aplicacao`, `historico_preco_servico`, `categoria_produto`, `produto` |
 | `clientes.js` | `cliente` |
-| `atendimentos.js` | `atendimento`, `atendimento_servico`, `pagamento`, `pagamento_parcela`, `comissao`, `comissao_config` |
+| `atendimentos.js` | `atendimento`, `atendimento_servico`, `desconto_atendimento`, `pagamento`, `pagamento_parcela`, `comissao_config`, `comissao` |
 | `fidelizacao.js` | `cartao_fidelizacao`, `movimento_fidelizacao` |
 | `financeiro.js` | `categoria_despesa`, `caixa`, `caixa_sessao`, `movimento_caixa`, `despesa`, `item_produto` |
+| `movimento_estoque.js` | `movimento_estoque` |
 | `rh.js` | `funcionario`, `horario_funcionario`, `assiduidade`, `processamento_salarial`, `deducao_salarial` |
 | `auditoria.js` | `log_auditoria` |
-| `legacy.js` | `aplicacao` (sem uso actual) |
+| `legacy.js` | `aplicacao`* |
 
-A ligação é feita em `Backend/src/db/client.js`, que reutiliza o mesmo `Pool` do `pg`
-já usado pela aplicação. As migrações geradas ficam em `Backend/drizzle/` e são
-versionadas no repositório.
+\* Tabelas legadas mantidas por compatibilidade/histórico: `recuperacao_senha` (o fluxo de
+recuperação por telefone foi removido) e `aplicacao` (substituída por
+`servico.tipo_servico = 'Aplicacao'` + `servico_aplicacao`).
+
+**Total:** 37 tabelas (33 na migração inicial + 4 acrescentadas depois).
+
+A ligação é feita em `Backend/src/db/client.js`, que reutiliza o mesmo `Pool` do `pg`.
+As migrações ficam em `Backend/drizzle/` e são versionadas no repositório.
 
 ### Comandos
 
@@ -45,82 +51,53 @@ O `npm run dev` (e o `npm start`) executam `bootstrapDatabase()` antes de abrir 
 HTTP:
 
 1. Cria a base `DATABASE_NAME` se ela não existir (ligando à base de manutenção,
-   `postgres` por omissão), sem apagar dados.
+   `DATABASE_MAINTENANCE_DB`, por omissão `postgres`), sem apagar dados.
 2. Se não existir nenhuma migração em `drizzle/`, gera a migração inicial em
    desenvolvimento. Em produção falha com uma mensagem clara.
-3. Aplica as migrações pendentes com o migrador do Drizzle.
+3. Verifica se a base já tem tabelas mas não tem o histórico
+   `drizzle.__drizzle_migrations`; nesse caso para e pede reconciliação/baseline.
+4. Aplica as migrações pendentes com o migrador do Drizzle.
 
-Se a base já tiver as tabelas antigas mas não tiver o histórico
-`drizzle.__drizzle_migrations`, o arranque para com uma mensagem a indicar
-`npm run db:reset` (ou baseline manual). O script `000` antigo não é executado.
+### Migrações Drizzle
 
-## Migrações legadas (001–037)
+| Migração | Conteúdo |
+| --- | --- |
+| `0000_init` | Cria as 33 tabelas base, FKs, checks e índices |
+| `0001_seed` | Semeia perfis (1 `Administrador`, 2 `Usuario`, 4 `Auditor`), 22 permissões, permissões por perfil, caixa principal, categorias de despesa e o trigger append-only da auditoria |
+| `0002_remove_vigencia_horario` | Remove `data_inicio_vigencia`/`data_fim_vigencia` de `horario_funcionario` |
+| `0003_peaceful_krista_starr` | Adiciona `movimento_fidelizacao.origem` (`atendimento`/`manual`) |
+| `0004_legal_meteorite` | Adiciona `cliente.sexo` (`M`/`F`) |
+| `0005_dapper_harry_osborn` | Reconcilia `cliente.idade`, `servico.tipo_servico`/`permite_aplicacoes`, `produto.unidade`/`stock_minimo`, cria `servico_modalidade`, `servico_aplicacao` e `desconto_atendimento`, e acrescenta campos a `atendimento_servico` |
+| `0006_powerful_firelord` | Cria `movimento_estoque` (entradas, saídas e ajustes) |
 
-Os scripts SQL em `Backend/Database/schema/` ficam como **referência histórica** e já
-não são aplicados manualmente. Alterações novas devem ser feitas no schema Drizzle e
-materializadas com `npm run db:generate`.
+> O ficheiro `drizzle/0005_stock_controlo.sql` é uma versão manual antiga da migração de
+> stock e **não** consta do `_journal.json`; por isso não é aplicado pelo `db:migrate`.
+> A migração válida é a `0006_powerful_firelord`.
 
-| Ficheiro | Tabela criada | Observações |
-| --- | --- | --- |
-| `000_create_database_SalaoFaces.sql` | (base de dados) | Cria a base; executar isoladamente (ver nota) |
-| `001_create_categoria_salao.sql` | `categoria_salao` | Categorias de serviços |
-| `002_create_servico.sql` | `servico` | FK → `categoria_salao`; `descricao`, `duracao_min`, `tipo_preco`, `elegivel_fidelizacao`, `estado`, `data_criacao`; índice único de nome entre ativos |
-| `003_create_aplicacao.sql` | `aplicacao` | Sem uso actual |
-| `004_create_cliente.sql` | `cliente` | CRUD na API implementado (nome, apelido, telefone único, endereço, nascimento, estado) |
-| `005_create_pagamento.sql` | `pagamento` | Pagamento de um atendimento; `valor_total`, `estado`, `data_hora`, `registado_por`, `motivo_anulacao` |
-| `006_create_atendimento.sql` | `atendimento` | Cabeçalho do atendimento; FK → `cliente`; totais derivados dos serviços |
-| `007_create_funcionario.sql` | `funcionario` | CRUD implementado; `telefone`, `documento` (único), `cargo`, `data_admissao`, `comissao_percentual`, `estado`, `id_usuario` |
-| `008_create_despesa.sql` | `despesa` | Despesa operacional; `categoria_id`, `valor_total`, `data_compra`, `metodo_pagamento`, `caixa_sessao_id`, `comprovativo`, `registado_por`, `estado` |
-| `009_create_categoria_produto.sql` | `categoria_produto` | Categoria de produtos |
-| `010_create_produto.sql` | `produto` | FK → `categoria_produto`; `valor`, `estado` |
-| `011_create_item_produto.sql` | `item_produto` | Produtos de uma despesa (quantidade, preço unitário, total); FKs → produto, despesa, funcionario |
-| `012_create_atendimento_servico.sql` | `atendimento_servico` | Serviços realizados no atendimento (substitui `execucao_servico`); FKs → atendimento, servico, funcionario |
-| `013_create_perfil.sql` | `perfil` | Perfis de acesso (`nome`, `descricao`, `estado`) |
-| `014_create_usuario.sql` | `usuario` | FK → `perfil`; `nome` único (via `036`), `telefone` único, `estado`, `alteracao_obrigatoria_senha`, `ultimo_acesso`, `data_criacao` |
-| `015_atualiza_perfis.sql` | — | Semeia/actualiza os perfis 1–4 |
-| `016_create_permissao.sql` | `permissao`, `perfil_permissao`, `usuario_permissao` | Autorização por permissões (RBAC) |
-| `017_seed_permissoes.sql` | — | Catálogo de permissões + atribuição aos perfis |
-| `018_create_historico_preco_servico.sql` | `historico_preco_servico` | Histórico de alterações de preço (FK → `servico`, `usuario`) |
-| `019_funcionario_conta.sql` | — | FK `funcionario.id_usuario` → `usuario` (adicionada após `014`) |
-| `020_create_comissao_config.sql` | `comissao_config` | Comissão por funcionário/serviço (FKs → `funcionario`, `servico`) |
-| `021_create_pagamento_parcela.sql` | `pagamento_parcela` | Parcelas do pagamento (método, valor, referência) |
-| `022_create_comissao.sql` | `comissao` | Comissão gerada por serviço liquidado (`unique` em `atendimento_servico_id`) |
-| `023_ligacoes.sql` | — | FKs diferidas: `atendimento`/`atendimento_servico`/`pagamento` → `usuario`; `pagamento` → `atendimento` |
-| `024_create_caixa.sql` | `caixa` | Caixa operacional único (semeia "Caixa Principal") |
-| `025_create_caixa_sessao.sql` | `caixa_sessao` | Sessão de caixa; índice único parcial garante uma só sessão aberta |
-| `026_create_movimento_caixa.sql` | `movimento_caixa` | Entradas/saídas/levantamentos; índice único parcial por `(origem, referencia_id)` |
-| `027_create_categoria_despesa.sql` | `categoria_despesa` | Categorias de despesa (semeia fixas/variáveis/produtos/salários) |
-| `028_create_cartao_fidelizacao.sql` | `cartao_fidelizacao` | Um cartão por cliente (FK → `cliente`) |
-| `029_create_movimento_fidelizacao.sql` | `movimento_fidelizacao` | Marcas/benefícios; índice único parcial por `(atendimento_servico_id, tipo_movimento)` |
-| `030_ligacoes_despesa.sql` | — | FKs diferidas: `despesa` → `categoria_despesa`, `caixa_sessao`, `usuario` |
-| `031_create_horario_funcionario.sql` | `horario_funcionario` | Programação semanal (FK → `funcionario`); `dia_semana` 0–6, horas, `estado` |
-| `032_create_assiduidade.sql` | `assiduidade` | Registo diário (FK → `funcionario`, `usuario`); índice único `(funcionario_id, data)` |
-| `033_create_processamento_salarial.sql` | `processamento_salarial` | Base + comissões − deduções; FK → `funcionario`, `usuario`; índice único `(funcionario_id, periodo_inicio, periodo_fim)` |
-| `034_create_deducao_salarial.sql` | `deducao_salarial` | Deduções do processamento (FK → `processamento_salarial` `on delete cascade`, `usuario`) |
-| `035_create_log_auditoria.sql` | `log_auditoria` | Registo auditável (append-only); FK → `usuario`; trigger bloqueia `UPDATE`/`DELETE` |
-| `036_usuario_nome_unico.sql` | — | Unicidade do nome de utilizador |
-| `037_create_recuperacao_senha.sql` | `recuperacao_senha` | Códigos de recuperação de senha |
-| `038_add_origem_movimento_fidelizacao.sql` | `movimento_fidelizacao` | `origem` (`atendimento`/`manual`) para distinguir marcas de atendimento das introduzidas pelo administrador |
-| `036_usuario_nome_unico.sql` | — | Índice único em `usuario (lower(nome))`: o nome de utilizador passa a ser único (identificador de acesso) |
-| `037_create_recuperacao_senha.sql` | `recuperacao_senha` | Códigos de recuperação (hash, validade, uso único, tentativas); FK → `usuario` |
+## Scripts SQL legados
 
-> ⚠️ **Script 000:** já não é necessário. O arranque cria a base de dados
-> automaticamente (sem a apagar) e aplica as migrações Drizzle. O `db:reset` é o único
-> comando destrutivo e deve ser usado apenas em desenvolvimento.
+Os scripts em `Backend/Database/schema/` (`001`–`038`) ficam como **referência histórica**
+e não são aplicados pelo arranque. Alterações novas devem ser feitas no schema Drizzle e
+materializadas com `npm run db:generate`. O antigo `000_create_database_SalaoFaces.sql` já
+não é necessário: o bootstrap cria a base automaticamente.
 
 ## Modelo de dados
 
-### Tabelas com API implementada
+### Diagrama simplificado
 
 ```
 categoria_salao 1───n servico 1───n historico_preco_servico
-perfil 1───n usuario
-funcionario 1───n comissao_config
-funcionario n───1 usuario   (opcional, via id_usuario)
+                         │
+                         ├── 1───n servico_modalidade
+                         └── n──n servico (servico_aplicacao)
+
+perfil 1───n usuario n───n permissao (perfil_permissao / usuario_permissao)
+funcionario n───1 usuario (opcional, via id_usuario)
 
 cliente 1───n atendimento 1───n atendimento_servico
-                     │                 └── n──1 servico
-                     │                 └── n──1 funcionario
+                     │                 ├── n──1 servico
+                     │                 ├── n──1 funcionario
+                     │                 └── 1───n desconto_atendimento
                      └── 1───n pagamento 1───n pagamento_parcela
 atendimento_servico 1───1 comissao
 
@@ -128,139 +105,179 @@ caixa 1───n caixa_sessao 1───n movimento_caixa
 categoria_despesa 1───n despesa 1───n item_produto n──1 produto
                         └── n──1 caixa_sessao
 
+produto 1───n movimento_estoque
+
 cliente 1───1 cartao_fidelizacao 1───n movimento_fidelizacao
 
 funcionario 1───n horario_funcionario
 funcionario 1───n assiduidade
 funcionario 1───n processamento_salarial 1───n deducao_salarial
-usuario 1───n log_auditoria   (registo de quem fez cada operacao)
+usuario 1───n log_auditoria
 ```
 
-### Tabelas do domínio (ainda sem API)
+### Definições resumidas
 
-```
-aplicacao   (sem uso actual)
-```
+#### Acesso
 
-#### Definições resumidas
+- **`perfil`** — `id`, `nome`, `descricao`, `estado`.
+- **`usuario`** — `id`, `nome`, `senha` (hash bcrypt), `telefone int` (único),
+  `id_perfil` (FK), `estado`, `alteracao_obrigatoria_senha`, `ultimo_acesso`,
+  `data_criacao`. Índice único em `lower(nome)`: o login é feito pelo nome.
+- **`permissao`** — `id`, `codigo` único (`modulo:acao`), `descricao`, `modulo`.
+- **`perfil_permissao`** — `id_perfil` + `id_permissao` (PK composta; FKs com
+  `on delete cascade`).
+- **`usuario_permissao`** — `id_usuario` + `id_permissao` (PK composta), `efeito`
+  (`conceder`/`revogar`).
+- **`recuperacao_senha`** — tabela legada (código, validade, uso único, tentativas); sem
+  uso actual.
 
-- **`categoria_salao`** — `id` (identity), `nome varchar(100) not null`.
-- **`servico`** — `id`, `nome`, `descricao text`, `valor int not null` (`check > 0`),
-  `duracao_min int`, `tipo_preco` (`fixo`/`variavel`), `elegivel_fidelizacao boolean`,
-  `categoria_id` (FK), `estado`, `data_criacao`. Índice único de `lower(nome)` entre
-  serviços **ativos**.
-- **`historico_preco_servico`** — `id`, `servico_id` (FK), `valor_anterior`,
-  `valor_novo`, `alterado_por` (FK → `usuario`), `criado_em`.
+#### Catálogo
+
+- **`categoria_salao`** — `id`, `nome`.
+- **`servico`** — `id`, `nome`, `descricao`, `valor int` (`check >= 0`), `duracao_min`,
+  `tipo_preco` (`fixo`/`variavel`), `tipo_servico` (`Servico`/`Aplicacao`),
+  `permite_aplicacoes`, `elegivel_fidelizacao`, `categoria_id` (FK), `estado`,
+  `data_criacao`. Índice único de `lower(nome)` entre serviços **ativos**.
+- **`servico_modalidade`** — `id`, `servico_id` (FK), `nome`, `faixa_etaria`
+  (`Geral`/`Adulto`/`Crianca`), `valor` (`check >= 0`), `ordem`, `estado`. Nome único por
+  serviço entre modalidades ativas.
+- **`servico_aplicacao`** — `id`, `servico_id` (FK), `aplicacao_id` (FK → `servico`),
+  `data_criacao`. Impede associação duplicada e auto-associação.
+- **`historico_preco_servico`** — `id`, `servico_id` (FK), `valor_anterior`, `valor_novo`,
+  `alterado_por` (FK → `usuario`), `criado_em`.
 - **`categoria_produto`** — `id`, `nome`.
-- **`produto`** — `id`, `nome`, `valor int` (`check >= 0`), `categoria_produto_id` (FK), `estado`.
-- **`cliente`** — `id`, `nome`, `apelido` (opcional), `telefone int` (único),
-  `endereco`, `data_nascimento`, `data_registo`, `saldo_pendente`, `estado`.
-- **`atendimento`** — `id`, `cliente_id` (FK), `data_hora timestamp`, `estado`
+- **`produto`** — `id`, `nome`, `valor int` (`check >= 0`), `categoria_produto_id` (FK),
+  `unidade`, `stock_minimo` (`check >= 0`), `estado`.
+
+#### Clientes e atendimentos
+
+- **`cliente`** — `id`, `nome`, `apelido`, `telefone int` (único), `endereco`,
+  `data_nascimento`, `idade` (`0`–`120`), `sexo` (`M`/`F`), `data_registo`,
+  `saldo_pendente`, `estado`.
+- **`atendimento`** — `id`, `cliente_id` (FK), `data_hora`, `estado`
   (`Em andamento`/`Concluido`/`Anulado`/`Pago`), `valor_bruto`, `valor_desconto`,
   `valor_total`, `registado_por` (FK → `usuario`), `motivo_anulacao`.
 - **`atendimento_servico`** — `id`, `atendimento_id`/`servico_id`/`funcionario_id` (FKs),
-  `preco_original`, `tipo_preco`, `valor_desconto`, `valor_final`, `estado`,
-  `registado_por` (FK → `usuario`), `criado_em`.
+  `servico_principal_id` (FK → `atendimento_servico`, liga aplicações ao serviço principal),
+  `modalidade_id` (FK), `modalidade_nome`, `tipo_servico`, `preco_original`,
+  `tipo_preco`, `valor_desconto`, `valor_final`, `estado`, `registado_por`, `criado_em`.
+- **`desconto_atendimento`** — histórico de cada desconto: `atendimento_id`,
+  `atendimento_servico_id`, `escopo` (`Servico`/`Atendimento`), `tipo`
+  (`Percentagem`/`Valor`), `percentagem`, `valor_bruto`, `valor_desconto`, `valor_final`,
+  `aplicado_por`, `criado_em`.
 - **`pagamento`** — `id`, `atendimento_id` (FK), `valor_total`, `estado`
-  (`Pendente`/`Parcial`/`Liquidado`/`Anulado`), `data_hora`, `registado_por` (FK → `usuario`),
+  (`Pendente`/`Parcial`/`Liquidado`/`Anulado`), `data_hora`, `registado_por`,
   `motivo_anulacao`.
-- **`pagamento_parcela`** — `id`, `pagamento_id` (FK), `metodo_pagamento`, `valor`,
-  `referencia`, `criado_em`.
+- **`pagamento_parcela`** — `id`, `pagamento_id` (FK), `metodo_pagamento`, `valor`
+  (`check > 0`), `referencia`, `criado_em`.
+- **`comissao_config`** — `id`, `funcionario_id` (FK), `servico_id` (FK; nulo = taxa
+  geral), `taxa_percentual` (`0`–`100`), `vigencia_inicio`, `vigencia_fim`, `estado`.
 - **`comissao`** — `id`, `atendimento_servico_id` (FK, `unique`), `funcionario_id` (FK),
   `taxa`, `base_calculo`, `valor_comissao`, `estado`, `criado_em`.
-- **`funcionario`** — `id`, `nome`, `telefone varchar(20)`, `documento varchar(50)` (único),
-  `cargo`, `data_admissao date`, `salario int not null`,
-  `comissao_percentual numeric(5,2)` (`check 0–100`, default `30.00`), `estado`,
-  `id_usuario` (FK opcional → `usuario`), `data_criacao`.
-- **`comissao_config`** — `id`, `funcionario_id` (FK), `servico_id` (FK, nulo = taxa geral),
-  `taxa_percentual` (`check 0–100`), `vigencia_inicio`, `vigencia_fim`, `estado`.
-- **`despesa`** — `id`, `descricao`, `categoria_id` (FK → `categoria_despesa`), `valor_total`
-  (`check > 0`), `data_compra`, `metodo_pagamento`, `caixa_sessao_id` (FK), `comprovativo`,
-  `registado_por` (FK → `usuario`), `estado`, `criado_em`.
-- **`item_produto`** — `id`, `produto_id` (FK), `despesa_id` (FK), `funcionario_id` (FK),
-  `quantidade`, `preco_unitario`, `valor_total`.
-- **`caixa`** — `id`, `designacao` (único), `estado`.
-- **`caixa_sessao`** — `id`, `caixa_id` (FK), `data_abertura`, `saldo_inicial`, `aberto_por`,
-  `data_fecho`, `valor_esperado`, `valor_contado`, `diferenca`, `observacoes`, `fechado_por`,
-  `estado` (`Aberta`/`Fechada`). Índice único parcial: uma só sessão `Aberta` por caixa.
-- **`movimento_caixa`** — `id`, `id_sessao` (FK), `tipo_movimento`
-  (`Entrada`/`Saida`/`Levantamento`), `valor` (`check > 0`), `descricao`, `data_hora`,
-  `origem`, `referencia_id`, `registado_por`, `estado`. Índice único parcial por
-  `(origem, referencia_id)`.
-- **`categoria_despesa`** — `id`, `nome` (único), `tipo` (`Fixa`/`Variavel`/`Produtos`/`Salarios`),
-  `estado`.
+
+#### Fidelização
+
 - **`cartao_fidelizacao`** — `id`, `cliente_id` (FK, único), `data_ativacao`, `estado`.
 - **`movimento_fidelizacao`** — `id`, `cartao_id` (FK), `atendimento_servico_id` (FK),
   `tipo_movimento` (`marca`/`beneficio_ganho`/`beneficio_utilizado`/`correcao`),
   `origem` (`atendimento`/`manual`), `data_hora`, `ciclo`, `registado_por`, `observacao`.
   Índice único parcial por `(atendimento_servico_id, tipo_movimento)`.
-  Marcas de `origem = 'atendimento'` contam por dia; marcas `manual` contam
+  Marcas de `origem = 'atendimento'` contam uma vez por dia; marcas `manual` contam
   individualmente.
-- **`horario_funcionario`** — `id`, `funcionario_id` (FK), `dia_semana int` (`check 0–6`,
-  0 = Domingo), `hora_entrada time`, `hora_saida time`, `estado`.
-- **`assiduidade`** — `id`, `funcionario_id` (FK), `data date`, `hora_entrada_real time`,
-  `hora_saida_real time`, `tipo_ocorrencia`
-  (`atraso`/`falta_justificada`/`falta_injustificada`/`saida_antecipada`/`ausencia`/`sem_registo`),
-  `justificacao`, `estado`, `registado_por` (FK → `usuario`), `criado_em`. Índice único
+
+#### Financeiro e stock
+
+- **`categoria_despesa`** — `id`, `nome` (único), `tipo`
+  (`Fixa`/`Variavel`/`Produtos`/`Salarios`), `estado`.
+- **`caixa`** — `id`, `designacao` (único), `estado`.
+- **`caixa_sessao`** — `id`, `caixa_id` (FK), `data_abertura`, `saldo_inicial`,
+  `aberto_por`, `data_fecho`, `valor_esperado`, `valor_contado`, `diferenca`,
+  `observacoes`, `fechado_por`, `estado` (`Aberta`/`Fechada`). Índice único parcial:
+  uma só sessão `Aberta` por caixa.
+- **`movimento_caixa`** — `id`, `id_sessao` (FK), `tipo_movimento`
+  (`Entrada`/`Saida`/`Levantamento`), `valor` (`check > 0`), `descricao`, `data_hora`,
+  `origem`, `referencia_id`, `registado_por`, `estado`. Índice único parcial por
+  `(origem, referencia_id)`.
+- **`despesa`** — `id`, `descricao`, `categoria_id` (FK), `valor_total`
+  (`check > 0`), `data_compra`, `metodo_pagamento`, `caixa_sessao_id` (FK),
+  `comprovativo`, `registado_por`, `estado`, `criado_em`.
+- **`item_produto`** — `id`, `produto_id` (FK), `despesa_id` (FK), `funcionario_id` (FK),
+  `quantidade` (`check > 0`), `preco_unitario`, `valor_total`.
+- **`movimento_estoque`** — `id`, `produto_id` (FK), `tipo`
+  (`entrada`/`saida`/`ajuste`), `quantidade`, `motivo`, `data_movimento`,
+  `registado_por`, `despesa_id` (FK), `created_at`. Índices por produto, tipo, data e
+  despesa. O stock actual é calculado como `entradas − saídas + ajustes`.
+
+#### RH
+
+- **`funcionario`** — `id`, `nome`, `telefone`, `documento` (único), `cargo`,
+  `data_admissao`, `salario int`, `comissao_percentual` (`0`–`100`, default `30.00`),
+  `estado`, `id_usuario` (FK opcional, única → `usuario`), `data_criacao`.
+- **`horario_funcionario`** — `id`, `funcionario_id` (FK), `dia_semana`
+  (`check 0–6`, 0 = Domingo), `hora_entrada`, `hora_saida`, `estado`.
+- **`assiduidade`** — `id`, `funcionario_id` (FK), `data`, `hora_entrada_real`,
+  `hora_saida_real`, `tipo_ocorrencia`
+  (`atraso`/`falta_justificada`/`falta_injustificada`/`saida_antecipada`/`ausencia`/
+  `sem_registo`), `justificacao`, `estado`, `registado_por`, `criado_em`. Índice único
   `(funcionario_id, data)`.
-- **`processamento_salarial`** — `id`, `funcionario_id` (FK), `periodo_inicio date`,
-  `periodo_fim date`, `salario_base`, `total_comissoes`, `total_deducoes`, `total_a_pagar`,
-  `estado` (`Preparado`/`Aprovado`/`Pago`), `aprovado_por` (FK → `usuario`),
-  `data_aprovacao`, `data_pagamento`, `criado_em`. Índice único
-  `(funcionario_id, periodo_inicio, periodo_fim)`.
+- **`processamento_salarial`** — `id`, `funcionario_id` (FK), `periodo_inicio`,
+  `periodo_fim`, `salario_base`, `total_comissoes`, `total_deducoes`, `total_a_pagar`,
+  `estado` (`Preparado`/`Aprovado`/`Pago`), `aprovado_por`, `data_aprovacao`,
+  `data_pagamento`, `criado_em`. Índice único `(funcionario_id, periodo_inicio,
+  periodo_fim)`.
 - **`deducao_salarial`** — `id`, `processamento_id` (FK, `on delete cascade`), `tipo`,
-  `descricao`, `valor int` (`check > 0`), `motivo`, `aprovado_por` (FK → `usuario`),
-  `criado_em`.
-- **`log_auditoria`** — `id`, `id_utilizador` (FK → `usuario`), `data_hora`, `entidade`,
+  `descricao`, `valor` (`check > 0`), `motivo`, `aprovado_por`, `criado_em`.
+
+#### Auditoria e legado
+
+- **`log_auditoria`** — `id`, `id_utilizador` (FK), `data_hora`, `entidade`,
   `id_registo_afetado`, `tipo_operacao`, `valores_anteriores jsonb`,
-  `valores_posteriores jsonb`, `motivo`, `identificador_operacao`. Índices por
-  `(entidade, id_registo_afetado)` e `data_hora`. Um **trigger** impede `UPDATE`/`DELETE`. O `log_auditoria` é
-  a única tabela sem API de escrita — só consulta (`auditoria:ler`).
-- **`perfil`** — `id` (identity `by default`), `nome`, `descricao`, `estado`.
-- **`usuario`** — `id` (identity), `nome`, `senha varchar(100)`, `telefone int` (único),
-  `id_perfil` (FK), `estado`, `alteracao_obrigatoria_senha`, `ultimo_acesso`, `data_criacao`.
-- **`permissao`** — `id` (identity), `codigo` (único), `descricao`, `modulo`.
-- **`perfil_permissao`** — `id_perfil` + `id_permissao` (PK composta; FKs com `on delete cascade`).
-- **`usuario_permissao`** — `id_usuario` + `id_permissao` (PK composta), `efeito`
-  (`conceder`/`revogar`).
+  `valores_posteriores jsonb`, `motivo`, `identificador_operacao`. O trigger
+  `log_auditoria_append_only` bloqueia `UPDATE`/`DELETE`.
+- **`aplicacao`** — tabela legada, sem uso actual.
 
 ## Perfis e permissões
 
-O script `015_atualiza_perfis.sql` **semeia automaticamente** os perfis base, garantindo
-os nomes/descrições corretos (idempotente via `on conflict do update`):
+O `0001_seed` semeia os perfis base (idempotente via `on conflict`):
 
 | `id_perfil` | Nome | Descrição |
 | --- | --- | --- |
 | `1` | `Administrador` | Acesso total |
-| `2` | `Usuario` | Recepção/atendimento (perfil atribuído no registo) |
+| `2` | `Usuario` | Recepção/atendimento (perfil atribuído no registo público) |
 | `4` | `Auditor` | Consulta de relatórios e auditoria |
 
 > O antigo perfil `3` (`Financeiro`) foi descontinuado. As suas responsabilidades
 > passaram para o `Administrador`.
 
-O `017_seed_permissoes.sql` popula o catálogo `permissao` (códigos `modulo:acao`) e
-atribui as permissões a cada perfil em `perfil_permissao`:
+O seed popula o catálogo `permissao` com **22 códigos** e atribui:
 
-- `permissao` — catálogo de ações autorizáveis.
-- `perfil_permissao` — permissões padrão de cada perfil.
-- `usuario_permissao` — exceções individuais (`conceder`/`revogar`) sobre o perfil.
+- **Administrador (1):** todas as permissões semeadas.
+- **Usuario (2):** `clientes:ler`, `clientes:escrever`, `servicos:ler`,
+  `atendimentos:escrever`, `pagamentos:registar`, `caixa:operar`.
+- **Auditor (4):** `clientes:ler`, `servicos:ler`, `funcionarios:ler`,
+  `relatorios:ler`, `auditoria:ler`.
 
-A permissão efetiva é: **permissões do perfil − revogadas + concedidas individualmente**.
+> A permissão `estoque:escrever`, exigida pelas rotas de stock, **não está no seed**.
+> Para usar as acções de stock é preciso criá-la e atribuí-la (ou fazê-lo manualmente).
 
-> Basta aplicar os scripts por ordem (incluindo o `015`) para os perfis ficarem
-> disponíveis. Sem eles, o registo de utilizador falha (`id_perfil` referencia um perfil
-> inexistente) e o login não resolve o nome do perfil.
+A permissão efetiva é: **(permissões do perfil ∪ concedidas individualmente) − revogadas
+individualmente** (`usuario_permissao`). A revogação individual prevalece.
+
+> ⚠️ **Lacuna conhecida:** as rotas de escrita de stock exigem `estoque:escrever`, mas
+> esse código ainda **não** está no catálogo semeado. Sem o inserir manualmente (ou criar
+> uma migração de seed), nenhum perfil consegue escrever movimentos de stock. Ver
+> [estado-e-pendencias.md](./estado-e-pendencias.md).
 
 ## Regras automáticas do PostgreSQL
-
-O backend conta com a integridade referencial para proteger integridade de dados:
 
 - Apagar uma **categoria** com serviços associados → erro `23503` → resposta `409`.
 - Apagar um **serviço** com serviços realizados associados → erro `23503` → resposta `409`.
 - Criar/atualizar um **serviço** com categoria inexistente → erro `23503` → resposta `400`.
 - Dois **serviços ativos** com o mesmo nome → erro `23505` → resposta `409`.
-- `servico.valor`/`comissao_percentual`/`taxa_percentual` fora do intervalo → erro `23514`
-  → resposta `400`.
+- Duas **modalidades ativas** com o mesmo nome no mesmo serviço → `23505` → `409`.
+- Uma **aplicação** não pode ser associada duas vezes ao mesmo serviço nem a si própria.
+- `servico.valor`, `produto.valor`, `servico_modalidade.valor`,
+  `comissao_percentual` e `taxa_percentual` fora do intervalo → `23514` → `400`.
 - Apagar um **funcionário** com histórico → erro `23503` → resposta `409`.
 - `funcionario.documento` duplicado → erro `23505` → resposta `409`.
 - Criar **atendimento** com cliente/funcionário inexistente → erro `23503` → resposta `400`.
@@ -272,17 +289,19 @@ O backend conta com a integridade referencial para proteger integridade de dados
 - Cada `atendimento_servico` gera no máximo um movimento de fidelização de cada tipo
   (índice único parcial) → geração idempotente.
 - Um registo de **assiduidade** por funcionário e por dia (índice único) → `23505` → `409`.
-- Um **processamento salarial** por funcionário e período (índice único) → não duplica;
-  a geração usa `on conflict do nothing`.
-- `despesa.valor_total` ≤ 0 → erro `23514` → resposta `400`.
-- `deducao_salarial.valor` ≤ 0 → erro `23514` → resposta `400`.
-- O `log_auditoria` é **append-only**: qualquer `UPDATE`/`DELETE` é rejeitado por trigger,
-  preservando a integridade do histórico (RN21/RNF03).
+- Um **processamento salarial** por funcionário e período (índice único) → não duplica.
+- `despesa.valor_total`, `pagamento_parcela.valor` e `deducao_salarial.valor` fora do
+  intervalo → `23514` → `400`.
+- O `log_auditoria` é **append-only**: qualquer `UPDATE`/`DELETE` é rejeitado por trigger.
 
 ## Notas de modelação
 
 - `telefone` é `int` em `usuario` e `cliente`. Os números moçambicanos (9 dígitos,
-  começando por `8`) cabem num `int`, mas note que a coluna não suporta zeros à esquerda
-  nem prefixos internacionais — o telefone é limpo/normalizado na aplicação.
-- `valor` e `salario` usam `int` (unidades inteiras de MT).
+  começando por `8`) cabem num `int`, mas a coluna não suporta zeros à esquerda nem
+  prefixos internacionais — o telefone é limpo/normalizado na aplicação.
+- `valor`, `salario`, `comissao` e totais usam `int` (unidades inteiras de MT).
 - `senha varchar(100)` armazena o **hash** do bcrypt (60 caracteres), nunca a senha original.
+- `recuperacao_senha` e `aplicacao` existem apenas por compatibilidade histórica; não são
+  usadas pela aplicação actual.
+- A fidelização actual aplica-se a clientes de ambos os sexos; o campo `cliente.sexo`
+  existe para o cartão/identificação e já não limita o benefício.

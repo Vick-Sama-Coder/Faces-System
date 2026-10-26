@@ -13,9 +13,10 @@
 - **Prefixo de rotas:** `/api`.
 - **Autenticação:** cookie `token` (`httpOnly`). Pedidos autenticados devem incluir cookies
   (`withCredentials` no Axios).
-- **Corpo das respostas:** os controladores de `funcionario`, `servico` e `categoria`
-  devolvem **arrays/objetos directos**; `auth` devolve objetos embrulhados
-  (`{ user }`, `{ users }`, `{ message }`).
+- **Corpo das respostas:** a maioria dos controladores devolve **arrays/objetos directos**;
+  `auth` devolve objetos embrulhados (`{ user }`, `{ users }`, `{ message }`). Alguns
+  endpoints específicos (permissões, relatórios, caixa) devolvem objetos com chaves
+  próprias.
 
 ## Códigos de estado usados
 
@@ -39,12 +40,15 @@ Implementado em `Backend/src/routes/auth.js`.
 
 ### `POST /api/auth/register`
 
-Cria um utilizador com perfil `Usuario`. **Não** inicia sessão.
+Cria um utilizador com perfil `Usuario` e a **senha padrão `12345`**.
+**Não** inicia sessão. A conta fica marcada para **primeiro acesso**
+(`alteracao_obrigatoria_senha = true`), pelo que o login funciona mas obriga a
+definir uma nova senha antes de usar o sistema.
 
 **Corpo:**
 
 ```json
-{ "nome": "Ana Silva", "telefone": "841234567", "senha": "senha123" }
+{ "nome": "Ana Silva", "telefone": "841234567" }
 ```
 
 **Respostas:**
@@ -52,14 +56,16 @@ Cria um utilizador com perfil `Usuario`. **Não** inicia sessão.
 - `201` — criado:
   ```json
   {
-    "message": "usuario registrado com sucesso",
+    "message": "conta criada com sucesso",
+    "senha_padrao": "12345",
     "user": { "id": 3, "nome": "Ana Silva", "telefone": 841234567, "perfil": "Usuario" }
   }
   ```
-- `400` — `{ "message": "nome ou telefone ou senha nao forma providenciadas" }`
+  > `senha_padrao` deve ser mostrada ao utilizador no fim do registo.
+- `400` — `{ "message": "nome e telefone sao obrigatorios" }`
 - `400`/`409` — erro de campo: `{ "field": "telefone", "message": "O usuario ja existe" }`
   ou `{ "field": "nome", "message": "O nome de utilizador ja existe" }`
-  (campos possíveis: `nome`, `telefone`, `senha`). O **nome de utilizador é único**
+  (campos possíveis: `nome`, `telefone`). O **nome de utilizador é único**
   (comparação case-insensitive), por ser o identificador de acesso.
 
 ### `POST /api/auth/login`
@@ -69,7 +75,7 @@ Autentica por **nome de utilizador** + senha e emite o cookie `token`.
 **Corpo:**
 
 ```json
-{ "nome": "Ana Silva", "senha": "senha123" }
+{ "nome": "Ana Silva", "senha": "12345" }
 ```
 
 **Respostas:**
@@ -78,55 +84,41 @@ Autentica por **nome de utilizador** + senha e emite o cookie `token`.
   ```json
   {
     "message": "login feito com sucesso",
-    "user": { "id": 3, "nome": "Ana Silva", "telefone": 841234567, "perfil": "Usuario", "deve_alterar_senha": false }
+    "user": { "id": 3, "nome": "Ana Silva", "telefone": 841234567, "perfil": "Usuario", "deve_alterar_senha": true }
   }
   ```
-  > `deve_alterar_senha: true` sinaliza que a conta usa uma credencial temporária.
+  > `deve_alterar_senha: true` sinaliza **primeiro acesso**: o frontend redireciona
+  > para `/primeiro-acesso` e só deixa entrar no dashboard depois de definir a nova senha.
 - `400` — `{ "message": "nome ou senha nao foram providenciados" }`
 - `401` — `{ "message": "Nome ou senha invalidos" }`
 - `403` — `{ "message": "Conta inativa: contacte o administrador" }`
 
-### `POST /api/auth/recuperar-senha`
+### `POST /api/auth/primeiro-acesso` 🔒
 
-Passo 1 da recuperação: gera um código de 6 dígitos, válido por **10 minutos**, e
-envia-o por **SMS ao telefone** do utilizador (ver `Backend/src/utils/sms.js`).
-
-**Corpo:**
-
-```json
-{ "telefone": "841234567" }
-```
-
-**Resposta `200`** (mensagem genérica, não revela se o número existe):
-
-```json
-{ "message": "Se o numero estiver registado, enviaremos um codigo de redefinicao." }
-```
-
-> Fora de produção (`NODE_ENV !== 'production'`) a resposta inclui também
-> `"codigo": "123456"`, para permitir testar o fluxo sem um provedor de SMS real.
-
-- `400` — telefone inválido (`{field:"telefone", message}`)
-
-### `POST /api/auth/redefinir-senha`
-
-Passo 2 da recuperação: valida o código e define a nova senha. O código é de
-**uso único** e aceita no máximo **5 tentativas**.
+Define a nova senha obrigatória de uma conta em primeiro acesso. Requer a sessão
+criada pelo login e só funciona enquanto `alteracao_obrigatoria_senha = true`.
 
 **Corpo:**
 
 ```json
-{ "telefone": "841234567", "codigo": "123456", "senha_nova": "novasenha1" }
+{ "senha_nova": "novasenha1" }
 ```
 
 **Respostas:**
 
-- `200` — `{ "message": "Senha redefinida com sucesso" }`
-- `400` — erro de campo (`{field,message}`): `telefone` inválido, `codigo` inválido
-  (não tem 6 dígitos) ou `senha_nova` fora das regras de senha
-- `400` — `{ "field": "codigo", "message": "Codigo invalido ou expirado" }`
-  (código errado, expirado, já usado ou inexistente)
-- `400` — `{ "field": "codigo", "message": "Demasiadas tentativas: peca um novo codigo" }`
+- `200` — senha definida e conta pronta a usar:
+  ```json
+  {
+    "message": "Senha definida com sucesso",
+    "user": {
+      "id": 3, "nome": "Ana Silva", "telefone": 841234567, "perfil": "Usuario",
+      "deve_alterar_senha": false, "alteracao_obrigatoria_senha": false
+    }
+  }
+  ```
+- `400` — erro de campo: `{ "field": "senha_nova", "message": "..." }`
+- `400` — `{ "message": "Esta conta ja tem uma senha definida" }`
+- `401`/`403` — sem sessão válida ou conta inativa
 
 ### `GET /api/auth/me` 🔒
 
@@ -147,6 +139,27 @@ Devolve o utilizador da sessão actual.
 
 - `401` — sem token, token inválido/expirado ou utilizador inexistente.
 - `403` — conta inativa.
+
+### `PATCH /api/auth/me` 🔒
+
+Actualiza o **próprio perfil** (nome e/ou telefone). Exige a confirmação da senha actual.
+
+**Corpo:**
+
+```json
+{ "nome": "Ana Silva", "telefone": "841234567", "senha_atual": "novasenha1" }
+```
+
+**Respostas:**
+
+- `200` — `{ "message": "Perfil atualizado com sucesso", "user": { ... } }`
+- `400` — nenhum campo enviado, nome inválido ou sem alterações
+  (`{ "field": "nome", "message": "..." }` quando aplicável)
+- `401` — `{ "field": "senha_atual", "message": "Senha atual invalida" }`
+- `409` — nome/telefone já usados por outra conta (`{ field, message }`)
+
+> A alteração é auditada (sem guardar a senha). A troca de senha faz-se em
+> `POST /api/auth/alterar-senha`.
 
 ### `GET /api/auth/users` 🔒👑
 
@@ -174,6 +187,41 @@ Limpa o cookie `token`.
 ```json
 { "message": "logged out sucessfully" }
 ```
+
+---
+
+## Dashboard — `/api/dashboard`
+
+### `GET /api/dashboard` 🔒
+
+Resumo operacional do mês actual e dos últimos seis meses. Disponível a qualquer
+utilizador autenticado.
+
+**Resposta `200`:**
+
+```json
+{
+  "atualizado_em": "2026-10-26T10:00:00.000Z",
+  "resumo": {
+    "receita": 125000, "despesas": 43000, "resultado": 82000,
+    "receita_anterior": 110000, "despesas_anterior": 40000,
+    "resultado_anterior": 70000
+  },
+  "indicadores": {
+    "atendimentos_hoje": 8, "atendimentos_mes": 132,
+    "em_andamento": 3, "pagos": 120,
+    "clientes_ativos": 240, "funcionarios_ativos": 6,
+    "servicos_ativos": 28, "cartoes_fidelizacao": 54
+  },
+  "serie": [{ "mes": "2026-05", "receita": 90000, "despesas": 30000 }],
+  "top_servicos": [{ "servico_id": 1, "servico_nome": "Corte", "quantidade": 42, "total": 42000 }],
+  "top_funcionarios": [{ "funcionario_id": 1, "funcionario_nome": "Ana", "cargo": "Cabeleireira", "quantidade": 30, "total": 30000 }],
+  "recentes": [{ "id": 10, "cliente_nome": "Maria", "data_hora": "...", "estado": "Pago", "valor_total": 2500, "metodos_pagamento": "Dinheiro" }],
+  "fidelizacao": { "marcas": 22, "beneficios_ganhos": 4, "beneficios_utilizados": 3 }
+}
+```
+
+> A receita ignora pagamentos `Anulado`; as despesas consideram apenas despesas `Ativo`.
 
 ---
 
@@ -212,16 +260,32 @@ Limpa o cookie `token`.
 - `DELETE /api/servicos/:id` 🔒🛠️ — `204` / `404`
   - `409` se existirem atendimentos que usam o serviço
 
+### Modalidades de preço
+
+- `GET /api/servicos/:id/modalidades` 🔒 — modalidades do serviço
+- `POST /api/servicos/:id/modalidades` 🔒🛠️ — cria modalidade
+- `PUT /api/servicos/modalidades/:id` 🔒🛠️ — actualiza modalidade
+- `DELETE /api/servicos/modalidades/:id` 🔒🛠️ — remove modalidade
+
+### Aplicações associadas
+
+- `GET /api/servicos/:id/aplicacoes` 🔒 — aplicações/variações associadas
+- `POST /api/servicos/:id/aplicacoes` 🔒🛠️ — corpo: `{ "aplicacao_id": 2 }`
+- `DELETE /api/servicos/:id/aplicacoes/:aplicacaoId` 🔒🛠️ — desassocia
+
 > Escrita requer a permissão `servicos:escrever`.
 
 ## Categorias de serviço — `/api`
 
 - `GET /api/categorias` 🔒 — `[{ id, nome }]`
 - `GET /api/categorias/:id` 🔒 — `200` / `404`
-- `POST /api/categorias` 🔒👑 — corpo: `{ nome }`. `201`
-- `PUT /api/categorias/:id` 🔒👑 — corpo: `{ nome }`. `200` / `404`
-- `DELETE /api/categorias/:id` 🔒👑 — `204` / `404`
+- `POST /api/categorias` 🔒🛠️ — corpo: `{ nome }`. `201`
+- `PUT /api/categorias/:id` 🔒🛠️ — corpo: `{ nome }`. `200` / `404`
+- `DELETE /api/categorias/:id` 🔒🛠️ — `204` / `404`
   - `409` se existirem serviços nesta categoria
+
+> Escrita em categorias requer `servicos:escrever` (na configuração inicial, apenas o
+> `Administrador`; o `Usuario` tem `servicos:ler`).
 
 Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a permissão indicada.
 
@@ -238,11 +302,13 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 - `GET /api/usuarios/:id` — um utilizador (`200`/`404`)
 - `POST /api/usuarios` — cria conta. Corpo: `{ nome, telefone, id_perfil, senha? }`
   - `nome` e `telefone` são únicos (`409` com `{field,message}`).
-  - Sem `senha`, o sistema gera uma **credencial temporária** e devolve-a uma única vez
-    em `senha_temporaria` (obriga a troca no próximo acesso).
+  - Sem `senha`, a conta fica com a **senha padrão `12345`**, devolvida em
+    `senha_padrao` (e em `senha_temporaria` por compatibilidade), com troca
+    obrigatória no próximo acesso.
 - `PUT /api/usuarios/:id` — atualização parcial (`nome`, `telefone`, `id_perfil`)
 - `PATCH /api/usuarios/:id/estado` — `{ "estado": "Ativo" | "Inativo" }`
-- `POST /api/usuarios/:id/repor-senha` — repõe credencial temporária e força a troca
+- `POST /api/usuarios/:id/repor-senha` — repõe a senha para `12345` e força a troca
+  no próximo acesso
 - `GET /api/usuarios/:id/permissoes` — `{ efetivas: [...], overrides: [...] }`
 - `PUT /api/usuarios/:id/permissoes` — corpo: `{ conceder: [codigos], revogar: [codigos] }`
 
@@ -302,6 +368,13 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 - `DELETE /api/atendimentos/:id/servicos/:itemId` 🔒🛠️ — `204` (recalcula totais)
 - `PATCH /api/atendimentos/:id/concluir` 🔒🛠️ — marca `Concluido`
 - `POST /api/atendimentos/:id/anular` 🔒🛠️(`atendimentos:anular`) — corpo: `{ motivo }`
+- `POST /api/atendimentos/:id/descontos` 🔒🛠️ — aplica desconto a uma linha. Corpo:
+  `{ atendimento_servico_id, escopo, tipo, percentagem?, valor_bruto, valor_desconto, valor_final }`
+  - `tipo`: `Valor` (fixo) ou `Percentagem`; `escopo`: `Servico` ou `Atendimento`
+  - `400` se faltar campo, se `valor_desconto < 0`/exceder o valor bruto ou se a
+    percentagem estiver fora de 0–100
+  - `409` se o atendimento estiver `Anulado`
+  - Regista o histórico do desconto, recalcula os totais e audita
 
 > Totais do cabeçalho: `valor_bruto` = Σ `preco_original`,
 > `valor_desconto` = Σ `valor_desconto`, `valor_total` = Σ `valor_final`
@@ -358,7 +431,24 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
   - `400` se `valor_total <= 0`
 - `PUT /api/despesas/:id` 🔒(`despesas:escrever`) — actualização parcial
 - `DELETE /api/despesas/:id` 🔒(`despesas:escrever`) — `204`
-- `GET/POST /api/categorias-despesa` 🔒(`despesas:escrever`) — `{ nome, tipo? }`
+- `GET /api/categorias-despesa` 🔒 — lista de categorias
+- `POST /api/categorias-despesa` 🔒(`despesas:escrever`) — corpo: `{ nome, tipo? }`
+
+## Stock — `/api`
+
+- `GET /api/movimentos?produto_id=&tipo=&data_inicio=&data_fim=` 🔒 — movimentos de stock
+- `GET /api/stock/:produto_id` 🔒 — resumo calculado a partir dos movimentos:
+  `{ stock_minimo, total_entradas, total_saidas, total_ajustes, nota }`
+- `POST /api/entrada` 🔒(`estoque:escrever`) — corpo: `{ produto_id, quantidade, motivo? }`. `201`
+- `POST /api/saida` 🔒(`estoque:escrever`) — corpo: `{ produto_id, quantidade, motivo? }`. `201`
+- `POST /api/ajuste` 🔒(`estoque:escrever`) — corpo: `{ produto_id, quantidade, motivo? }`. `201`
+
+> A permissão `estoque:escrever` **não consta** do seed inicial; tem de ser concedida
+> manualmente (ou acrescentada ao seed). Não existe CRUD de produtos na API.
+>
+> ⚠️ O `Frontend/src/services/api.js` chama actualmente `POST /api/estoque/entrada`,
+> `/api/estoque/saida` e `/api/estoque/ajuste`; essas rotas **não existem** no backend
+> (devolvem `404`). As rotas reais são as indicadas acima.
 
 ## Fidelização — `/api/clientes/:id/fidelizacao`
 
@@ -466,6 +556,8 @@ Todas as rotas exigem `relatorios:ler`. `de`/`ate` são **opcionais** (`AAAA-MM-
 filtro devolve todo o histórico.
 
 - `GET /api/relatorios/resumo?de=&ate=` — `{ receita, despesas, resultado }`
+- `GET /api/relatorios/financeiro?de=&ate=` — `{ periodo, resumo, comparacao, receitas,
+  despesas, fluxo, salarios, dividas, gerado_por, gerado_em }`
 - `GET /api/relatorios/caixa?de=&ate=` — `{ entradas, saidas, levantamentos, sessoes }`
 - `GET /api/relatorios/servicos?de=&ate=` — serviços mais realizados
 - `GET /api/relatorios/funcionarios?de=&ate=` — serviços e comissões por funcionário
@@ -520,25 +612,25 @@ Registo auditável das operações relevantes (RF23/RN21/RNF03). Todas as rotas 
 ## Exemplos com `curl`
 
 ```bash
-# registo
+# registo (cria com a senha padrao 12345; a resposta devolve senha_padrao)
 curl -X POST http://localhost:5000/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"nome":"Ana Silva","telefone":"841234567","senha":"senha123"}'
+  -d '{"nome":"Ana Silva","telefone":"841234567"}'
 
-# login por nome de utilizador (guarda o cookie em cookies.txt)
+# login normal com a senha padrao (resposta traz deve_alterar_senha = true)
 curl -c cookies.txt -X POST http://localhost:5000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"nome":"Ana Silva","senha":"senha123"}'
+  -d '{"nome":"Ana Silva","senha":"12345"}'
 
-# recuperacao de senha: pedir o codigo por SMS
-curl -X POST http://localhost:5000/api/auth/recuperar-senha \
+# primeiro acesso: definir a nova senha obrigatoria
+curl -b cookies.txt -c cookies.txt -X POST http://localhost:5000/api/auth/primeiro-acesso \
   -H "Content-Type: application/json" \
-  -d '{"telefone":"841234567"}'
+  -d '{"senha_nova":"novasenha1"}'
 
-# recuperacao de senha: validar o codigo e definir a nova senha
-curl -X POST http://localhost:5000/api/auth/redefinir-senha \
+# login seguinte ja com a nova senha
+curl -c cookies.txt -X POST http://localhost:5000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"telefone":"841234567","codigo":"123456","senha_nova":"novasenha1"}'
+  -d '{"nome":"Ana Silva","senha":"novasenha1"}'
 
 # sessão actual (usa o cookie)
 curl -b cookies.txt http://localhost:5000/api/auth/me

@@ -6,6 +6,12 @@
 **Tipo de documento:** Análise funcional, regras de negócio e especificação técnica preliminar  
 **Estado:** Requisitos consolidados, com algumas decisões pendentes de validação
 
+> 📌 **Nota de implementação:** este documento descreve os requisitos **esperados** do
+> produto. Para o que já está implementado e para as lacunas conhecidas, consulte
+> [estado-e-pendencias.md](./estado-e-pendencias.md), [funcionalidades.md](./funcionalidades.md)
+> e [api.md](./api.md). Algumas decisões continuam em aberto (ver Fase 16 de
+> [implementacao-backend.md](./implementacao-backend.md)).
+
 ---
 
 # 1. Introdução
@@ -295,7 +301,7 @@ A aplicação deverá:
 
 As contas serão criadas por administradores autorizados. Não haverá registo público de contas administrativas.
 
-Por segurança, não se recomenda utilizar uma palavra-passe universal previsível, como `12345`, para todas as contas. A reposição deverá utilizar uma credencial temporária individual ou outro mecanismo seguro, exigindo a sua alteração no acesso seguinte.
+Para simplificar o primeiro acesso, as contas novas e as credenciais repostas pelo administrador usam a palavra-passe temporária `12345`, que é mostrada ao utilizador e só é aceite para definir uma nova palavra-passe; o sistema obriga à alteração antes de permitir o uso normal.
 
 ## RF02 — Gestão de contas
 
