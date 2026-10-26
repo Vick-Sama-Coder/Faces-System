@@ -35,7 +35,11 @@ discutidas e aprovadas antes de serem aplicadas.
 - Escrever em **JavaScript** (ES Modules). Não migrar para TypeScript sem aprovação.
 - Bibliotecas já adoptadas e permitidas:
   React Router, Zustand, Axios, AG Grid (React), Recharts, lucide-react, date-fns,
-  localforage e `@fontsource/*`.
+  localforage, `@fontsource/*`, **Vite** (build/dev server), **`vite-plugin-pwa`** e
+  **Workbox** (PWA).
+- O tema claro/escuro usa CSS puro com variáveis e o atributo `data-theme`; não introduzir
+  bibliotecas de temas.
+- A aplicação é instalável como PWA, mas **não** tem sincronização off-line.
 
 ## Backend — regras
 

@@ -60,7 +60,8 @@ export const usuarioPermissao = pgTable('usuario_permissao', {
     check('usuario_permissao_efeito_check', sql`${table.efeito} in ('conceder', 'revogar')`)
 ]);
 
-// Codigos de recuperacao de senha enviados por SMS (guarda apenas o hash).
+// Tabela legada: o fluxo de recuperacao de senha por telefone foi removido.
+// Mantida apenas para compatibilidade com bases de dados existentes.
 export const recuperacaoSenha = pgTable('recuperacao_senha', {
     id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
     id_usuario: integer('id_usuario').notNull().references(() => usuario.id, { onDelete: 'cascade' }),

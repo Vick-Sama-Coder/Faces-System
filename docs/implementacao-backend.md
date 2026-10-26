@@ -21,20 +21,22 @@ regras de negócio e critérios de conclusão. Deve ser lido em conjunto com:
 
 | Fase | Estado | Notas |
 | --- | :---: | --- |
-| Fase 0 — Fundação técnica | ✅ Concluída | mapeamento central de erros PostgreSQL→HTTP em `app.js`; validação reduzida a "campo obrigatório" (o frontend valida formatos) |
-| Fase 1 — Contas, perfis e permissões | ✅ Concluída | Tabelas `permissao`/`perfil_permissao`/`usuario_permissao`, 22 permissões, 4 perfis, CRUD de contas/perfis, `authorizePermission`, alteração de senha |
+| Fase 0 — Fundação técnica | ✅ Concluída | mapeamento central de erros PostgreSQL→HTTP em `app.js`; validações de domínio em `utils/validacoes.js` (auth, horários e fidelização) e validações próprias nos controladores de clientes/atendimentos |
+| Fase 1 — Contas, perfis e permissões | ✅ Concluída | Tabelas `permissao`/`perfil_permissao`/`usuario_permissao`, 22 permissões, 3 perfis (`Administrador`, `Usuario`, `Auditor`; `Financeiro` descontinuado), criação/edição/estado de contas e perfis, `authorizePermission`, alteração de senha |
 | Fase 2 — Clientes | ✅ Concluída | CRUD + pesquisa por nome/apelido/telefone + estado; telefone único |
-| Fase 3 — Serviços (evolução) | ✅ Concluída | `descricao`, `duracao_min`, `tipo_preco`, `estado`; histórico de preços; `PATCH /estado`; nome único entre ativos |
+| Fase 3 — Serviços (evolução) | ✅ Concluída | `descricao`, `duracao_min`, `tipo_preco`, `estado`; histórico de preços; modalidades; aplicações associadas; `PATCH /estado`; nome único entre ativos |
 | Fase 4 — Funcionários (evolução) | ✅ Concluída | contacto/documento/admissão/cargo/estado, ligação a conta, `comissao_percentual`, `comissao_config`, desempenho |
-| Fase 5 — Atendimentos e serviços realizados | ✅ Concluída | `atendimento` remodelado, `atendimento_servico` (substitui `execucao_servico`), criação transacional, `services/atendimento.js` |
+| Fase 5 — Atendimentos e serviços realizados | ✅ Concluída | `atendimento` remodelado, `atendimento_servico` (substitui `execucao_servico`), criação transacional, descontos, `services/atendimento.js` |
 | Fase 6 — Pagamentos | ✅ Concluída | `pagamento` remodelado + `pagamento_parcela`; liquidação, anulação e estado do atendimento |
 | Fase 7 — Comissões | ✅ Concluída | `comissao` gerada na liquidação (idempotente), taxa específica sobrepõe-se à geral |
-| Fase 8 — Caixa e despesas | ✅ Concluída | `caixa`/`caixa_sessao`/`movimento_caixa`, `categoria_despesa`, `despesa` remodelada; abertura, levantamentos, fecho com diferença |
+| Fase 8 — Caixa e despesas | ✅ Concluída | `caixa`/`caixa_sessao`/`movimento_caixa`, `categoria_despesa`, `despesa` remodelada; abertura, levantamentos, fecho com diferença; stock por API |
 | Fase 9 — Fidelização | ✅ Concluída | `cartao_fidelizacao`/`movimento_fidelizacao`; ambos os sexos, serviços elegíveis até 200 MT, 5 marcas → 6.º serviço obrigatoriamente gratuito |
-| Fase 10 — Horários, assiduidade e salários | ✅ Concluída | `horario_funcionario`, `assiduidade`, `processamento_salarial`/`deducao_salarial`; fluxo Preparado→Aprovado→Pago; comissões elegíveis do período |
-| Fase 11 — Relatórios | ✅ Concluída | 9 relatórios agregados (`repository/relatorio.js`), filtro opcional `de`/`ate`, permissão `relatorios:ler` |
+| Fase 10 — Horários, assiduidade e salários | ✅ Concluída | `horario_funcionario`, `assiduidade`, `processamento_salarial`/`deducao_salarial`; fluxo Preparado→Aprovado→Pago; comissões elegíveis do período; controlo mensal em `PUT /assiduidade/dia` |
+| Fase 11 — Relatórios | ✅ Concluída | 10 relatórios agregados (`repository/relatorio.js`, incluindo `financeiro`), filtro opcional `de`/`ate`, permissão `relatorios:ler` |
 | Fase 12 — Catálogo público | ✅ Concluída | `GET /api/public/servicos` (+`:id`) sem autenticação; só serviços ativos e campos de divulgação |
-| Fase 13 — Auditoria | ✅ Concluída | `log_auditoria` append-only (trigger na BD) + `services/auditoria.js`; integrado em pagamentos, atendimentos, caixa, despesas, salários, assiduidade, fidelização e permissões |
+| Fase 13 — Auditoria | ✅ Concluída | `log_auditoria` append-only (trigger na BD) + `services/auditoria.js`; integrado em pagamentos, atendimentos, descontos, caixa, despesas, salários, assiduidade, fidelização e permissões |
+| Dashboard | ✅ Concluída | `GET /api/dashboard` com resumo do mês, indicadores, série de 6 meses, tops e recentes |
+| Stock | 🟡 Parcial | `GET /movimentos`, `GET /stock/:id`, `POST /entrada`, `POST /saida`, `POST /ajuste`; falta `estoque:escrever` no seed e CRUD de produtos |
 | Fases 14–15 | ⏳ Pendente | Ver detalhe abaixo |
 | Fase 16 — Fecho das decisões pendentes | 📝 A cargo do utilizador | Lacunas da análise a decidir/documentar (não é código) — ver §16 de [`documentacao.md`](./documentacao.md) |
 
@@ -63,6 +65,8 @@ O que **já existe e funciona** no backend:
 | Comissões | ✅ | `controller` + `repository` + `routes/comissao.js` |
 | Caixa (sessões, movimentos, fecho) | ✅ | `controller` + `repository` + `services/caixa.js` + `routes/caixa.js` |
 | Despesas + categorias de despesa | ✅ | `controller` + `repository` + `services/despesa.js` + `routes/despesa.js` |
+| Stock (movimentos, saldo, entrada/saída/ajuste) | 🟡 | `controller` + `repository` + `services/movimento_estoque.js` + `routes/movimento_estoque.js` |
+| Dashboard | ✅ | `controller/dashboard.js` + `repository/dashboard.js` + `routes/dashboard.js` |
 | Fidelização | ✅ | `controller` + `repository` + `services/fidelizacao.js` + `routes/fidelizacao.js` |
 | Horários de funcionários | ✅ | `controller` + `repository` + `routes/horario.js` |
 | Assiduidade | ✅ | `controller` + `repository` + `routes/assiduidade.js` |
@@ -72,10 +76,11 @@ O que **já existe e funciona** no backend:
 | Auditoria | ✅ | `controller` + `repository` + `services/auditoria.js` + `routes/auditoria.js` |
 | Validações (nome, telefone, senha) | ✅ | `utils/validacoes.js` |
 | Token JWT | ✅ | `utils/token.js` |
-| Esquema Drizzle (33 tabelas, `src/db/schema/`) | ✅ | `src/db/schema/` + `drizzle/` |
+| Esquema Drizzle (37 tabelas, `src/db/schema/`) | ✅ | `src/db/schema/` + `drizzle/` |
 
-O que **falta** (objeto deste plano): auditoria transversal consolidada na UI, sincronização
-offline e o fecho das decisões da análise (Fase 16).
+O que **falta**: sincronização offline, CRUD de produtos e interface completa de stock,
+página de caixa, auditoria de criação/edição de contas e o fecho das decisões da análise
+(Fase 16). A auditoria já tem consulta em `/logs`.
 
 ### Estrutura de pastas alvo
 
@@ -284,11 +289,11 @@ permissões (documentacao.md §4, §7.1).
 | Método | Rota | Permissão | Descrição |
 | --- | --- | --- | --- |
 | GET | `/api/usuarios` | `contas:gerir` | Lista contas (id, nome, telefone, perfil, estado) |
-| POST | `/api/usuarios` | `contas:gerir` | Cria conta com credencial temporária |
+| POST | `/api/usuarios` | `contas:gerir` | Cria conta com senha padrão `12345` (troca obrigatória) |
 | GET | `/api/usuarios/:id` | `contas:gerir` | Detalhe |
 | PUT | `/api/usuarios/:id` | `contas:gerir` | Atualiza dados/perfil/estado |
 | PATCH | `/api/usuarios/:id/estado` | `contas:gerir` | Ativa/inativa conta |
-| POST | `/api/usuarios/:id/repor-senha` | `contas:gerir` | Gera credencial temporária |
+| POST | `/api/usuarios/:id/repor-senha` | `contas:gerir` | Repõe a senha padrão `12345` (troca obrigatória) |
 | POST | `/api/auth/alterar-senha` | autenticado | Troca de senha (1.º acesso/inatividade) |
 | GET | `/api/perfis` | `contas:gerir` | Lista perfis + permissões |
 | PUT | `/api/perfis/:id/permissoes` | `contas:gerir` | Atualiza permissões do perfil |
@@ -601,7 +606,8 @@ saldo esperado, contagem física e fecho diário (RF10–RF13, RN09–RN13, HU-1
   `data_compra`, `metodo_pagamento`, `caixa_sessao_id`, `comprovativo`,
   `registado_por`, `estado`.
 - `010`/`011` (editados) — `produto` com `estado`; `item_produto` com `preco_unitario` e
-  `valor_total`. O stock detalhado fica fora de âmbito (RN25).
+  `valor_total`. O stock detalhado fica fora do âmbito desta fase (RN25); a API básica de
+  movimentos foi acrescentada depois.
 - `030_ligacoes_despesa.sql` — FKs diferidas de `despesa` → `categoria_despesa`,
   `caixa_sessao`, `usuario`.
 
@@ -972,6 +978,7 @@ O perfil `Financeiro` foi descontinuado; as suas permissões passam a ser do
 | `caixa:levantar` | ✅ | — | — |
 | `caixa:fechar` | ✅ | — | — |
 | `despesas:escrever` | ✅ | — | — |
+| `estoque:escrever` | ⚠️ (não semeada) | — | — |
 | `fidelizacao:corrigir` | ✅ | — | — |
 | `horarios:gerir` | ✅ | — | — |
 | `assiduidade:gerir` | ✅ | — | — |
@@ -983,6 +990,10 @@ O perfil `Financeiro` foi descontinuado; as suas permissões passam a ser do
 
 > Esta matriz é a **configuração inicial**; deve ser ajustável por perfil e por
 > utilizador (exceções individuais), conforme documentacao.md §4.
+>
+> O seed `drizzle/0001_seed.sql` cria **22 permissões**. A permissão `estoque:escrever`,
+> exigida pelas rotas de stock, **não consta** do seed — é necessário acrescentá-la e
+> concedê-la (ou fazê-lo manualmente em cada base).
 
 ---
 
@@ -1008,21 +1019,11 @@ Rastreio rápido das regras mais críticas e onde são aplicadas:
 
 ## 6. Dependências e decisões pendentes
 
-Antes de implementar as fases afetadas, confirmar (documentacao.md §16). O registo das
-decisões e o seu impacto está consolidado na **Fase 16** (a cargo do utilizador):
-
-1. **Métodos de pagamento** (2.º serviço móvel além de M-Pesa) — Fase 6.
-2. **Modelo de desconto:** valor fixo, percentagem ou ambos — Fase 5.
-3. **Tipo de `telefone`:** manter `int` ou migrar para `varchar` — Fases 2, 4.
-4. **Empréstimos** (HU-17): incluídos na Fase 8 ou fase própria — Fase 8.
-5. **Perfis adicionais** (Auditor) e multi-perfil — Fase 1.
-6. **Deduções salariais:** automáticas ou manuais — Fase 10.
-7. **Anulações:** todos os admins ou restrito por módulo — Fases 5, 6.
-8. **Exportação de relatórios:** CSV/PDF/Excel — Fase 11.
-9. **Offline:** dispositivo principal e estratégia de sincronização — Fase 14.
-10. **Catálogo público:** como apresentar preço variável — Fase 12.
-11. **Middleware de segurança** (rate limit / headers) e runner de testes — Fase 0/15.
-12. **Valores de negócio:** taxa de comissão, categorias de despesa, horários padrão.
+Antes de implementar as fases afetadas, confirmar as decisões de
+[documentacao.md](./documentacao.md) §16. A lista consolidada — **14 questões, 13 ainda
+pendentes** (a fidelização foi resolvida) — e o respetivo impacto estão na **Fase 16**,
+abaixo. Não mantenha listas paralelas: qualquer decisão nova deve ser registada nessa
+tabela.
 
 ---
 

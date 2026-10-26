@@ -4,8 +4,8 @@
 
 ## Pré-requisitos
 
-- **Node.js** 18+ (recomendado 20+) e **npm**
-- **PostgreSQL** 13+ em execução
+- **Node.js** 20+ e **npm**
+- **PostgreSQL** 13+ (local, Neon, Supabase, RDS ou outro serviço compatível)
 - **Git**
 
 ## 1. Clonar o repositório
@@ -15,43 +15,27 @@ git clone https://github.com/Vick-Sama-Coder/Faces-System.git
 cd Faces-System
 ```
 
-## 2. Base de dados
-
-Basta ter o **PostgreSQL a correr** e um utilizador com permissão para criar bases.
-O backend cria a base `DATABASE_NAME` se ela não existir e aplica as migrações Drizzle
-automaticamente no arranque (ver [base-de-dados.md](./base-de-dados.md)).
-
-Não é necessário aplicar manualmente os SQL de `Backend/Database/schema/` — esses
-ficheiros ficam como referência histórica. Se preferires criar a base antes de arrancar:
-
-```bash
-createdb SalaoFaces
-```
-
-## 3. Backend
+## 2. Backend
 
 ```bash
 cd Backend
 npm install
-```
-
-Crie o ficheiro `.env` a partir do exemplo:
-
-```bash
 cp .env.example .env
 ```
 
-Depois edite `Backend/.env`:
+Edite `Backend/.env` (nunca comite este ficheiro):
 
 ```env
 DATABASE_HOST=localhost
 DATABASE_PORT=5432
 DATABASE_NAME=SalaoFaces
 DATABASE_USER=postgres
-DATABASE_PASSWORD= a_sua_password
+DATABASE_PASSWORD=a_sua_password
 DATABASE_MAINTENANCE_DB=postgres
+DATABASE_SSL=false
+# DATABASE_SSL_REJECT_UNAUTHORIZED=true
 PORT=5000
-JWT_SECRET= uma_chave_secreta_longa
+JWT_SECRET=uma_chave_secreta_longa_e_aleatoria
 CLIENT_URL=http://localhost:5173/
 ```
 
@@ -63,9 +47,14 @@ CLIENT_URL=http://localhost:5173/
 | `DATABASE_USER` | Utilizador da base |
 | `DATABASE_PASSWORD` | Palavra-passe da base |
 | `DATABASE_MAINTENANCE_DB` | Base usada para criar `DATABASE_NAME` se faltar (por omissão `postgres`) |
-| `PORT` | Porta do servidor Express (padrão no `.env.example`: `5000`) |
+| `DATABASE_SSL` | `true`/`false`. Se omitido, usa SSL em hosts remotos e desliga em `localhost` |
+| `DATABASE_SSL_REJECT_UNAUTHORIZED` | `false` desactiva a validação do certificado (só para proxies/certificados próprios); por omissão valida |
+| `PORT` | Porta do servidor Express |
 | `JWT_SECRET` | Segredo para assinar/verificar os tokens JWT |
-| `CLIENT_URL` | Origem permitida no CORS (o URL do frontend) |
+| `CLIENT_URL` | Origem permitida no CORS (URL do frontend; o `app.js` normaliza para a origem) |
+
+> O `.env.example` contém apenas **placeholders**. Se estiver a usar um serviço gerido
+> (Neon/Supabase/RDS), defina `DATABASE_SSL=true` e as credenciais reais no `.env`.
 
 Executar:
 
@@ -74,14 +63,38 @@ npm run dev     # desenvolvimento (nodemon, reinicia ao guardar)
 npm start       # produção
 ```
 
-No arranque, o backend cria a base (se faltar) e aplica as migrações Drizzle. O output
-deverá ser semelhante a:
+No arranque o backend:
+
+1. liga à base de manutenção e **cria `DATABASE_NAME` se não existir**;
+2. garante que existem migrações em `drizzle/` (em desenvolvimento gera a inicial se
+   faltar; em produção falha com instrução);
+3. aplica as migrações pendentes (incluindo o seed de perfis/permissões).
+
+Saída esperada:
 
 ```
-[db] Migracoes aplicadas.
+[db] Base de dados criada e migracoes aplicadas.
 Servidor esta escutando na porta: 5000
 Database conectada
 ```
+
+> A base existente tem de ter o histórico Drizzle (`drizzle.__drizzle_migrations`). Se
+> tiver tabelas mas não tiver histórico, o arranque aborta para evitar corrupção — faça
+> backup e reconcilie o schema.
+
+### Primeiro administrador
+
+O registo público cria sempre o perfil `Usuario`. Para o primeiro administrador:
+
+1. Registe a conta em `/register` ou via API.
+2. Promova-a na base de dados:
+
+```sql
+update usuario set id_perfil = 1 where telefone = '821111111';
+```
+
+O login seguinte já devolve as permissões de `Administrador`. Não existe utilizador
+administrador semeado por omissão.
 
 ### Scripts da base de dados
 
@@ -97,10 +110,13 @@ Executar em `Backend/`:
 | `npm run db:check` | Valida o histórico de migrações |
 | `npm run db:reset` | **Apaga e recria** a base com todas as migrações (destrutivo) |
 
-> Em produção, a pasta `Backend/drizzle/` tem de ser incluída no deploy. O arranque
-> aplica as migrações pendentes, mas não gera migrações novas.
+> Em produção, inclua a pasta `Backend/drizzle/` no deploy. O arranque aplica migrações
+> pendentes, mas nunca gera migrações.
+>
+> `drizzle/0005_stock_controlo.sql` é legado/manual e não faz parte do `_journal.json`;
+> não é aplicado pelo migrador.
 
-## 4. Frontend
+## 3. Frontend
 
 ```bash
 cd Frontend
@@ -108,24 +124,54 @@ npm install
 npm run dev
 ```
 
-Por omissão o Vite serve em `http://localhost:5173`.
+Por omissão o Vite serve em `http://localhost:5173` (com `--host 0.0.0.0`, acessível na
+rede local).
 
-### URL da API no frontend
+### URL da API
 
-O endereço da API está actualmente **fixo** em `Frontend/src/services/api.js`:
+A URL é resolvida em `Frontend/src/services/api.js`:
 
-```js
-const BASE_API = "http://192.168.0.14:5000/";
+1. `VITE_API_URL`, se definida;
+2. `http://localhost:5000` em desenvolvimento;
+3. a mesma origem em produção (útil quando o frontend e a API são servidos pelo mesmo
+   domínio/reverse proxy).
+
+Para apontar para outra API, crie `Frontend/.env` (ou `.env.production`):
+
+```env
+VITE_API_URL=https://api.exemplo.com
 ```
 
-Para desenvolvimento local, altere para a máquina onde corre o backend, por exemplo:
+> As variáveis `VITE_*` são embutidas no build; é preciso reconstruir o frontend depois de
+> as alterar. O backend só aceita CORS da origem definida em `CLIENT_URL`.
 
-```js
-const BASE_API = "http://localhost:5000/";
+## 4. Build e deploy
+
+### Frontend
+
+```bash
+cd Frontend
+npm run build     # gera dist/
+npm run preview   # pré-visualiza a build localmente
 ```
 
-> O backend permite CORS apenas para a origem definida em `CLIENT_URL`. Se mudar a porta
-> do frontend, actualize `CLIENT_URL` no `Backend/.env`.
+- Sirva `Frontend/dist/` com Nginx, Caddy, Vercel, Netlify ou equivalente.
+- A app é uma **PWA** (manifesto + service worker via Workbox). É preciso servir por
+  **HTTPS** (ou `localhost`) para a instalação e o service worker funcionarem.
+- O service worker faz cache de assets e tem fallback para `index.html`, excepto rotas
+  `/api/*`.
+- Configure `VITE_API_URL` antes do build se a API estiver noutro domínio; garanta que
+  esse domínio está em `CLIENT_URL` no backend.
+
+### Backend
+
+- Execute `npm start` (ou um process manager como PM2/systemd) com as variáveis de
+  ambiente de produção.
+- Inclua `Backend/drizzle/` no artefacto de deploy.
+- Use `JWT_SECRET` forte, `DATABASE_SSL=true` em serviços geridos e `CLIENT_URL` com a
+  origem real do frontend.
+- Se usar cookies em domínios diferentes, o cookie é `SameSite=Lax` e `Secure` apenas com
+  `NODE_ENV=production`; prefira servir API e frontend na mesma origem.
 
 ## Scripts disponíveis
 
@@ -134,13 +180,14 @@ const BASE_API = "http://localhost:5000/";
 | Script | Comando | Descrição |
 | --- | --- | --- |
 | `dev` | `nodemon --watch src src/server.js` | Servidor com auto-reload |
+| `dev:full` | `sudo systemctl start postgresql && npm run dev` | Conveniência local (Linux) |
 | `start` | `node src/server.js` | Servidor normal |
 
 ### Frontend (`Frontend/package.json`)
 
 | Script | Comando | Descrição |
 | --- | --- | --- |
-| `dev` | `vite` | Servidor de desenvolvimento |
+| `dev` | `vite --host 0.0.0.0` | Servidor de desenvolvimento |
 | `build` | `vite build` | Build de produção (pasta `dist/`) |
 | `preview` | `vite preview` | Pré-visualizar a build |
 | `lint` | `eslint .` | Análise estática |
@@ -150,6 +197,11 @@ const BASE_API = "http://localhost:5000/";
 | Sintoma | Causa provável | Solução |
 | --- | --- | --- |
 | `Erro no CORS` no browser | `CLIENT_URL` diferente da origem do frontend | Ajuste `CLIENT_URL` no `Backend/.env` |
-| `Nao autenticado: token em falta` | Cookie não enviado | Confirme `withCredentials: true` no Axios e o CORS com `credentials: true` |
-| `A conexao falhou com a base de dados` | Credenciais/host errados | Revise o `.env` e confirme que o PostgreSQL está a correr |
-| Login sempre falha | Perfis não semeados na tabela `perfil` | Aplique o script `015_atualiza_perfis.sql` |
+| `Nao autenticado: token em falta` | Cookie não enviado | Confirme `withCredentials: true` no Axios e CORS com `credentials: true` |
+| `A conexao falhou com a base de dados` | Credenciais/host errados ou SSL mal configurado | Revise o `.env`; em serviços geridos use `DATABASE_SSL=true` |
+| `connection is insecure` | Host remoto sem SSL | Defina `DATABASE_SSL=true` |
+| `A base de dados tem tabelas mas nao tem historico` | Base criada fora do Drizzle | Faça backup e reconcilie as migrações |
+| Login falha com conta acabada de registar | Senha padrão por trocar | Use `12345` e conclua o primeiro acesso |
+| Erro 403 em rotas de escrita | Falta a permissão no perfil | Verifique `perfil_permissao` / `/permissoes` |
+| Pedidos de stock devolvem 403 | `estoque:escrever` não existe no seed | Conceda a permissão manualmente ou acrescente-a ao seed |
+| PWA não instala | Sem HTTPS ou service worker bloqueado | Sirva por HTTPS e confirme o build de produção |

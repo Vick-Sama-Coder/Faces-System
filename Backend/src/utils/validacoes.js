@@ -87,17 +87,6 @@ export function validarSenha(senha){
     return null;
 }
 
-//codigo de recuperacao de senha: exactamente 6 digitos
-export function validarCodigo(codigo){
-    if(!codigo){
-        return "Codigo e obrigatorio";
-    }
-    if(!/^\d{6}$/.test(String(codigo))){
-        return "Codigo invalido: use os 6 digitos recebidos";
-    }
-    return null;
-}
-
 //dia da semana: 0 = domingo ... 6 = sabado
 export function validarDiaSemana(dia){
     if(dia === undefined || dia === null || dia === ""){

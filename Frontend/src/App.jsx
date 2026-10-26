@@ -7,7 +7,7 @@ import { useAuthStore } from './store/authStore.js'
 import { SYSTEM_THEME_QUERY, useThemeStore } from './store/themeStore.js'
 import './App.css'
 
-const AUTH_ROUTES = new Set(['/login', '/register', '/forgotpass'])
+const AUTH_ROUTES = new Set(['/login', '/register', '/primeiro-acesso'])
 
 function App() {
   const { initialized, checkAuth } = useAuthStore()

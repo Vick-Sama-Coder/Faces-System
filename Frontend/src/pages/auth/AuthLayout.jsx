@@ -1,4 +1,5 @@
-import { CalendarDays, Users, Wallet } from "lucide-react"
+import { ArrowLeft, CalendarDays, Users, Wallet } from "lucide-react"
+import { Link } from "react-router-dom"
 import Logo from "../../components/Logo/logo.jsx"
 import "./auth.css"
 
@@ -9,7 +10,7 @@ const FEATURES = [
 ]
 
 /*
- * Moldura visual partilhada pelo login, registo e recuperacao de senha.
+ * Moldura visual partilhada pelo login, registo e primeiro acesso.
  * A logica dos formularios fica nas paginas; aqui vive apenas a estrutura.
  */
 function AuthLayout({
@@ -59,6 +60,11 @@ function AuthLayout({
             </aside>
 
             <section className="auth-panel" aria-labelledby="auth-title">
+                <Link to="/" className="auth-back-link">
+                    <ArrowLeft size={15} aria-hidden="true" />
+                    Voltar ao catálogo
+                </Link>
+
                 <div className="auth-card">
                     <header className="auth-card-header">
                         {eyebrow && <p className="auth-eyebrow">{eyebrow}</p>}

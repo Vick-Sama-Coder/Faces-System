@@ -1,4 +1,3 @@
-import crypto from 'node:crypto';
 import bcrypt from 'bcrypt';
 import Usuario from '../repository/usuario.js';
 import Permissao from '../repository/permissao.js';
@@ -6,15 +5,9 @@ import AuditoriaService from '../services/auditoria.js';
 import { limparTelefone } from '../utils/validacoes.js';
 import { codigoPostgres } from '../utils/erro.js';
 
-//gera uma credencial temporaria legivel (letra + numero, minimo 8 caracteres)
-function gerarSenhaTemporaria() {
-    const alfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let sufixo = "";
-    for (let i = 0; i < 6; i++) {
-        sufixo += alfabeto[crypto.randomInt(alfabeto.length)];
-    }
-    return `Faces-${sufixo}`;
-}
+//senha inicial das contas criadas/repostas pelo administrador.
+//e pequena de proposito: o primeiro login obriga sempre a definir uma nova.
+const SENHA_PADRAO = "12345";
 
 const getUsuarios = async (req, res, next) => {
     try {
@@ -38,7 +31,7 @@ const getUsuarioById = async (req, res, next) => {
     }
 };
 
-//cria conta; sem senha, gera uma credencial temporaria (troca obrigatoria no proximo acesso)
+//cria conta; sem senha, aplica a senha padrao 12345 (troca obrigatoria no proximo acesso)
 const createUsuario = async (req, res, next) => {
     try {
         const { nome, telefone, id_perfil, senha } = req.body;
@@ -58,8 +51,8 @@ const createUsuario = async (req, res, next) => {
             return res.status(409).json({ field: "nome", message: "Ja existe um utilizador com este nome" });
         }
 
-        const senhaTemporaria = senha || gerarSenhaTemporaria();
-        const senhaHash = await bcrypt.hash(senhaTemporaria, 10);
+        const senhaAplicada = senha || SENHA_PADRAO;
+        const senhaHash = await bcrypt.hash(senhaAplicada, 10);
 
         const criado = await Usuario.create({
             nome,
@@ -71,8 +64,8 @@ const createUsuario = async (req, res, next) => {
 
         res.status(201).json({
             user: criado,
-            //a credencial gerada so e mostrada uma vez
-            ...(senha ? {} : { senha_temporaria: senhaTemporaria })
+            //a senha padrao so e mostrada quando foi o sistema a defini-la
+            ...(senha ? {} : { senha_temporaria: SENHA_PADRAO, senha_padrao: SENHA_PADRAO })
         });
     } catch (error) {
         //23503 = perfil inexistente
@@ -139,7 +132,7 @@ const updateEstadoUsuario = async (req, res, next) => {
     }
 };
 
-//repõe a credencial com uma senha temporaria e obriga a troca no proximo acesso
+//repoe a credencial com a senha padrao 12345 e obriga a troca no proximo acesso
 const reporSenha = async (req, res, next) => {
     try {
         const { id } = req.params;
@@ -149,11 +142,14 @@ const reporSenha = async (req, res, next) => {
             return res.status(404).json({ message: "Utilizador nao encontrado" });
         }
 
-        const senhaTemporaria = gerarSenhaTemporaria();
-        const senhaHash = await bcrypt.hash(senhaTemporaria, 10);
+        const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
         await Usuario.updateSenha(id, senhaHash, true);
 
-        res.status(200).json({ message: "Credencial reposta", senha_temporaria: senhaTemporaria });
+        res.status(200).json({
+            message: "Credencial reposta com a senha padrao",
+            senha_temporaria: SENHA_PADRAO,
+            senha_padrao: SENHA_PADRAO
+        });
     } catch (error) {
         next(error);
     }

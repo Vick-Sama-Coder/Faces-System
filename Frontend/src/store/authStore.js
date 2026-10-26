@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { loginUser, registerUser, requestPasswordReset, resetPassword, getMe, logoutUser, getApiError, getApiErrorField } from '../services/api.js';
+import { loginUser, registerUser, setFirstAccessPassword, getMe, logoutUser, getApiError, getApiErrorField } from '../services/api.js';
 
 export const useAuthStore = create((set) => ({
     user: null,
@@ -31,12 +31,26 @@ export const useAuthStore = create((set) => ({
         }
     },
 
-    //cria a conta mas NAO inicia sessao — a autenticacao e feita no /login
+    //cria a conta com a senha padrao 12345.
+    //NAO inicia sessao: devolve os dados, incluindo a senha padrao a mostrar
     register: async (data) => {
         set({ loading: true, error: null, errorField: null });
         try{
-            await registerUser(data);
+            const res = await registerUser(data);
             set({ loading: false, error: null, errorField: null });
+            return { ok: true, data: res.data };
+        }catch(err){
+            set({ loading: false, error: getApiError(err), errorField: getApiErrorField(err) });
+            return { ok: false, data: null };
+        }
+    },
+
+    //primeiro acesso: define a nova senha obrigatoria (sessao ja iniciada no login)
+    definirSenhaPrimeiroAcesso: async (data) => {
+        set({ loading: true, error: null, errorField: null });
+        try{
+            const res = await setFirstAccessPassword(data);
+            set({ user: res.data.user, loading: false, error: null, errorField: null });
             return true;
         }catch(err){
             set({ loading: false, error: getApiError(err), errorField: getApiErrorField(err) });
@@ -56,33 +70,6 @@ export const useAuthStore = create((set) => ({
     updateUser: (dados) => set((state) => ({
         user: state.user ? { ...state.user, ...dados } : state.user
     })),
-
-    //recuperacao de senha (passo 1): pede o codigo por SMS; devolve { ok, codigo }
-    //(o codigo so vem preenchido em desenvolvimento, para testes sem SMS real)
-    recuperarSenha: async (data) => {
-        set({ loading: true, error: null, errorField: null });
-        try{
-            const res = await requestPasswordReset(data);
-            set({ loading: false, error: null, errorField: null });
-            return { ok: true, codigo: res.data?.codigo || null };
-        }catch(err){
-            set({ loading: false, error: getApiError(err), errorField: getApiErrorField(err) });
-            return { ok: false, codigo: null };
-        }
-    },
-
-    //recuperacao de senha (passo 2): valida o codigo e define a nova senha
-    redefinirSenha: async (data) => {
-        set({ loading: true, error: null, errorField: null });
-        try{
-            await resetPassword(data);
-            set({ loading: false, error: null, errorField: null });
-            return true;
-        }catch(err){
-            set({ loading: false, error: getApiError(err), errorField: getApiErrorField(err) });
-            return false;
-        }
-    },
 
     clearError: () => set({ error: null, errorField: null }),
     clearSucesso: () => set({ sucesso: null }),

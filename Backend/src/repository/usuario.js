@@ -53,22 +53,6 @@ const findByNomeComSenha = async (nome) => {
     return linha || null;
 };
 
-//uso interno (recuperacao de senha): utilizador pelo telefone (sem a senha)
-const findByTelefone = async (telefone) => {
-    const [linha] = await db.select({
-        id: usuario.id,
-        nome: usuario.nome,
-        telefone: usuario.telefone,
-        id_perfil: usuario.id_perfil,
-        estado: usuario.estado
-    })
-        .from(usuario)
-        .where(eq(usuario.telefone, telefone))
-        .limit(1);
-
-    return linha || null;
-};
-
 //uso interno (troca de senha): inclui o hash atual
 const findByIdComSenha = async (id) => {
     const [linha] = await db.select({
@@ -204,7 +188,6 @@ const Usuario = {
     findAll,
     findById,
     findByNomeComSenha,
-    findByTelefone,
     findByIdComSenha,
     existeTelefone,
     existeNome,

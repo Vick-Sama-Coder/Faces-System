@@ -441,7 +441,7 @@ function Perfil() {
                                             <span className="admin-field-error">{errosPerfil.telefone}</span>
                                         )}
                                         <span className="admin-field-hint">
-                                            Usado na recuperação de senha por SMS.
+                                            Usado para contacto e identificação da conta.
                                         </span>
                                     </div>
 

@@ -34,14 +34,9 @@ export const registerUser = (data) => {
     return server.post("api/auth/register", data);
 };
 
-//recuperacao de senha: pede o codigo (enviado por SMS ao telefone registado)
-export const requestPasswordReset = (data) => {
-    return server.post("api/auth/recuperar-senha", data);
-};
-
-//recuperacao de senha: valida o codigo e define a nova senha
-export const resetPassword = (data) => {
-    return server.post("api/auth/redefinir-senha", data);
+//primeiro acesso: define a nova senha obrigatoria depois do login
+export const setFirstAccessPassword = (data) => {
+    return server.post("api/auth/primeiro-acesso", data);
 };
 
 export const getMe = () => {
@@ -64,6 +59,11 @@ export const logoutUser = () => {
 
 export const getUsers = () => {
     return server.get("api/auth/users");
+};
+
+//---- catalogo publico (sem sessao): usado pela pagina "/" ----
+export const getServicosPublicos = () => {
+    return server.get("api/public/servicos");
 };
 
 //---- categorias de servico ----
