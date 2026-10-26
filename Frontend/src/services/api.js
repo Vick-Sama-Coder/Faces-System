@@ -4,7 +4,7 @@ import axios from 'axios';
 
 
 
-const DEFAULT_API_URL = import.meta.env.DEV ? "http://localhost:5000" : "";
+const DEFAULT_API_URL = import.meta.env.DEV ? "http://192.168.0.104:5000" : "";
 const BASE_API = (
     import.meta.env.VITE_API_URL || DEFAULT_API_URL
 ).replace(/\/+$/, "");

@@ -9,6 +9,7 @@ import AuditoriaService from '../services/auditoria.js';
 import { authenticate, authorize } from '../middlewares/auth.js';
 import { validarNome, validarTelefone, validarSenha, validarCodigo, limparTelefone } from '../utils/validacoes.js';
 import { enviarSms } from '../utils/sms.js';
+import { codigoPostgres, constraintPostgres } from '../utils/erro.js';
 
 const cookieOptions = {
     httpOnly: true,
@@ -345,8 +346,8 @@ router.patch('/me', authenticate, async (req,res, next)=>{
             user: perfilAtualizado
         });
     }catch(err){
-        if(err.code === "23505"){
-            const field = String(err.constraint || "").includes("nome") ? "nome" : "telefone";
+        if(codigoPostgres(err) === "23505"){
+            const field = String(constraintPostgres(err) || "").includes("nome") ? "nome" : "telefone";
             const message = field === "nome"
                 ? "Ja existe um utilizador com este nome"
                 : "Ja existe um utilizador com este telefone";

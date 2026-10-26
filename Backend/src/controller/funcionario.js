@@ -1,5 +1,6 @@
 import Funcionario from "../repository/funcionario.js";
 import ComissaoConfig from "../repository/comissao_config.js";
+import { codigoPostgres } from "../utils/erro.js";
 
 //arredonda valores monetarios a 2 casas
 const arredondar = (valor) => Math.round(valor * 100) / 100;
@@ -99,7 +100,7 @@ const deleteFuncionario = async (req, res, next) => {
         res.status(204).send();
     } catch (error) {
         //23503 = existem atendimentos associados a este funcionario
-        if (error.code === "23503") {
+        if (codigoPostgres(error) === "23503") {
             return res.status(409).json({ message: "Nao e possivel apagar: existem atendimentos com este funcionario" });
         }
         next(error);
@@ -146,7 +147,7 @@ const updateComissao = async (req, res, next) => {
             configuracoes: await ComissaoConfig.findByFuncionario(id)
         });
     } catch (error) {
-        if (error.code === "23503") {
+        if (codigoPostgres(error) === "23503") {
             return res.status(400).json({ field: "servico_id", message: "Servico nao encontrado" });
         }
         next(error);

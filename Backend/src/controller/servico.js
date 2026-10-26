@@ -1,5 +1,6 @@
 import Servico from "../repository/servico.js";
 import { validarElegibilidadeFidelizacao } from "../utils/validacoes.js";
+import { codigoPostgres, constraintPostgres } from "../utils/erro.js";
 
 const getServicos = async (req, res, next) => {
     try {
@@ -40,15 +41,15 @@ const createServico = async (req, res, next) => {
         res.status(201).json(servico);
     } catch (error) {
         //23503 = a categoria informada nao existe
-        if (error.code === "23503") {
+        if (codigoPostgres(error) === "23503") {
             return res.status(400).json({ field: "categoria_id", message: "Categoria nao encontrada" });
         }
         //23505 = ja existe um servico ativo com este nome
-        if (error.code === "23505") {
+        if (codigoPostgres(error) === "23505") {
             return res.status(409).json({ field: "nome", message: "Ja existe um servico ativo com este nome" });
         }
         //23514 = check constraint violado
-        if (error.code === "23514") {
+        if (codigoPostgres(error) === "23514") {
             if (error.message.includes('servico_tipo_servico_check')) {
                 return res.status(400).json({ field: "tipo_servico", message: "Tipo de servico invalido: use 'Servico' ou 'Aplicacao'" });
             }
@@ -94,13 +95,13 @@ const updateServico = async (req, res, next) => {
 
         res.status(200).json(servico);
     } catch (error) {
-        if (error.code === "23503") {
+        if (codigoPostgres(error) === "23503") {
             return res.status(400).json({ field: "categoria_id", message: "Categoria nao encontrada" });
         }
-        if (error.code === "23505") {
+        if (codigoPostgres(error) === "23505") {
             return res.status(409).json({ field: "nome", message: "Ja existe um servico ativo com este nome" });
         }
-        if (error.code === "23514") {
+        if (codigoPostgres(error) === "23514") {
             if (error.message.includes('servico_tipo_servico_check')) {
                 return res.status(400).json({ field: "tipo_servico", message: "Tipo de servico invalido: use 'Servico' ou 'Aplicacao'" });
             }
@@ -125,7 +126,7 @@ const updateEstadoServico = async (req, res, next) => {
 
         res.status(200).json(servico);
     } catch (error) {
-        if (error.code === "23505") {
+        if (codigoPostgres(error) === "23505") {
             return res.status(409).json({ field: "nome", message: "Ja existe um servico ativo com este nome" });
         }
         next(error);
@@ -157,8 +158,20 @@ const deleteServico = async (req, res, next) => {
 
         res.status(204).send();
     } catch (error) {
-        //23503 = existem atendimentos com este servico
-        if (error.code === "23503") {
+        //23503 = o servico ainda tem registos dependentes
+        if (codigoPostgres(error) === "23503") {
+            const constraint = constraintPostgres(error) || "";
+
+            if (constraint.includes("historico_preco_servico")) {
+                return res.status(409).json({ message: "Nao e possivel apagar: o servico tem historico de precos. Desativa-o em vez de o apagar" });
+            }
+            if (constraint.includes("servico_modalidade")) {
+                return res.status(409).json({ message: "Nao e possivel apagar: existem modalidades associadas a este servico" });
+            }
+            if (constraint.includes("servico_aplicacao")) {
+                return res.status(409).json({ message: "Nao e possivel apagar: existem aplicacoes associadas a este servico" });
+            }
+
             return res.status(409).json({ message: "Nao e possivel apagar: existem atendimentos com este servico" });
         }
         next(error);
@@ -204,10 +217,10 @@ const createModalidade = async (req, res, next) => {
 
         res.status(201).json(modalidade);
     } catch (error) {
-        if (error.code === "23505") {
+        if (codigoPostgres(error) === "23505") {
             return res.status(409).json({ field: "nome", message: "Ja existe uma modalidade ativa com este nome neste servico" });
         }
-        if (error.code === "23514") {
+        if (codigoPostgres(error) === "23514") {
             if (error.message.includes('servico_modalidade_faixa_check')) {
                 return res.status(400).json({ field: "faixa_etaria", message: "Faixa etaria invalida: use 'Geral', 'Adulto' ou 'Crianca'" });
             }
@@ -236,10 +249,10 @@ const updateModalidade = async (req, res, next) => {
 
         res.status(200).json(modalidade);
     } catch (error) {
-        if (error.code === "23505") {
+        if (codigoPostgres(error) === "23505") {
             return res.status(409).json({ field: "nome", message: "Ja existe uma modalidade ativa com este nome neste servico" });
         }
-        if (error.code === "23514") {
+        if (codigoPostgres(error) === "23514") {
             if (error.message.includes('servico_modalidade_faixa_check')) {
                 return res.status(400).json({ field: "faixa_etaria", message: "Faixa etaria invalida: use 'Geral', 'Adulto' ou 'Crianca'" });
             }
@@ -309,10 +322,10 @@ const associarAplicacao = async (req, res, next) => {
 
         res.status(200).json({ message: "Aplicacao associada com sucesso" });
     } catch (error) {
-        if (error.code === "23503") {
+        if (codigoPostgres(error) === "23503") {
             return res.status(400).json({ message: "Servico ou aplicacao nao encontrado" });
         }
-        if (error.code === "23514") {
+        if (codigoPostgres(error) === "23514") {
             return res.status(400).json({ message: "Nao e possivel associar um servico a ele proprio" });
         }
         next(error);

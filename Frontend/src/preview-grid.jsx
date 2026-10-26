@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createRoot } from "react-dom/client"
 import DataGrid from "./components/DataGrid/DataGrid.jsx"
 import "./Styles/variables.css"

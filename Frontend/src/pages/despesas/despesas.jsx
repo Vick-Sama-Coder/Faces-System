@@ -25,6 +25,7 @@ import {
     createCategoriaDespesa,
     deleteDespesa,
     getMovimentosEstoque,
+    getStockProduto,
     getApiError
 } from "../../services/api.js";
 import { useAuthStore } from "../../store/authStore.js";
@@ -78,9 +79,15 @@ function Despesas() {
     const [categoriaError, setCategoriaError] = useState(null);
 
     const [carregarStock, setCarregarStock] = useState(false);
-    const [produtosStock, setProdutosStock] = useState([]); // eslint-disable-line no-unused-vars
-    const [movimentosStock, setMovimentosStock] = useState([]); // eslint-disable-line no-unused-vars
-    const [stockError, setStockError] = useState(null); // eslint-disable-line no-unused-vars
+    const [produtosStock, setProdutosStock] = useState([]);
+    const [movimentosStock, setMovimentosStock] = useState([]);
+    const [stockError, setStockError] = useState(null);
+
+    const produtosAbaixoMinimo = produtosStock.filter((produto) =>
+        produto.stock_atual !== null &&
+        produto.stock_minimo !== null &&
+        produto.stock_atual < produto.stock_minimo
+    );
 
     useEffect(() => {
         carregarDados();
@@ -93,8 +100,38 @@ function Despesas() {
 
             try {
                 const resMovimentos = await getMovimentosEstoque({});
+                const movimentos = Array.isArray(resMovimentos.data) ? resMovimentos.data : [];
+                const produtos = [...new Map(
+                    movimentos
+                        .filter((movimento) => movimento.produto_id != null)
+                        .map((movimento) => [
+                            String(movimento.produto_id),
+                            { id: movimento.produto_id, nome: movimento.produto_nome }
+                        ])
+                ).values()];
+                const produtosComStock = await Promise.all(
+                    produtos.map(async (produto) => {
+                        try {
+                            const resStock = await getStockProduto(produto.id);
+                            const dados = resStock.data || {};
+                            const stockAtual =
+                                Number(dados.total_entradas || 0) -
+                                Number(dados.total_saidas || 0) +
+                                Number(dados.total_ajustes || 0);
 
-                setMovimentosStock(Array.isArray(resMovimentos.data) ? resMovimentos.data : []);
+                            return {
+                                ...produto,
+                                stock_atual: stockAtual,
+                                stock_minimo: Number(dados.stock_minimo || 0)
+                            };
+                        } catch {
+                            return { ...produto, stock_atual: null, stock_minimo: null };
+                        }
+                    })
+                );
+
+                setMovimentosStock(movimentos);
+                setProdutosStock(produtosComStock);
             } catch (err) {
                 setStockError(getApiError(err));
             } finally {
@@ -654,13 +691,24 @@ function Despesas() {
                                     </div>
                                 </header>
 
-                                {carregarStock ? (
+                                {stockError ? (
+                                    <p className="despesas-panel-empty">{stockError}</p>
+                                ) : carregarStock ? (
                                     <p className="despesas-panel-empty">A carregar informações de stock...</p>
                                 ) : produtosStock.length === 0 ? (
                                     <p className="despesas-panel-empty">Ainda nao ha produtos com stock registado. Registe uma compra de produtos para comecar a acompanhar o stock.</p>
                                 ) : (
                                     <div className="despesas-stock-info">
-                                        <p>Produto com stock abaixo do minimo: <strong style={{ color: 'red' }}>ATENCAO</strong></p>
+                                        {produtosAbaixoMinimo.length > 0 ? (
+                                            <p>
+                                                Produtos com stock abaixo do mínimo:{" "}
+                                                <strong style={{ color: 'red' }}>
+                                                    {produtosAbaixoMinimo.map((produto) => produto.nome).join(", ")}
+                                                </strong>
+                                            </p>
+                                        ) : (
+                                            <p>Stock dentro do mínimo definido.</p>
+                                        )}
                                         <p>Total de produtos: {produtosStock.length}</p>
                                         <p>Total de movimentos: {movimentosStock.length}</p>
                                     </div>

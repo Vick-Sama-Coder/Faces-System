@@ -3,6 +3,7 @@ import Pagamento from "../repository/pagamento.js";
 import AtendimentoService from "../services/atendimento.js";
 import FidelizacaoService from "../services/fidelizacao.js";
 import AuditoriaService from "../services/auditoria.js";
+import { codigoPostgres } from "../utils/erro.js";
 
 const getAtendimentos = async (req, res, next) => {
     try {
@@ -60,7 +61,7 @@ const createAtendimento = async (req, res, next) => {
         res.status(201).json(atendimento);
     } catch (error) {
         //23503 = cliente ou funcionario inexistente
-        if (error.code === "23503") {
+        if (codigoPostgres(error) === "23503") {
             return res.status(400).json({ message: "Cliente ou funcionario nao encontrado" });
         }
         next(error);
@@ -82,7 +83,7 @@ const updateAtendimento = async (req, res, next) => {
 
         res.status(200).json(await Atendimento.findById(req.params.id));
     } catch (error) {
-        if (error.code === "23503") {
+        if (codigoPostgres(error) === "23503") {
             return res.status(400).json({ message: "Cliente nao encontrado" });
         }
         next(error);
@@ -110,7 +111,7 @@ const addServico = async (req, res, next) => {
         atendimento.fidelizacao = await FidelizacaoService.progresso(atendimento.cliente_id);
         res.status(201).json(atendimento);
     } catch (error) {
-        if (error.code === "23503") {
+        if (codigoPostgres(error) === "23503") {
             return res.status(400).json({ message: "Servico ou funcionario nao encontrado" });
         }
         next(error);

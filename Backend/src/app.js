@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import cookieParser from 'cookie-parser';
+import { codigoPostgres } from './utils/erro.js';
 import authRoutes from './routes/auth.js'
 import funcionarioRoutes from './routes/funcionario.js'
 import servicoRoutes from './routes/servico.js'
@@ -85,12 +86,13 @@ const ERROS_CONHECIDOS = {
 
 //handler de erros em JSON (sem stack em producao)
 app.use((err, req, res, next) => {
-  const conhecido = ERROS_CONHECIDOS[err.code];
+  const codigo = codigoPostgres(err);
+  const conhecido = ERROS_CONHECIDOS[codigo];
   const status = err.status || (conhecido ? conhecido[0] : 500);
   const message = err.status ? err.message : (conhecido ? conhecido[1] : "Erro interno do servidor");
 
   if (status === 500) {
-    console.error("Erro no servidor:", err.message);
+    console.error("Erro no servidor:", err.cause?.message || err.message);
   }
 
   const resposta = { message };

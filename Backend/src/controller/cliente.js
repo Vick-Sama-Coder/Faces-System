@@ -1,5 +1,6 @@
 import Cliente from "../repository/cliente.js";
 import { limparTelefone } from "../utils/validacoes.js";
+import { codigoPostgres } from "../utils/erro.js";
 
 const getClientes = async (req, res, next) => {
     try {
@@ -43,10 +44,6 @@ const createCliente = async (req, res, next) => {
 
         const telefoneLimpo = limparTelefone(telefone);
 
-        if (await Cliente.existeTelefone(telefoneLimpo)) {
-            return res.status(409).json({ field: "telefone", message: "Ja existe um cliente com este telefone" });
-        }
-
         const cliente = await Cliente.create({ nome, apelido, telefone: telefoneLimpo, endereco, data_nascimento, idade, sexo });
 
         res.status(201).json(cliente);
@@ -76,9 +73,6 @@ const updateCliente = async (req, res, next) => {
         let telefoneLimpo;
         if (telefone !== undefined) {
             telefoneLimpo = limparTelefone(telefone);
-            if (await Cliente.existeTelefone(telefoneLimpo, id)) {
-                return res.status(409).json({ field: "telefone", message: "Ja existe um cliente com este telefone" });
-            }
         }
 
         const cliente = await Cliente.update(id, {
@@ -133,7 +127,7 @@ const deleteCliente = async (req, res, next) => {
         res.status(204).send();
     } catch (error) {
         //23503 = existem atendimentos associados a este cliente
-        if (error.code === "23503") {
+        if (codigoPostgres(error) === "23503") {
             return res.status(409).json({ message: "Nao e possivel apagar: existem atendimentos com este cliente" });
         }
         next(error);

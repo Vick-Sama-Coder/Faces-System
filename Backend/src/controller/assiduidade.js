@@ -1,6 +1,7 @@
 import Assiduidade from "../repository/assiduidade.js";
 import AuditoriaService from "../services/auditoria.js";
 import { horaParaMinutos } from "../utils/validacoes.js";
+import { codigoPostgres } from "../utils/erro.js";
 
 const normalizarHora = (valor) => {
     if (valor === undefined || valor === null) return null;
@@ -20,12 +21,6 @@ const validarDataISO = (valor) => {
         && data.getUTCMonth() === mes - 1
         && data.getUTCDate() === dia;
 };
-
-const codigoPostgres = (error) => (
-    error?.code
-    || error?.cause?.code
-    || error?.cause?.cause?.code
-);
 
 const getAssiduidade = async (req, res, next) => {
     try {

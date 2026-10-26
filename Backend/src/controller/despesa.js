@@ -1,6 +1,7 @@
 import Despesa from "../repository/despesa.js";
 import DespesaService from "../services/despesa.js";
 import AuditoriaService from "../services/auditoria.js";
+import { codigoPostgres } from "../utils/erro.js";
 
 const getDespesas = async (req, res, next) => {
     try {
@@ -42,7 +43,7 @@ const createDespesa = async (req, res, next) => {
         res.status(201).json(despesa);
     } catch (error) {
         //23503 = categoria/produto/funcionario inexistente
-        if (error.code === "23503") {
+        if (codigoPostgres(error) === "23503") {
             return res.status(400).json({ message: "Categoria, produto ou funcionario nao encontrado" });
         }
         next(error);
@@ -79,7 +80,7 @@ const updateDespesa = async (req, res, next) => {
 
         res.status(200).json(depois);
     } catch (error) {
-        if (error.code === "23503") {
+        if (codigoPostgres(error) === "23503") {
             return res.status(400).json({ message: "Categoria nao encontrada" });
         }
         next(error);

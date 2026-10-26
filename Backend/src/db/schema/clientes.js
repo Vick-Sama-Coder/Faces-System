@@ -13,7 +13,7 @@ export const cliente = pgTable('cliente', {
     id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
     nome: varchar('nome', { length: 100 }).notNull(),
     apelido: varchar('apelido', { length: 100 }),
-    telefone: integer('telefone').notNull().unique(),
+    telefone: integer('telefone').notNull(),
     endereco: varchar('endereco', { length: 255 }),
     data_nascimento: date('data_nascimento'),
     // Idade declarada no cadastro. Permite escolher precos de adulto/crianca.

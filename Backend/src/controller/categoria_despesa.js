@@ -1,4 +1,5 @@
 import CategoriaDespesa from "../repository/categoria_despesa.js";
+import { codigoPostgres } from "../utils/erro.js";
 
 const getCategoriasDespesa = async (req, res, next) => {
     try {
@@ -18,7 +19,7 @@ const createCategoriaDespesa = async (req, res, next) => {
 
         res.status(201).json(await CategoriaDespesa.create({ nome, tipo }));
     } catch (error) {
-        if (error.code === "23505") {
+        if (codigoPostgres(error) === "23505") {
             return res.status(409).json({ field: "nome", message: "Ja existe uma categoria com este nome" });
         }
         next(error);

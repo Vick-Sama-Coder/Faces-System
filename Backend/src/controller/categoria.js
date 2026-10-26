@@ -1,4 +1,5 @@
 import Categoria from "../repository/categoria.js";
+import { codigoPostgres } from "../utils/erro.js";
 
 //verifica duplicados sem depender de uma constraint unica na base de dados
 const nomeDuplicado = async (nome, ignorarId = null) => {
@@ -45,7 +46,7 @@ const createCategoria = async (req, res, next) => {
 
         res.status(201).json(await Categoria.create({ nome }));
     } catch (error) {
-        if (error.code === "23505") {
+        if (codigoPostgres(error) === "23505") {
             return res.status(409).json({ field: "nome", message: "Ja existe uma categoria com este nome" });
         }
         next(error);
@@ -72,7 +73,7 @@ const updateCategoria = async (req, res, next) => {
 
         res.status(200).json(categoria);
     } catch (error) {
-        if (error.code === "23505") {
+        if (codigoPostgres(error) === "23505") {
             return res.status(409).json({ field: "nome", message: "Ja existe uma categoria com este nome" });
         }
         next(error);
@@ -90,7 +91,7 @@ const deleteCategoria = async (req, res, next) => {
         res.status(204).send();
     } catch (error) {
         //23503 = existem servicos nesta categoria
-        if (error.code === "23503") {
+        if (codigoPostgres(error) === "23503") {
             return res.status(409).json({ message: "Nao e possivel apagar: existem servicos nesta categoria" });
         }
         next(error);

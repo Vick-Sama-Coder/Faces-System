@@ -50,6 +50,20 @@
       "when": 1792959254907,
       "tag": "0006_powerful_firelord",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793006690612,
+      "tag": "0007_reconcile_catalogo",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793009011318,
+      "tag": "0008_cliente_telefone_nao_unico",
+      "breakpoints": true
     }
   ]
 }

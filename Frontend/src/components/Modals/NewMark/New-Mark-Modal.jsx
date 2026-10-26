@@ -13,13 +13,8 @@ import {
     CheckCircle2,
     Wallet,
     Tag,
-    Layers,
     Minus,
-    Percent,
-    ChevronDown,
-    ChevronUp,
-    UserCheck,
-    UserX
+    Percent
 } from "lucide-react";
 import {
     createAtendimento,
@@ -326,7 +321,7 @@ function NewMarkModal({ onclose, onSuccess }) {
     }
 
     function removerAplicacao(aplicacaoId, servicoPrincipalId) {
-        setItens((anteriores) => anteriores.filter((item, i) =>
+        setItens((anteriores) => anteriores.filter((item) =>
             !(String(item.servico_id) === String(aplicacaoId) && String(item.servico_principal_id) === String(servicoPrincipalId))
         ));
     }
@@ -439,7 +434,7 @@ function NewMarkModal({ onclose, onSuccess }) {
 
     function handleAplicarDesconto(e) {
         e.preventDefault();
-        const { escopo, tipo, percentagem, valor_desconto, atendimento_servico_id, valor_bruto } = descontoForm;
+        const { tipo, percentagem, valor_desconto, valor_bruto } = descontoForm;
 
         let valorDescontoNum = Number(valor_desconto) || 0;
         const valorBrutoNum = Number(valor_bruto) || 0;
@@ -883,7 +878,7 @@ function NewMarkModal({ onclose, onSuccess }) {
                                                                     onClick={() => adicionarAplicacao(item.servico_id, app)}
                                                                     title="Adicionar aplicação"
                                                                 >
-                                                                    <Plus size={12} /> {app.nome} ({Number(app.valor).toLocaleString("pt-MZ")} MT)
+                                                                    <PlusIcon size={12} /> {app.nome} ({Number(app.valor).toLocaleString("pt-MZ")} MT)
                                                                 </button>
                                                             ))}
                                                         </div>

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { X, Scissors, Save, Edit2, Tag, Heart, Layers, UserCheck, UserX, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { X, Scissors, Save, Edit2, Tag, Heart, Layers, UserCheck, UserX, Plus, Trash2, ChevronDown, ChevronUp, Clock } from "lucide-react";
 import { createServico, updateServico, getCategorias, getApiError, getApiErrorField, getServicoModalidades, createServicoModalidade, updateServicoModalidade, deleteServicoModalidade, getServicoAplicacoes, associarAplicacao, desassociarAplicacao, getServicos } from "../../../services/api.js";
 import './ServicoModal.css'
 
@@ -28,8 +28,36 @@ function ServicoModal({ onclose, servico = null, onSuccess }) {
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [loadingModalidades, setLoadingModalidades] = useState(false);
-    const [loadingAplicacoes, setLoadingAplicacoes] = useState(false);
+    const [loadingModalidades, setLoadingModalidades] = useState(isEdit);
+    const [loadingAplicacoes, setLoadingAplicacoes] = useState(isEdit);
+
+    const carregarModalidades = useCallback(async () => {
+        if (!servico) return;
+        setLoadingModalidades(true);
+        try {
+            const res = await getServicoModalidades(servico.id);
+            const lista = Array.isArray(res.data) ? res.data : [];
+            setModalidades(lista);
+        } catch (err) {
+            setError(getApiError(err));
+        } finally {
+            setLoadingModalidades(false);
+        }
+    }, [servico]);
+
+    const carregarAplicacoes = useCallback(async () => {
+        if (!servico) return;
+        setLoadingAplicacoes(true);
+        try {
+            const res = await getServicoAplicacoes(servico.id);
+            const lista = Array.isArray(res.data) ? res.data : [];
+            setAplicacoesAssociadas(lista);
+        } catch (err) {
+            setError(getApiError(err));
+        } finally {
+            setLoadingAplicacoes(false);
+        }
+    }, [servico]);
 
     useEffect(() => {
         let activo = true;
@@ -50,14 +78,42 @@ function ServicoModal({ onclose, servico = null, onSuccess }) {
     // Carregar modalidades quando edita
     useEffect(() => {
         if (!isEdit || !servico) return;
-        carregarModalidades();
-    }, [isEdit, servico?.id]);
+        let activo = true;
+
+        async function carregarModalidadesIniciais() {
+            try {
+                const res = await getServicoModalidades(servico.id);
+                if (activo) setModalidades(Array.isArray(res.data) ? res.data : []);
+            } catch (err) {
+                if (activo) setError(getApiError(err));
+            } finally {
+                if (activo) setLoadingModalidades(false);
+            }
+        }
+
+        carregarModalidadesIniciais();
+        return () => { activo = false };
+    }, [isEdit, servico]);
 
     // Carregar aplicacoes associadas quando edita
     useEffect(() => {
         if (!isEdit || !servico) return;
-        carregarAplicacoes();
-    }, [isEdit, servico?.id]);
+        let activo = true;
+
+        async function carregarAplicacoesIniciais() {
+            try {
+                const res = await getServicoAplicacoes(servico.id);
+                if (activo) setAplicacoesAssociadas(Array.isArray(res.data) ? res.data : []);
+            } catch (err) {
+                if (activo) setError(getApiError(err));
+            } finally {
+                if (activo) setLoadingAplicacoes(false);
+            }
+        }
+
+        carregarAplicacoesIniciais();
+        return () => { activo = false };
+    }, [isEdit, servico]);
 
     // Carregar aplicacoes disponiveis para associar
     useEffect(() => {
@@ -76,34 +132,6 @@ function ServicoModal({ onclose, servico = null, onSuccess }) {
         carregarAplicacoesDisponiveis();
         return () => { activo = false };
     }, []);
-
-    const carregarModalidades = async () => {
-        if (!servico) return;
-        setLoadingModalidades(true);
-        try {
-            const res = await getServicoModalidades(servico.id);
-            const lista = Array.isArray(res.data) ? res.data : [];
-            setModalidades(lista);
-        } catch (err) {
-            setError(getApiError(err));
-        } finally {
-            setLoadingModalidades(false);
-        }
-    };
-
-    const carregarAplicacoes = async () => {
-        if (!servico) return;
-        setLoadingAplicacoes(true);
-        try {
-            const res = await getServicoAplicacoes(servico.id);
-            const lista = Array.isArray(res.data) ? res.data : [];
-            setAplicacoesAssociadas(lista);
-        } catch (err) {
-            setError(getApiError(err));
-        } finally {
-            setLoadingAplicacoes(false);
-        }
-    };
 
     const handleChange = (field, value) => {
         setFormData({ ...formData, [field]: value });

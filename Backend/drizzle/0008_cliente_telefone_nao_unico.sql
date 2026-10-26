@@ -1,0 +1,1 @@
+ALTER TABLE "cliente" DROP CONSTRAINT "cliente_telefone_unique";

@@ -1,4 +1,4 @@
-import { and, asc, eq, ilike, ne, or, sql } from 'drizzle-orm';
+import { asc, eq, ilike, or, sql } from 'drizzle-orm';
 import db from '../db/client.js';
 import { cliente } from '../db/schema/index.js';
 
@@ -41,22 +41,6 @@ const findById = async (id) => {
         .limit(1);
 
     return linha || null;
-};
-
-//verifica duplicacao de telefone (ignora um id quando em atualizacao)
-const existeTelefone = async (telefone, exceptoId = null) => {
-    const condicoes = [eq(cliente.telefone, telefone)];
-
-    if (exceptoId !== null && exceptoId !== undefined) {
-        condicoes.push(ne(cliente.id, exceptoId));
-    }
-
-    const linhas = await db.select({ id: cliente.id })
-        .from(cliente)
-        .where(and(...condicoes))
-        .limit(1);
-
-    return linhas.length > 0;
 };
 
 const create = async ({ nome, apelido, telefone, endereco, data_nascimento, idade, sexo }) => {
@@ -121,7 +105,6 @@ const deleteCliente = async (id) => {
 const Cliente = {
     findAll,
     findById,
-    existeTelefone,
     create,
     update,
     updateEstado,

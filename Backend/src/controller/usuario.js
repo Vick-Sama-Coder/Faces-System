@@ -4,6 +4,7 @@ import Usuario from '../repository/usuario.js';
 import Permissao from '../repository/permissao.js';
 import AuditoriaService from '../services/auditoria.js';
 import { limparTelefone } from '../utils/validacoes.js';
+import { codigoPostgres } from '../utils/erro.js';
 
 //gera uma credencial temporaria legivel (letra + numero, minimo 8 caracteres)
 function gerarSenhaTemporaria() {
@@ -75,7 +76,7 @@ const createUsuario = async (req, res, next) => {
         });
     } catch (error) {
         //23503 = perfil inexistente
-        if (error.code === "23503") {
+        if (codigoPostgres(error) === "23503") {
             return res.status(400).json({ message: "Perfil nao encontrado" });
         }
         next(error);
@@ -111,7 +112,7 @@ const updateUsuario = async (req, res, next) => {
 
         res.status(200).json(usuario);
     } catch (error) {
-        if (error.code === "23503") {
+        if (codigoPostgres(error) === "23503") {
             return res.status(400).json({ message: "Perfil nao encontrado" });
         }
         next(error);
