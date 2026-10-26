@@ -1,16 +1,18 @@
 import { useState } from "react"
 import { Navigate, useNavigate } from "react-router-dom"
-import { Lock } from "lucide-react"
-import Input from "../../../components/forms/input/input.jsx"
+import AuthLayout from "../AuthLayout.jsx"
+import AuthAlert from "../components/AuthAlert.jsx"
+import AuthButton from "../components/AuthButton.jsx"
+import PasswordField from "../components/PasswordField.jsx"
 import { useAuthStore } from "../../../store/authStore.js"
 import { validarSenha, validarConfirmacao } from "../../../utils/validacoes.js"
-import "../../home.css"
 
-function FirstAccess(){
+function FirstAccess() {
     const navigate = useNavigate()
     const {
         user,
         definirSenhaPrimeiroAcesso,
+        logout,
         loading,
         error,
         errorField,
@@ -23,95 +25,121 @@ function FirstAccess(){
 
     const precisaTrocarSenha = Boolean(user?.deve_alterar_senha || user?.alteracao_obrigatoria_senha)
 
-    //se a conta ja tem uma senha definida, nao ha nada a fazer aqui
-    if(!precisaTrocarSenha){
-        return <Navigate to="/" replace/>
+    // se a conta ja tem uma senha definida, nao ha nada a fazer aqui
+    if (!precisaTrocarSenha) {
+        return <Navigate to="/dashboard" replace />
     }
 
-    //erro local tem prioridade; o erro do backend realca o campo indicado
-    function erroDe(campo){
-        if(erros[campo]) return erros[campo]
-        if(errorField === campo) return error
+    // erro local tem prioridade; o erro do backend realca o campo indicado
+    function erroDe(campo) {
+        if (erros[campo]) return erros[campo]
+        if (errorField === campo) return error
         return null
     }
 
-    async function handleSubmit(e){
+    function validarCampo(campo, valor) {
+        const mensagem = campo === "senha_nova"
+            ? validarSenha(valor)
+            : validarConfirmacao(senhaNova, valor)
+
+        setErros((prev) => ({ ...prev, [campo]: mensagem }))
+    }
+
+    async function handleSubmit(e) {
         e.preventDefault()
         clearError()
 
-        const validados = {}
-        const erroSenha = validarSenha(senhaNova)
-        if(erroSenha) validados.senha_nova = erroSenha
-        const erroConfirmacao = validarConfirmacao(senhaNova, confirmarSenha)
-        if(erroConfirmacao) validados.confirmarSenha = erroConfirmacao
+        const validados = {
+            senha_nova: validarSenha(senhaNova),
+            confirmarSenha: validarConfirmacao(senhaNova, confirmarSenha)
+        }
 
         setErros(validados)
-        if(Object.values(validados).some(Boolean)){
+        if (Object.values(validados).some(Boolean)) {
             return
         }
 
         const ok = await definirSenhaPrimeiroAcesso({ senha_nova: senhaNova })
-        if(ok){
-            navigate("/", { replace: true })
+        if (ok) {
+            navigate("/dashboard", { replace: true })
         }
     }
 
-    return(
-        <section className="container">
-            <h1 className="h1">Primeiro Acesso</h1>
-            <p className="paragraph">
-                Bem-vindo(a), {user.nome}. Defina uma nova senha para entrar no sistema.
-            </p>
+    async function handleLogout() {
+        await logout()
+        navigate("/login", { replace: true })
+    }
 
-            <p className="success-msg" role="status">
-                A sua conta ainda usa a senha padrão. Por segurança, defina uma nova senha.
-            </p>
-
-            {error && !errorField && <p className="error-msg" role="alert">{error}</p>}
-
-            <form onSubmit={handleSubmit} noValidate>
-                <div className="input-section">
-                    <Input type="password"
-                        labelId="pass"
-                        className='text-input'
-                        labelName= "Nova Senha"
-                        placeholder="8+ caracteres, 1 letra e 1 numero"
-                        icon={<Lock></Lock>}
-                        value={senhaNova}
-                        onChange={(e) => { setSenhaNova(e.target.value); setErros((prev) => ({ ...prev, senha_nova: null })) }}
-                        onBlur={() => setErros((prev) => ({ ...prev, senha_nova: validarSenha(senhaNova) }))}
-                        error={erroDe("senha_nova")}
-                        autoComplete="new-password"
-                        maxLength={72}
-                        required
-                    />
-                </div>
-                <div className="input-section">
-                    <Input type="password"
-                        labelId="confirm-pass"
-                        className='text-input'
-                        labelName= "Confirmar Nova Senha"
-                        placeholder="repita a nova senha"
-                        icon={<Lock></Lock>}
-                        value={confirmarSenha}
-                        onChange={(e) => { setConfirmarSenha(e.target.value); setErros((prev) => ({ ...prev, confirmarSenha: null })) }}
-                        onBlur={() => setErros((prev) => ({ ...prev, confirmarSenha: validarConfirmacao(senhaNova, confirmarSenha) }))}
-                        error={erroDe("confirmarSenha")}
-                        autoComplete="new-password"
-                        maxLength={72}
-                        required
-                    />
-                </div>
-                <div>
-                    <Input
-                        type="submit"
-                        value={loading ? "A guardar..." : "Guardar senha e entrar"}
-                        className="submit-btn"
+    return (
+        <AuthLayout
+            eyebrow="Primeiro acesso"
+            title="Defina a sua nova senha"
+            subtitle={`Bem-vindo(a), ${user?.nome || "utilizador"}. Antes de continuar, escolha uma nova senha para a sua conta.`}
+            footer={(
+                <p>
+                    Não é você?
+                    <button
+                        type="button"
+                        className="auth-text-button"
+                        onClick={handleLogout}
                         disabled={loading}
-                    />
-                </div>
+                    >
+                        Terminar sessão
+                    </button>
+                </p>
+            )}
+        >
+            <div className="auth-alerts">
+                <AuthAlert type="info">
+                    A sua conta ainda usa a senha inicial. Por segurança, defina uma nova senha.
+                </AuthAlert>
+                {error && !errorField && <AuthAlert type="error">{error}</AuthAlert>}
+            </div>
+
+            <form className="auth-form" onSubmit={handleSubmit} noValidate>
+                <PasswordField
+                    id="first-access-password"
+                    name="senha_nova"
+                    label="Nova senha"
+                    placeholder="Crie uma nova senha"
+                    hint="Mínimo 8 caracteres, com pelo menos uma letra e um número."
+                    value={senhaNova}
+                    onChange={(e) => {
+                        setSenhaNova(e.target.value)
+                        setErros((prev) => ({ ...prev, senha_nova: null }))
+                    }}
+                    onBlur={() => validarCampo("senha_nova", senhaNova)}
+                    error={erroDe("senha_nova")}
+                    autoComplete="new-password"
+                    maxLength={72}
+                    disabled={loading}
+                    autoFocus
+                    required
+                />
+
+                <PasswordField
+                    id="first-access-confirm-password"
+                    name="confirmarSenha"
+                    label="Confirmar nova senha"
+                    placeholder="Repita a nova senha"
+                    value={confirmarSenha}
+                    onChange={(e) => {
+                        setConfirmarSenha(e.target.value)
+                        setErros((prev) => ({ ...prev, confirmarSenha: null }))
+                    }}
+                    onBlur={() => validarCampo("confirmarSenha", confirmarSenha)}
+                    error={erroDe("confirmarSenha")}
+                    autoComplete="new-password"
+                    maxLength={72}
+                    disabled={loading}
+                    required
+                />
+
+                <AuthButton loading={loading} loadingText="A guardar...">
+                    Guardar senha e entrar
+                </AuthButton>
             </form>
-        </section>
+        </AuthLayout>
     )
 }
 

@@ -40,8 +40,13 @@ function LoginPage() {
 
         const ok = await login({ nome: nome.trim(), senha })
         if (ok) {
-            // dashboard e o index ("/") protegido
-            await navigate("/", { replace: true })
+            // contas com senha inicial vao diretas para a troca obrigatoria
+            const usuario = useAuthStore.getState().user
+            // volta para a rota protegida que originou o login, se existir
+            const destino = usuario?.deve_alterar_senha
+                ? "/primeiro-acesso"
+                : (location.state?.from || "/dashboard")
+            await navigate(destino, { replace: true })
         }
     }
 
@@ -111,12 +116,6 @@ function LoginPage() {
                     disabled={loading}
                     required
                 />
-
-                <div className="auth-form-row">
-                    <Link to="/forgotpass" className="auth-link auth-link-small">
-                        Esqueceu a senha?
-                    </Link>
-                </div>
 
                 <AuthButton loading={loading} loadingText="A entrar...">
                     Entrar
