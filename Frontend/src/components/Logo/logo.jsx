@@ -3,8 +3,8 @@ import './logo.css'
 function Logo(){
     return(
         <>
-            <img className='' src={Faces} alt="" />
-            <h5>SALAO DE CABELEREIRO UNISSEX</h5>
+            <img className='' src={Faces} alt="Faces System" />
+            <h5>SALÃO DE CABELEREIRO UNISSEX</h5>
         </>
     )
 }
