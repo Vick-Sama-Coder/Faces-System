@@ -60,7 +60,7 @@ export function RequirePermission({ children, permissoes }){
     const efetivas = user.permissoes || [];
 
     if(permissoes && permissoes.length > 0 && !permissoes.some((codigo) => efetivas.includes(codigo))){
-        return <Navigate to="/" replace/>;
+        return <Navigate to="/dashboard" replace/>;
     }
 
     return children;
@@ -90,14 +90,14 @@ export function RequireRole({ children, perfis }){
     }
 
     if(perfis && !perfis.includes(user.perfil)){
-        //sem autorizacao: volta ao dashboard (index, rota acessivel a todos)
-        return <Navigate to="/" replace/>;
+        //sem autorizacao: volta ao dashboard (rota acessivel a qualquer sessao)
+        return <Navigate to="/dashboard" replace/>;
     }
 
     return children;
 }
 
-//Para rotas publicas (/login, /register) — ja logado vai directo ao dashboard (index)
+//Para rotas publicas de auth (/login, /register) — ja logado vai directo ao painel
 export function RedirectIfAuth({ children }){
     const { user, initialized, checkAuth } = useAuthStore();
 
@@ -112,7 +112,7 @@ export function RedirectIfAuth({ children }){
     }
 
     if(user){
-        return <Navigate to={precisaDefinirSenha(user) ? "/primeiro-acesso" : "/"} replace/>;
+        return <Navigate to={precisaDefinirSenha(user) ? "/primeiro-acesso" : "/dashboard"} replace/>;
     }
 
     return children;
@@ -129,7 +129,7 @@ export function RequireSession({ children }){
     }, [initialized, checkAuth]);
 
     if(!initialized){
-        return <Waiting/>;
+        return <AuthLoading/>;
     }
 
     if(!user){

@@ -24,7 +24,7 @@ const GRUPOS = [
     {
         titulo: "Operacao",
         itens: [
-            { nome: "DashBoard",        path: "/",                    Icone: LayoutDashboardIcon, perfis: [], title: "DashBoard" },
+            { nome: "DashBoard",        path: "/dashboard",            Icone: LayoutDashboardIcon, perfis: [], title: "DashBoard" },
             { nome: "Novo Atendimento", path: "/novoAtendimento",     Icone: CalendarPlus,       perfis: [], title: "Novo Atendimento" },
             { nome: "Clientes",         path: "/clientes",            Icone: UserRound,          perfis: [], title: "Clientes" },
             { nome: "Servicos",         path: "/servicos",            Icone: ScissorsIcon,       perfis: [], title: "Servicos" },

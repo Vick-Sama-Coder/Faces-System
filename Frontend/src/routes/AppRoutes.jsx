@@ -5,7 +5,6 @@ import { Routes, Route } from "react-router";
 import FirstAccess from "../pages/auth/FirstAccess/FirstAccess.jsx";
 import LoginPage from "../pages/auth/Login/LoginPage.jsx";
 import RegisterPage from "../pages/auth/Register/RegisterPage.jsx";
-import ForgotPasswordPage from "../pages/auth/ForgotPassword/ForgotPasswordPage.jsx";
 
 import DashBoard from "../pages/dashboard/dashboard.jsx";
 import Clientes from "../pages/clientes/clientes.jsx";
@@ -20,14 +19,18 @@ import GestaoUtilizadores from "../pages/admin/GestaoUtilizadores.jsx"
 import Permissoes from "../pages/admin/Permissoes.jsx"
 import Perfil from "../pages/perfil/Perfil.jsx"
 import HorarioPage from "../pages/horario/HorarioPage.jsx"
+import LandingPage from "../pages/landing/LandingPage.jsx"
 import { RequireAuth, RequirePermission, RequireSession, RedirectIfAuth } from "./RequireAuth.jsx"
 
 
 export default function AppRoutes(){
     return(
         <Routes>
-            {/* --- dashboard e o index: rota protegida por sessao --- */}
-            <Route path='/' element={<RequireAuth><DashBoard/></RequireAuth>}/>
+            {/* --- pagina publica do salao: catalogo, sobre nos e contactos --- */}
+            <Route path='/' element={<LandingPage/>}/>
+
+            {/* --- painel interno: rota protegida por sessao --- */}
+            <Route path='/dashboard' element={<RequireAuth><DashBoard/></RequireAuth>}/>
 
             {/* --- conta do utilizador autenticado --- */}
             <Route path="/perfil" element={<RequireAuth><Perfil/></RequireAuth>}/>
@@ -39,7 +42,6 @@ export default function AppRoutes(){
 
             <Route path="/login" element={<RedirectIfAuth><LoginPage/></RedirectIfAuth>}/>
             <Route path="/register" element={<RedirectIfAuth><RegisterPage/></RedirectIfAuth>} />
-            <Route path="/forgotpass" element={<ForgotPasswordPage/>}/>
 
 
             {/* --- rotas de operacao: exigem a permissao correspondente --- */}
