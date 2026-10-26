@@ -345,17 +345,18 @@ function LandingPage() {
                                 {categoria.servicos.map((servico) => (
                                     <li key={servico.id} className="landing-catalogo-item">
                                         <div className="landing-catalogo-info">
-                                            <h4>{servico.nome}</h4>
+                                            <h4>
+                                                {servico.nome}
+                                                {servico.faixa_etaria && servico.faixa_etaria !== "Geral" && (
+                                                    <span className={`landing-catalogo-faixa ${servico.faixa_etaria === "Crianca" ? "crianca" : "adulto"}`}>
+                                                        {servico.faixa_etaria === "Crianca" ? "Criança" : servico.faixa_etaria}
+                                                    </span>
+                                                )}
+                                            </h4>
                                             {servico.descricao && <p>{servico.descricao}</p>}
                                         </div>
 
                                         <div className="landing-catalogo-preco">
-                                            {servico.duracao_min ? (
-                                                <span className="landing-catalogo-duracao">
-                                                    <Clock size={13} aria-hidden="true" />
-                                                    {servico.duracao_min} min
-                                                </span>
-                                            ) : null}
                                             <strong>
                                                 {formatarPreco(servico.valor) || "Sob consulta"}
                                             </strong>

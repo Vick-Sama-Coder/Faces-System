@@ -396,12 +396,25 @@
     white-space: nowrap;
 }
 
-.landing-catalogo-duracao {
+.landing-catalogo-faixa {
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
+    margin-left: 0.5rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
     font-size: var(--text-xs);
-    color: var(--text-muted);
+    font-weight: 600;
+    vertical-align: middle;
+}
+
+.landing-catalogo-faixa.adulto {
+    background: var(--primary-soft);
+    color: var(--primary-text);
+}
+
+.landing-catalogo-faixa.crianca {
+    background: var(--warning-soft, #fef3c7);
+    color: var(--warning-text, #92400e);
 }
 
 /* ------------------------------------------------------------------

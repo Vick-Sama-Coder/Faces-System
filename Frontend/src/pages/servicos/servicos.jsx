@@ -63,14 +63,12 @@ function PrecoCell({ value }) {
     )
 }
 
-function DuracaoCell({ value }) {
-    if (!value) return <span className="mgmt-inline-meta">—</span>
-    return (
-        <span className="mgmt-inline-meta">
-            <Clock size={13} />
-            {value} min
-        </span>
-    )
+function FaixaEtariaCell({ value }) {
+    const faixa = value || "Geral"
+    const etiqueta = faixa === "Crianca" ? "Criança" : faixa
+    const tom = faixa === "Adulto" ? "primary" : faixa === "Crianca" ? "warning" : "neutral"
+
+    return <span className={`mgmt-badge ${tom}`}>{etiqueta}</span>
 }
 
 function FidelizacaoCell({ data }) {
@@ -265,7 +263,9 @@ function Servicos() {
             const nome = String(servico.nome || "").toLowerCase()
             const categoria = String(servico.categoria_nome || "").toLowerCase()
             const descricao = String(servico.descricao || "").toLowerCase()
-            return nome.includes(termo) || categoria.includes(termo) || descricao.includes(termo)
+            const faixa = String(servico.faixa_etaria || "").toLowerCase()
+            return nome.includes(termo) || categoria.includes(termo) ||
+                descricao.includes(termo) || faixa.includes(termo)
         })
     }, [servicosDaCategoria, servicoFiltro, searchTerm, estadoFiltro])
 
@@ -299,12 +299,12 @@ function Servicos() {
                 cellRenderer: PrecoCell
             },
             {
-                headerName: "Duração",
-                field: "duracao_min",
+                headerName: "Público",
+                field: "faixa_etaria",
                 flex: 0,
                 width: 115,
                 minWidth: 115,
-                cellRenderer: DuracaoCell
+                cellRenderer: FaixaEtariaCell
             },
             {
                 headerName: "Fidelização",

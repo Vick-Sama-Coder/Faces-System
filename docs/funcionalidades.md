@@ -59,8 +59,8 @@ Painel interno protegido por sessão, alimentado por `GET /api/dashboard`.
 
 ## Serviços (`/servicos`) ✅
 
-- CRUD de serviços (nome, valor, categoria, descrição, duração, tipo de preço e
-  elegibilidade para fidelização), com activação/desactivação.
+- CRUD de serviços (nome, valor, categoria, descrição, público-alvo adulto/criança,
+  tipo de preço e elegibilidade para fidelização), com activação/desactivação.
 - Histórico de preços e modalidades de preço por serviço.
 - Aplicações/variações associadas a um serviço principal.
 - Serviço usado em atendimentos não pode ser apagado (`409`).

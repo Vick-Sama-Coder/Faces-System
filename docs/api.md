@@ -248,8 +248,9 @@ utilizador autenticado.
   **ativos**; `?estado=todos` inclui inativos.
 - `GET /api/servicos/:id` 🔒 — um serviço (`200`) ou `404`
 - `GET /api/servicos/:id/historico-precos` 🔒 — histórico de alterações de preço
-- `POST /api/servicos` 🔒🛠️ — corpo: `{ nome, valor, categoria_id, descricao?, duracao_min?,
-  tipo_preco?, elegivel_fidelizacao? }`. `201`
+- `POST /api/servicos` 🔒🛠️ — corpo: `{ nome, valor, categoria_id, descricao?, faixa_etaria?,
+  tipo_preco?, elegivel_fidelizacao? }`. `201` (`faixa_etaria`: `Geral`|`Adulto`|`Crianca`,
+  omissão `Geral`)
   - `400` se faltar campo ou `valor <= 0`; `409` se já existir um serviço **ativo** com o nome
   - `400` se `elegivel_fidelizacao: true` e o valor ultrapassar **200 MT**
 - `PUT /api/servicos/:id` 🔒🛠️ — actualização parcial. `200` / `404` / `400`
@@ -574,7 +575,7 @@ filtro devolve todo o histórico.
 Apenas **serviços ativos** e campos de divulgação (RF22/RN22/RNF11): nunca expõe
 clientes, funcionários, custos ou qualquer dado interno.
 
-- `GET /api/public/servicos` — lista `[{ id, nome, descricao, valor, duracao_min,
+- `GET /api/public/servicos` — lista `[{ id, nome, descricao, valor, faixa_etaria,
   tipo_preco, categoria_nome }]`
 - `GET /api/public/servicos/:id` — detalhe (`200`); `404` se não existir ou estiver inativo
 

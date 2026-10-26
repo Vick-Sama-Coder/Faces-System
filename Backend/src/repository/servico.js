@@ -16,6 +16,7 @@ const campos = {
     descricao: servico.descricao,
     valor: servico.valor,
     duracao_min: servico.duracao_min,
+    faixa_etaria: servico.faixa_etaria,
     tipo_preco: servico.tipo_preco,
     tipo_servico: servico.tipo_servico,
     permite_aplicacoes: servico.permite_aplicacoes,
@@ -32,6 +33,7 @@ const camposCriacao = {
     descricao: servico.descricao,
     valor: servico.valor,
     duracao_min: servico.duracao_min,
+    faixa_etaria: servico.faixa_etaria,
     tipo_preco: servico.tipo_preco,
     tipo_servico: servico.tipo_servico,
     permite_aplicacoes: servico.permite_aplicacoes,
@@ -63,13 +65,14 @@ const findById = async (id) => {
     return linha || null;
 };
 
-const create = async ({ nome, descricao, valor, duracao_min, tipo_preco, tipo_servico, permite_aplicacoes, elegivel_fidelizacao, categoria_id }) => {
+const create = async ({ nome, descricao, valor, duracao_min, faixa_etaria, tipo_preco, tipo_servico, permite_aplicacoes, elegivel_fidelizacao, categoria_id }) => {
     const [linha] = await db.insert(servico)
         .values({
             nome,
             descricao: descricao ?? null,
             valor,
             duracao_min: duracao_min ?? null,
+            faixa_etaria: faixa_etaria ?? 'Geral',
             tipo_preco: tipo_preco ?? 'fixo',
             tipo_servico: tipo_servico ?? 'Servico',
             permite_aplicacoes: permite_aplicacoes ?? false,
@@ -82,13 +85,14 @@ const create = async ({ nome, descricao, valor, duracao_min, tipo_preco, tipo_se
 };
 
 //atualizacao parcial: campos a null sao ignorados e mantem o valor atual
-const update = async (id, { nome, descricao, valor, duracao_min, tipo_preco, tipo_servico, permite_aplicacoes, elegivel_fidelizacao, categoria_id }) => {
+const update = async (id, { nome, descricao, valor, duracao_min, faixa_etaria, tipo_preco, tipo_servico, permite_aplicacoes, elegivel_fidelizacao, categoria_id }) => {
     const valores = {};
 
     if (nome !== undefined && nome !== null) valores.nome = nome;
     if (descricao !== undefined && descricao !== null) valores.descricao = descricao;
     if (valor !== undefined && valor !== null) valores.valor = valor;
     if (duracao_min !== undefined && duracao_min !== null) valores.duracao_min = duracao_min;
+    if (faixa_etaria !== undefined && faixa_etaria !== null) valores.faixa_etaria = faixa_etaria;
     if (tipo_preco !== undefined && tipo_preco !== null) valores.tipo_preco = tipo_preco;
     if (tipo_servico !== undefined && tipo_servico !== null) valores.tipo_servico = tipo_servico;
     if (permite_aplicacoes !== undefined && permite_aplicacoes !== null) valores.permite_aplicacoes = permite_aplicacoes;
@@ -148,6 +152,7 @@ const camposPublicos = {
     descricao: servico.descricao,
     valor: servico.valor,
     duracao_min: servico.duracao_min,
+    faixa_etaria: servico.faixa_etaria,
     tipo_preco: servico.tipo_preco,
     tipo_servico: servico.tipo_servico,
     categoria_nome: categoriaSalao.nome

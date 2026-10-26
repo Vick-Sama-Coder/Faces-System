@@ -2,6 +2,15 @@ import Servico from "../repository/servico.js";
 import { validarElegibilidadeFidelizacao } from "../utils/validacoes.js";
 import { codigoPostgres, constraintPostgres } from "../utils/erro.js";
 
+// Valores aceites em servico.faixa_etaria (mesma convencao das modalidades).
+const FAIXAS_ETARIAS = ["Geral", "Adulto", "Crianca"];
+
+function faixaEtariaInvalida(faixa_etaria) {
+    return faixa_etaria !== undefined && faixa_etaria !== null && !FAIXAS_ETARIAS.includes(faixa_etaria);
+}
+
+const MENSAGEM_FAIXA = "Faixa etaria invalida: use 'Geral', 'Adulto' ou 'Crianca'";
+
 const getServicos = async (req, res, next) => {
     try {
         res.status(200).json(await Servico.findAll({ estado: req.query.estado }));
@@ -26,7 +35,7 @@ const getServicoById = async (req, res, next) => {
 
 const createServico = async (req, res, next) => {
     try {
-        const { nome, descricao, valor, duracao_min, tipo_preco, tipo_servico, permite_aplicacoes, elegivel_fidelizacao, categoria_id } = req.body;
+        const { nome, descricao, valor, duracao_min, faixa_etaria, tipo_preco, tipo_servico, permite_aplicacoes, elegivel_fidelizacao, categoria_id } = req.body;
 
         if (!nome || valor === undefined || !categoria_id) {
             return res.status(400).json({ message: "Os campos nome, valor e categoria_id sao obrigatorios" });
@@ -36,7 +45,11 @@ const createServico = async (req, res, next) => {
             return res.status(400).json({ field: "valor", message: "O valor nao pode ser negativo" });
         }
 
-        const servico = await Servico.create({ nome, descricao, valor, duracao_min, tipo_preco, tipo_servico, permite_aplicacoes, elegivel_fidelizacao, categoria_id });
+        if (faixaEtariaInvalida(faixa_etaria)) {
+            return res.status(400).json({ field: "faixa_etaria", message: MENSAGEM_FAIXA });
+        }
+
+        const servico = await Servico.create({ nome, descricao, valor, duracao_min, faixa_etaria, tipo_preco, tipo_servico, permite_aplicacoes, elegivel_fidelizacao, categoria_id });
 
         res.status(201).json(servico);
     } catch (error) {
@@ -53,6 +66,9 @@ const createServico = async (req, res, next) => {
             if (error.message.includes('servico_tipo_servico_check')) {
                 return res.status(400).json({ field: "tipo_servico", message: "Tipo de servico invalido: use 'Servico' ou 'Aplicacao'" });
             }
+            if (error.message.includes('servico_faixa_etaria_check')) {
+                return res.status(400).json({ field: "faixa_etaria", message: MENSAGEM_FAIXA });
+            }
             if (error.message.includes('servico_valor_check')) {
                 return res.status(400).json({ field: "valor", message: "O valor nao pode ser negativo" });
             }
@@ -64,11 +80,12 @@ const createServico = async (req, res, next) => {
 const updateServico = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { nome, descricao, valor, duracao_min, tipo_preco, tipo_servico, permite_aplicacoes, elegivel_fidelizacao, categoria_id } = req.body;
+        const { nome, descricao, valor, duracao_min, faixa_etaria, tipo_preco, tipo_servico, permite_aplicacoes, elegivel_fidelizacao, categoria_id } = req.body;
 
         if (nome === undefined && descricao === undefined && valor === undefined &&
-            duracao_min === undefined && tipo_preco === undefined && tipo_servico === undefined &&
-            permite_aplicacoes === undefined && elegivel_fidelizacao === undefined && categoria_id === undefined) {
+            duracao_min === undefined && faixa_etaria === undefined && tipo_preco === undefined &&
+            tipo_servico === undefined && permite_aplicacoes === undefined &&
+            elegivel_fidelizacao === undefined && categoria_id === undefined) {
             return res.status(400).json({ message: "Nenhum campo para atualizar foi enviado" });
         }
 
@@ -76,12 +93,16 @@ const updateServico = async (req, res, next) => {
             return res.status(400).json({ field: "valor", message: "O valor nao pode ser negativo" });
         }
 
+        if (faixaEtariaInvalida(faixa_etaria)) {
+            return res.status(400).json({ field: "faixa_etaria", message: MENSAGEM_FAIXA });
+        }
+
         const atual = await Servico.findById(id);
         if (!atual) {
             return res.status(404).json({ message: "Servico nao encontrado" });
         }
 
-        const servico = await Servico.update(id, { nome, descricao, valor, duracao_min, tipo_preco, tipo_servico, permite_aplicacoes, elegivel_fidelizacao, categoria_id });
+        const servico = await Servico.update(id, { nome, descricao, valor, duracao_min, faixa_etaria, tipo_preco, tipo_servico, permite_aplicacoes, elegivel_fidelizacao, categoria_id });
 
         //alterar o preco grava historico e nao afeta atendimentos passados (RN15/RN19/RN20)
         if (valor !== undefined && valor !== null && Number(valor) !== atual.valor) {
@@ -104,6 +125,9 @@ const updateServico = async (req, res, next) => {
         if (codigoPostgres(error) === "23514") {
             if (error.message.includes('servico_tipo_servico_check')) {
                 return res.status(400).json({ field: "tipo_servico", message: "Tipo de servico invalido: use 'Servico' ou 'Aplicacao'" });
+            }
+            if (error.message.includes('servico_faixa_etaria_check')) {
+                return res.status(400).json({ field: "faixa_etaria", message: MENSAGEM_FAIXA });
             }
         }
         next(error);

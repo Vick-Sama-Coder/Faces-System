@@ -1,0 +1,2 @@
+ALTER TABLE "servico" ADD COLUMN "faixa_etaria" varchar(20) DEFAULT 'Geral' NOT NULL;--> statement-breakpoint
+ALTER TABLE "servico" ADD CONSTRAINT "servico_faixa_etaria_check" CHECK ("servico"."faixa_etaria" in ('Geral', 'Adulto', 'Crianca'));

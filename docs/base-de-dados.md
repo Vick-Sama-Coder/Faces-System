@@ -134,10 +134,12 @@ usuario 1───n log_auditoria
 #### Catálogo
 
 - **`categoria_salao`** — `id`, `nome`.
-- **`servico`** — `id`, `nome`, `descricao`, `valor int` (`check >= 0`), `duracao_min`,
+- **`servico`** — `id`, `nome`, `descricao`, `valor int` (`check >= 0`), `duracao_min`
+  (legado, já não editável na UI), `faixa_etaria` (`Geral`/`Adulto`/`Crianca`),
   `tipo_preco` (`fixo`/`variavel`), `tipo_servico` (`Servico`/`Aplicacao`),
   `permite_aplicacoes`, `elegivel_fidelizacao`, `categoria_id` (FK), `estado`,
   `data_criacao`. Índice único de `lower(nome)` entre serviços **ativos**.
+  A `faixa_etaria` permite separar, por exemplo, o corte de adulto do corte de criança.
 - **`servico_modalidade`** — `id`, `servico_id` (FK), `nome`, `faixa_etaria`
   (`Geral`/`Adulto`/`Crianca`), `valor` (`check >= 0`), `ordem`, `estado`. Nome único por
   serviço entre modalidades ativas.

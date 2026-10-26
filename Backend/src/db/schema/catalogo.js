@@ -27,6 +27,9 @@ export const servico = pgTable('servico', {
     descricao: text('descricao'),
     valor: integer('valor').notNull(),
     duracao_min: integer('duracao_min'),
+    // Publico-alvo do servico. Permite separar, por exemplo, o corte de cabelo
+    // de adulto do corte de crianca (cada um com o seu preco base).
+    faixa_etaria: varchar('faixa_etaria', { length: 20 }).notNull().default('Geral'),
     tipo_preco: varchar('tipo_preco', { length: 20 }).notNull().default('fixo'),
     tipo_servico: varchar('tipo_servico', { length: 20 }).notNull().default('Servico'),
     permite_aplicacoes: boolean('permite_aplicacoes').notNull().default(false),
@@ -38,6 +41,7 @@ export const servico = pgTable('servico', {
     // Uma aplicacao pode ser gratuita (0 MT), tal como um servico incluido.
     check('servico_valor_check', sql`${table.valor} >= 0`),
     check('servico_tipo_servico_check', sql`${table.tipo_servico} in ('Servico', 'Aplicacao')`),
+    check('servico_faixa_etaria_check', sql`${table.faixa_etaria} in ('Geral', 'Adulto', 'Crianca')`),
     // Dois servicos ativos nao podem partilhar o nome (um inativo pode).
     uniqueIndex('servico_nome_ativo_unico')
         .on(sql`lower(${table.nome})`)

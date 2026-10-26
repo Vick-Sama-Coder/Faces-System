@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { X, Scissors, Save, Edit2, Tag, Heart, Layers, UserCheck, UserX, Plus, Trash2, ChevronDown, ChevronUp, Clock } from "lucide-react";
+import { X, Scissors, Save, Edit2, Tag, Heart, Layers, UserCheck, UserX, Plus, Trash2, ChevronDown, ChevronUp, Users } from "lucide-react";
 import { createServico, updateServico, getCategorias, getApiError, getApiErrorField, getServicoModalidades, createServicoModalidade, updateServicoModalidade, deleteServicoModalidade, getServicoAplicacoes, associarAplicacao, desassociarAplicacao, getServicos } from "../../../services/api.js";
 import './ServicoModal.css'
 
@@ -10,7 +10,7 @@ function ServicoModal({ onclose, servico = null, onSuccess }) {
         nome: servico ? servico.nome : "",
         descricao: servico ? servico.descricao : "",
         valor: servico ? servico.valor : "",
-        duracao_min: servico ? servico.duracao_min : "",
+        faixa_etaria: servico ? (servico.faixa_etaria || "Geral") : "Geral",
         tipo_preco: servico ? servico.tipo_preco : "fixo",
         tipo_servico: servico ? servico.tipo_servico : "Servico",
         permite_aplicacoes: servico ? servico.permite_aplicacoes : false,
@@ -166,7 +166,7 @@ function ServicoModal({ onclose, servico = null, onSuccess }) {
                 nome: formData.nome.trim(),
                 descricao: formData.descricao.trim() || null,
                 valor: Number.parseInt(formData.valor, 10),
-                duracao_min: formData.duracao_min ? Number.parseInt(formData.duracao_min, 10) : null,
+                faixa_etaria: formData.faixa_etaria,
                 tipo_preco: formData.tipo_preco,
                 tipo_servico: formData.tipo_servico,
                 permite_aplicacoes: formData.permite_aplicacoes,
@@ -378,19 +378,19 @@ function ServicoModal({ onclose, servico = null, onSuccess }) {
 
                             <div className="form-group">
                                 <p>
-                                    <Clock size={16} />
-                                    <span>Duração (min)</span>
+                                    <Users size={16} />
+                                    <span>Público-alvo</span>
                                 </p>
-                                <input
-                                    type="number"
-                                    name="duracao_min"
-                                    id="duracao_min"
-                                    placeholder="Ex.: 30"
-                                    value={formData.duracao_min}
-                                    onChange={(e) => handleChange("duracao_min", e.target.value)}
-                                    min="0"
-                                    step="1"
-                                />
+                                <select
+                                    name="faixa_etaria"
+                                    id="faixa_etaria"
+                                    value={formData.faixa_etaria}
+                                    onChange={(e) => handleChange("faixa_etaria", e.target.value)}
+                                >
+                                    <option value="Geral">Geral (qualquer idade)</option>
+                                    <option value="Adulto">Adulto</option>
+                                    <option value="Crianca">Criança</option>
+                                </select>
                             </div>
                         </div>
 
