@@ -37,7 +37,7 @@ dotenv.config({
 
 const app = express();
 //Normaliza a origem (o .env pode ter "/" final, senao o browser bloqueia o CORS)
-const CLIENT_URL = process.env.CLIENT_URL || "http://192.168.0.104:5173" ;
+const CLIENT_URL = process.env.CLIENT_URL ;
 app.use(cors({
   origin: new URL(CLIENT_URL).origin,
   credentials: true,
