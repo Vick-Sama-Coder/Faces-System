@@ -305,10 +305,11 @@ function GestaoUtilizadores() {
                 const res = await createUsuario(payload)
                 const dados = res.data || {}
 
-                if (dados.senha_temporaria) {
+                const senhaPadrao = dados.senha_padrao || dados.senha_temporaria
+                if (senhaPadrao) {
                     setCredencial({
                         nome: dados.user?.nome || formData.nome,
-                        senha: dados.senha_temporaria
+                        senha: senhaPadrao
                     })
                 }
             }
@@ -352,13 +353,13 @@ function GestaoUtilizadores() {
             return
         }
 
-        if (!window.confirm(`Repor a credencial de ${usuario.nome}? A senha actual deixa de funcionar.`)) return
+        if (!window.confirm(`Repor a credencial de ${usuario.nome}? A senha actual deixa de funcionar e passa a ser a senha padrão 12345. No próximo login será obrigatório definir uma nova senha.`)) return
 
         try {
             const res = await reporSenhaUsuario(usuario.id)
             setCredencial({
                 nome: usuario.nome,
-                senha: res.data?.senha_temporaria || "(nao devolvida)"
+                senha: res.data?.senha_padrao || res.data?.senha_temporaria || "12345"
             })
             await carregar()
         } catch (err) {
@@ -393,7 +394,7 @@ function GestaoUtilizadores() {
                                 <p>
                                     {editing
                                         ? "Actualize os dados da conta e o perfil de acesso."
-                                        : "Crie a conta. Sem senha, o sistema gera uma credencial temporaria."}
+                                        : "Crie a conta. Sem senha, fica com a senha padrão 12345 e troca obrigatória no primeiro acesso."}
                                 </p>
                             </div>
                             <button
@@ -465,10 +466,11 @@ function GestaoUtilizadores() {
                                                 value={formData.senha}
                                                 onChange={(e) => alterarCampo("senha", e.target.value)}
                                                 className={formErrors.senha ? "invalid" : ""}
-                                                placeholder="Deixe vazio para gerar uma credencial temporaria"
+                                                placeholder="Deixe vazio para usar a senha padrão 12345"
                                             />
                                             <span className="admin-field-hint">
-                                                Minimo 8 caracteres, com pelo menos 1 letra e 1 numero.
+                                                Se preencher, use no mínimo 8 caracteres, com pelo menos 1 letra e 1 número.
+                                                Se deixar vazio, será usada a senha padrão 12345 e a troca será obrigatória no primeiro login.
                                             </span>
                                             {formErrors.senha && <span className="admin-field-error">{formErrors.senha}</span>}
                                         </div>
@@ -537,8 +539,10 @@ function GestaoUtilizadores() {
                         <div className="admin-alert success">
                             <div className="temp-password">
                                 <span>
-                                    Credencial temporaria de <strong>{credencial.nome}</strong>:
+                                    Senha padrão de <strong>{credencial.nome}</strong>:
                                     <code>{credencial.senha}</code>
+                                    <br />
+                                    No próximo login será obrigatório definir uma nova senha.
                                 </span>
                                 <button
                                     type="button"
@@ -624,7 +628,7 @@ function GestaoUtilizadores() {
                                                 <button
                                                     type="button"
                                                     className="admin-icon-btn warning"
-                                                    title="Repor credencial"
+                                                    title="Repor credencial (senha padrão 12345)"
                                                     onClick={() => reporSenha(usuario)}
                                                 >
                                                     <KeyRound size={17} />
