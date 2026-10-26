@@ -61,6 +61,11 @@ export const getUsers = () => {
     return server.get("api/auth/users");
 };
 
+//---- catalogo publico (sem sessao): usado pela pagina "/" ----
+export const getServicosPublicos = () => {
+    return server.get("api/public/servicos");
+};
+
 //---- categorias de servico ----
 export const getCategorias = () => {
     return server.get("api/categorias");
