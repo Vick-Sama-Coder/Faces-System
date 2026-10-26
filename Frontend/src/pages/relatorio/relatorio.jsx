@@ -28,10 +28,10 @@ import {
     HandCoins,
     Landmark,
     PiggyBank,
-    TriangleAlert,
     Banknote,
     CreditCard,
-    Percent
+    Percent,
+    X
 } from "lucide-react";
 import {
     ResponsiveContainer,
@@ -182,6 +182,7 @@ function Relatorio() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [tabAtiva, setTabAtiva] = useState("resumo");
+    const [graficoModal, setGraficoModal] = useState(null);
     const [recarregar, setRecarregar] = useState(0);
     const [mostrarSalarios, setMostrarSalarios] = useState(false);
     const [funcionarioExpandido, setFuncionarioExpandido] = useState(null);
@@ -427,7 +428,6 @@ function Relatorio() {
     const despesasPorMetodo = despesasMetodo.filter((metodo) => (
         !filtroMetodo || metodo.metodo === filtroMetodo
     ));
-    const maxReceitaMetodo = Math.max(1, ...receitasMetodoFiltradas.map((metodo) => Number(metodo.total) || 0));
     const maxDespesaCategoria = Math.max(1, ...despesasPorCategoria.map((categoria) => Number(categoria.total) || 0));
     const maxDespesaMetodo = Math.max(1, ...despesasPorMetodo.map((metodo) => Number(metodo.total) || 0));
     const despesasMedia = despesas.length > 0 ? despesasTotal / despesas.length : 0;
@@ -1155,58 +1155,43 @@ function Relatorio() {
 
                         {tabAtiva === "receitas" && (
                             <>
-                                <section className="relatorio-caixa-resumo">
-                                    <article className="relatorio-stat-mini success">
-                                        <span><TrendingUp size={18} /> Receitas recebidas</span>
-                                        <strong>{formatarMoeda(receita)}</strong>
-                                    </article>
-                                    <article className="relatorio-stat-mini primary">
-                                        <span><Receipt size={18} /> Receitas geradas</span>
-                                        <strong>{formatarMoeda(receitaGerada)}</strong>
-                                    </article>
-                                    <article className="relatorio-stat-mini warning">
-                                        <span><HandCoins size={18} /> Por receber</span>
-                                        <strong>{formatarMoeda(valoresReceber)}</strong>
-                                    </article>
-                                    <article className="relatorio-stat-mini danger">
-                                        <span><Tag size={18} /> Descontos</span>
-                                        <strong>{formatarMoeda(descontosTotal)}</strong>
-                                    </article>
-                                </section>
+                                <div className="relatorio-grafico-area">
+                                    <div>
+                                        <h2>Receitas por metodo de pagamento</h2>
+                                        <p>Composicao das receitas recebidas no periodo</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="relatorio-grafico-btn"
+                                        onClick={() => setGraficoModal("receitas")}
+                                        disabled={receitasMetodoFiltradas.length === 0}
+                                    >
+                                        Ver grafico <ChartNoAxesCombinedIcon size={15} />
+                                    </button>
+                                    {receitasMetodoFiltradas.length === 0 ? (
+                                        <Vazio
+                                            titulo="Sem pagamentos no periodo"
+                                            texto="Os pagamentos recebidos por metodo aparecem aqui."
+                                        />
+                                    ) : (
+                                        <div className="relatorio-chart">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={receitasMetodoFiltradas} margin={{ top: 8, right: 8, left: -14, bottom: 0 }} barGap={4}>
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                                                    <XAxis dataKey="metodo" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                                                    <YAxis tickFormatter={(valor) => Number(valor) >= 1000 ? `${Math.round(Number(valor) / 1000)}k` : String(valor)} tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                                                    <Tooltip />
+                                                    <Bar dataKey="total" radius={[4, 4, 0, 0]} />
+                                                    <Cell>
+                                                        {({ index }) => <rect fill={`var(--chart-${(index % 7) + 1})`} />}
+                                                    </Cell>
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    )}
+                                </div>
 
                                 <div className="relatorio-grid-2">
-                                    <article className="relatorio-card">
-                                        <header className="relatorio-card-header">
-                                            <div>
-                                                <h2>Receitas por metodo de pagamento</h2>
-                                                <p>Dinheiro efetivamente recebido no periodo</p>
-                                            </div>
-                                            <CreditCard size={17} className="relatorio-card-mark" />
-                                        </header>
-
-                                        {receitasMetodoFiltradas.length === 0 ? (
-                                            <Vazio
-                                                titulo="Sem pagamentos no periodo"
-                                                texto="Os pagamentos recebidos por metodo aparecem aqui."
-                                            />
-                                        ) : (
-                                            <div className="relatorio-breakdown-list">
-                                                {receitasMetodoFiltradas.map((metodo) => (
-                                                    <div className="relatorio-breakdown-row" key={metodo.metodo}>
-                                                        <div className="relatorio-breakdown-line">
-                                                            <span>{metodo.metodo}</span>
-                                                            <strong>{formatarMoeda(metodo.total)}</strong>
-                                                        </div>
-                                                        <div className="relatorio-breakdown-bar">
-                                                            <span style={{ width: `${Math.max((Number(metodo.total) / maxReceitaMetodo) * 100, 3)}%` }} />
-                                                        </div>
-                                                        <small>{formatarNumero(metodo.quantidade)} pagamentos</small>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </article>
-
                                     <article className="relatorio-card">
                                         <header className="relatorio-card-header">
                                             <div>
@@ -1518,24 +1503,46 @@ function Relatorio() {
 
                         {tabAtiva === "dividas" && (
                             <>
-                                <section className="relatorio-caixa-resumo">
-                                    <article className="relatorio-stat-mini success">
-                                        <span><HandCoins size={18} /> A receber</span>
-                                        <strong>{formatarMoeda(dividas.resumo?.a_receber ?? valoresReceber)}</strong>
-                                    </article>
-                                    <article className="relatorio-stat-mini warning">
-                                        <span><TriangleAlert size={18} /> Vencido ha mais de 30 dias</span>
-                                        <strong>{formatarMoeda(dividas.resumo?.vencido)}</strong>
-                                    </article>
-                                    <article className="relatorio-stat-mini danger">
-                                        <span><PiggyBank size={18} /> A pagar a equipa</span>
-                                        <strong>{formatarMoeda(valoresPagar)}</strong>
-                                    </article>
-                                    <article className="relatorio-stat-mini primary">
-                                        <span><Receipt size={18} /> Processamentos pendentes</span>
-                                        <strong>{formatarNumero(dividas.resumo?.processamentos_pendentes)}</strong>
-                                    </article>
-                                </section>
+                                <div className="relatorio-grafico-area">
+                                    <div>
+                                        <h2>Dividas: a receber vs a pagar</h2>
+                                        <p>Distribuicao dos valores em aberto no periodo</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="relatorio-grafico-btn"
+                                        onClick={() => setGraficoModal("dividas")}
+                                    >
+                                        Ver grafico <ChartNoAxesCombinedIcon size={15} />
+                                    </button>
+                                    {(() => {
+                                        const graficoDividas = [
+                                            { name: "A receber", valor: Number(dividas.resumo?.a_receber ?? valoresReceber) },
+                                            { name: "A pagar a equipa", valor: Number(valoresPagar) },
+                                            { name: "Vencido (+30 dias)", valor: Number(dividas.resumo?.vencido) }
+                                        ].filter((item) => item.valor > 0);
+                                        return graficoDividas.length === 0 ? (
+                                            <Vazio
+                                                titulo="Sem dividas no periodo"
+                                                texto="Nao existem valores a receber nem a pagar no intervalo selecionado."
+                                            />
+                                        ) : (
+                                            <div className="relatorio-chart">
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <BarChart data={graficoDividas} margin={{ top: 8, right: 8, left: -14, bottom: 0 }} barGap={12}>
+                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                                                        <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                                                        <YAxis tickFormatter={(valor) => Number(valor) >= 1000 ? `${Math.round(Number(valor) / 1000)}k` : String(valor)} tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                                                        <Tooltip />
+                                                        <Bar dataKey="valor" radius={[4, 4, 0, 0]} />
+                                                        <Cell>
+                                                            {({ index }) => <rect fill={`var(--chart-${(index % 7) + 1})`} />}
+                                                        </Cell>
+                                                    </BarChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        );
+                                    })()}                                    </div>
 
                                 <div className="relatorio-grid-2">
                                     <article className="relatorio-card">
@@ -1745,7 +1752,18 @@ function Relatorio() {
                                                         </thead>
                                                         <tbody>
                                                             {salariosFiltrados.map((funcionario) => (
-                                                                <tr key={funcionario.funcionario_id}>
+                                                                <tr
+                                                                    key={funcionario.funcionario_id}
+                                                                    onClick={(e) => {
+                                                                        if (e.target.closest("button")) return;
+                                                                        setFuncionarioExpandido((atual) =>
+                                                                            String(atual) === String(funcionario.funcionario_id)
+                                                                                ? null
+                                                                                : funcionario.funcionario_id
+                                                                        );
+                                                                    }}
+                                                                    style={{ cursor: "pointer" }}
+                                                                >
                                                                     <td>
                                                                         <div className="relatorio-person">
                                                                             <span className="relatorio-avatar">
@@ -1969,16 +1987,6 @@ function Relatorio() {
                                         <UserRound size={17} className="relatorio-card-mark" />
                                     </header>
 
-                                    <div className="relatorio-client-stats">
-                                        <div>
-                                            <span>Base de clientes</span>
-                                            <strong>{formatarNumero(clientes.length)}</strong>
-                                        </div>
-                                        <div>
-                                            <span>Atendidos no periodo</span>
-                                            <strong>{formatarNumero(clientesComAtendimentos.length)}</strong>
-                                        </div>
-                                    </div>
 
                                     {clientesVisiveis.length === 0 ? (
                                         <Vazio
@@ -2030,6 +2038,42 @@ function Relatorio() {
                                     )}
                                 </article>
 
+
+                                <div className="relatorio-grafico-area">
+                                    <div>
+                                        <h2>Clientes que mais gastam</h2>
+                                        <p>Valor total gerado por cliente no periodo</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="relatorio-grafico-btn"
+                                        onClick={() => setGraficoModal("clientes")}
+                                        disabled={clientesVisiveis.length === 0}
+                                    >
+                                        Ver grafico <ChartNoAxesCombinedIcon size={15} />
+                                    </button>
+                                    {clientesVisiveis.length === 0 ? (
+                                        <Vazio
+                                            titulo="Sem atendimentos no periodo"
+                                            texto="Escolha outro intervalo para ver os clientes que mais voltaram."
+                                        />
+                                    ) : (
+                                        <div className="relatorio-chart">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={clientesVisiveis} margin={{ top: 8, right: 8, left: -14, bottom: 0 }} barGap={4}>
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                                                    <XAxis dataKey="cliente_nome" tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                                                    <YAxis tickFormatter={(valor) => Number(valor) >= 1000 ? `${Math.round(Number(valor) / 1000)}k` : String(valor)} tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                                                    <Tooltip />
+                                                    <Bar dataKey="total_gasto" radius={[4, 4, 0, 0]} />
+                                                    <Cell>
+                                                        {({ index }) => <rect fill={`var(--chart-${(index % 7) + 1})`} />}
+                                                    </Cell>
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    )}
+                                </div>
                                 <article className="relatorio-card">
                                     <header className="relatorio-card-header">
                                         <div>
@@ -2073,28 +2117,40 @@ function Relatorio() {
 
                         {tabAtiva === "caixa" && (
                             <>
-                                <section className="relatorio-caixa-resumo relatorio-caixa-resumo-5">
-                                    <article className="relatorio-stat-mini neutral">
-                                        <span><Landmark size={18} /> Saldo inicial</span>
-                                        <strong>{formatarMoeda(saldoInicial)}</strong>
-                                    </article>
-                                    <article className="relatorio-stat-mini success">
-                                        <span><TrendingUp size={18} /> Entradas</span>
-                                        <strong>{formatarMoeda(fluxoFinanceiro.entradas ?? caixa.entradas)}</strong>
-                                    </article>
-                                    <article className="relatorio-stat-mini danger">
-                                        <span><Receipt size={18} /> Saidas</span>
-                                        <strong>{formatarMoeda(fluxoFinanceiro.saidas ?? caixa.saidas)}</strong>
-                                    </article>
-                                    <article className="relatorio-stat-mini warning">
-                                        <span><Wallet size={18} /> Levantamentos</span>
-                                        <strong>{formatarMoeda(fluxoFinanceiro.levantamentos ?? caixa.levantamentos)}</strong>
-                                    </article>
-                                    <article className="relatorio-stat-mini primary">
-                                        <span><CircleDollarSign size={18} /> Saldo final esperado</span>
-                                        <strong>{formatarMoeda(saldoFinal)}</strong>
-                                    </article>
-                                </section>
+                                <div className="relatorio-grafico-area">
+                                    <div>
+                                        <h2>Fluxo de caixa por periodo</h2>
+                                        <p>Entradas, saidas e levantamentos ao longo do tempo</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="relatorio-grafico-btn"
+                                        onClick={() => setGraficoModal("caixa")}
+                                        disabled={fluxo.itens.length === 0}
+                                    >
+                                        Ver grafico <ChartNoAxesCombinedIcon size={15} />
+                                    </button>
+                                    {fluxo.itens.length === 0 ? (
+                                        <Vazio
+                                            titulo="Sem movimentos de caixa"
+                                            texto="As entradas, saidas e levantamentos aparecem aqui."
+                                        />
+                                    ) : (
+                                        <div className="relatorio-chart">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={fluxo.itens} margin={{ top: 8, right: 8, left: -14, bottom: 0 }} barGap={4}>
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                                                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                                                    <YAxis tickFormatter={(valor) => Number(valor) >= 1000 ? `${Math.round(Number(valor) / 1000)}k` : String(valor)} tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                                                    <Tooltip />
+                                                    <Bar dataKey="entradas" stackId="a" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
+                                                    <Bar dataKey="saidas" stackId="a" fill="var(--chart-2)" radius={[4, 4, 0, 0]} />
+                                                    <Bar dataKey="levantamentos" stackId="a" fill="var(--chart-3)" radius={[4, 4, 0, 0]} />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    )}
+                                </div>
 
                                 <p className="relatorio-note relatorio-fluxo-nota">
                                     Saldo final = saldo inicial + entradas - saidas - levantamentos. Dinheiro recebido nao e
@@ -2287,6 +2343,122 @@ function Relatorio() {
                             </>
                         )}
                     </>
+                )}
+
+
+                {graficoModal && (
+                    <div className="relatorio-modal-backdrop" onClick={() => setGraficoModal(null)}>
+                        <section className="relatorio-modal" onClick={(e) => e.stopPropagation()}>
+                            <button
+                                type="button"
+                                className="relatorio-modal-close"
+                                onClick={() => setGraficoModal(null)}
+                                aria-label="Fechar"
+                            >
+                                <X size={20} />
+                            </button>
+                            <div className="relatorio-modal-body">
+                                {graficoModal === "receitas" && (
+                                    <>
+                                        <h2 style={{ margin: "0 0 10px 0", fontSize: "var(--text-lg)" }}>Receitas por metodo de pagamento</h2>
+                                        {receitasMetodoFiltradas.length === 0 ? (
+                                            <p>Sem pagamentos no periodo.</p>
+                                        ) : (
+                                            <div className="relatorio-chart" style={{ height: 420 }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <BarChart data={receitasMetodoFiltradas} margin={{ top: 8, right: 8, left: -14, bottom: 0 }} barGap={4}>
+                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                                                        <XAxis dataKey="metodo" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                                                        <YAxis tickFormatter={(valor) => Number(valor) >= 1000 ? `${Math.round(Number(valor) / 1000)}k` : String(valor)} tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                                                        <Tooltip />
+                                                        <Bar dataKey="total" radius={[4, 4, 0, 0]} />
+                                                        <Cell>
+                                                            {({ index }) => <rect fill={`var(--chart-${(index % 7) + 1})`} />}
+                                                        </Cell>
+                                                    </BarChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                                {graficoModal === "dividas" && (
+                                    <>
+                                        <h2 style={{ margin: "0 0 10px 0", fontSize: "var(--text-lg)" }}>Dividas: a receber vs a pagar</h2>
+                                        {(() => {
+                                            const graficoDividas = [
+                                                { name: "A receber", valor: Number(dividas.resumo?.a_receber ?? valoresReceber) },
+                                                { name: "A pagar a equipa", valor: Number(valoresPagar) },
+                                                { name: "Vencido (+30 dias)", valor: Number(dividas.resumo?.vencido) }
+                                            ].filter((item) => item.valor > 0);
+                                            return graficoDividas.length === 0 ? (
+                                                <p>Sem dividas no periodo.</p>
+                                            ) : (
+                                                <div className="relatorio-chart" style={{ height: 420 }}>
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <BarChart data={graficoDividas} margin={{ top: 8, right: 8, left: -14, bottom: 0 }} barGap={12}>
+                                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                                                            <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                                                            <YAxis tickFormatter={(valor) => Number(valor) >= 1000 ? `${Math.round(Number(valor) / 1000)}k` : String(valor)} tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                                                            <Tooltip />
+                                                            <Bar dataKey="valor" radius={[4, 4, 0, 0]} />
+                                                            <Cell>
+                                                                {({ index }) => <rect fill={`var(--chart-${(index % 7) + 1})`} />}
+                                                            </Cell>
+                                                        </BarChart>
+                                                    </ResponsiveContainer>
+                                                </div>
+                                            );
+                                        })()}
+                                    </>
+                                )}
+                                {graficoModal === "caixa" && (
+                                    <>
+                                        <h2 style={{ margin: "0 0 10px 0", fontSize: "var(--text-lg)" }}>Fluxo de caixa por periodo</h2>
+                                        {fluxo.itens.length === 0 ? (
+                                            <p>Sem movimentos de caixa.</p>
+                                        ) : (
+                                            <div className="relatorio-chart" style={{ height: 420 }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <BarChart data={fluxo.itens} margin={{ top: 8, right: 8, left: -14, bottom: 0 }} barGap={4}>
+                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                                                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                                                        <YAxis tickFormatter={(valor) => Number(valor) >= 1000 ? `${Math.round(Number(valor) / 1000)}k` : String(valor)} tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                                                        <Tooltip />
+                                                        <Bar dataKey="entradas" stackId="a" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
+                                                        <Bar dataKey="saidas" stackId="a" fill="var(--chart-2)" radius={[4, 4, 0, 0]} />
+                                                        <Bar dataKey="levantamentos" stackId="a" fill="var(--chart-3)" radius={[4, 4, 0, 0]} />
+                                                    </BarChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                                {graficoModal === "clientes" && (
+                                    <>
+                                        <h2 style={{ margin: "0 0 10px 0", fontSize: "var(--text-lg)" }}>Clientes que mais gastam</h2>
+                                        {clientesVisiveis.length === 0 ? (
+                                            <p>Sem atendimentos no periodo.</p>
+                                        ) : (
+                                            <div className="relatorio-chart" style={{ height: 420 }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <BarChart data={clientesVisiveis} margin={{ top: 8, right: 8, left: -14, bottom: 0 }} barGap={4}>
+                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                                                        <XAxis dataKey="cliente_nome" tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                                                        <YAxis tickFormatter={(valor) => Number(valor) >= 1000 ? `${Math.round(Number(valor) / 1000)}k` : String(valor)} tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                                                        <Tooltip />
+                                                        <Bar dataKey="total_gasto" radius={[4, 4, 0, 0]} />
+                                                        <Cell>
+                                                            {({ index }) => <rect fill={`var(--chart-${(index % 7) + 1})`} />}
+                                                        </Cell>
+                                                    </BarChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        </section>
+                    </div>
                 )}
 
                 {dados && (
