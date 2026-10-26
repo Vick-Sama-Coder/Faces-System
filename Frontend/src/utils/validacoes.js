@@ -76,17 +76,14 @@ export function validarConfirmacao(senha, confirmacao){
     return null;
 }
 
-//valida todos os campos do registo; devolve {campo: mensagem}
-export function validarRegisto({nome, telefone, senha, confirmarSenha}){
+//valida os dados iniciais do registo; devolve {campo: mensagem}
+//a senha nao e pedida aqui: a conta nasce com a senha padrao 12345
+export function validarRegisto({nome, telefone}){
     const erros = {};
     const erroNome = validarNome(nome);
     if(erroNome) erros.nome = erroNome;
     const erroTel = validarTelefone(telefone);
     if(erroTel) erros.telefone = erroTel;
-    const erroSenha = validarSenha(senha);
-    if(erroSenha) erros.senha = erroSenha;
-    const erroConf = validarConfirmacao(senha, confirmarSenha);
-    if(erroConf) erros.confirmarSenha = erroConf;
     return erros;
 }
 
@@ -191,17 +188,6 @@ export function validarUtilizador({ nome, telefone, id_perfil, senha }, { senhaO
 
     return erros;
 }
-export function validarCodigo(codigo){
-    if(!codigo){
-        return "Codigo e obrigatorio";
-    }
-    if(!/^\d{6}$/.test(String(codigo))){
-        return "Codigo invalido: use os 6 digitos recebidos";
-    }
-    return null;
-
-}
-
 //dia da semana: 0 = domingo ... 6 = sabado
 export function validarDiaSemana(dia){
     if(dia === undefined || dia === null || dia === ""){

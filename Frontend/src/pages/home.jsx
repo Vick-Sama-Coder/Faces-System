@@ -12,8 +12,9 @@ export default function Home(){
     const location = useLocation()
     const { login, loading, error, errorField, clearError } = useAuthStore()
 
-    const [nome, setNome] = useState("")
-    const [senha, setSenha] = useState("")
+    //o registo envia o nome e a senha padrao para preencher o login
+    const [nome, setNome] = useState(location.state?.nome || "")
+    const [senha, setSenha] = useState(location.state?.senha || "")
     const [erros, setErros] = useState({})
     //mensagem de sucesso vinda do registo (register -> /login)
     const [sucesso] = useState(location.state?.success || null)
@@ -38,8 +39,9 @@ export default function Home(){
 
         const ok = await login({ nome: nome.trim(), senha })
         if(ok){
-            //dashboard e o index ("/") protegido
-            await navigate("/", { replace: true })
+            const utilizador = useAuthStore.getState().user
+            //primeiro acesso: passa pela definicao da nova senha antes do dashboard
+            await navigate(utilizador?.deve_alterar_senha ? "/primeiro-acesso" : "/", { replace: true })
         }
     }
 
@@ -94,7 +96,6 @@ export default function Home(){
                     required
                 ></Input>
             </div>
-            <p className="p-pass"><Link to="/forgotpass" className="pass link">Esqueceu a senha?</Link></p>
             <div>
                 <Input
                     type='submit'

@@ -1,7 +1,7 @@
 import { useState } from "react"
 import Input from "../../../components/forms/input/input.jsx"
 import { Link, useNavigate } from "react-router"
-import { User, Lock, Phone } from "lucide-react"
+import { User, Phone } from "lucide-react"
 import "../../home.css"
 import { useAuthStore } from "../../../store/authStore.js"
 import { validarRegisto } from "../../../utils/validacoes.js"
@@ -12,39 +12,13 @@ function Register(){
 
     const [nome, setNome] = useState("")
     const [telefone, setTelefone] = useState("")
-    const [senha, setSenha] = useState("")
-    const [confirmarSenha, setConfirmarSenha] = useState("")
     const [erros, setErros] = useState({})
+    const [contaCriada, setContaCriada] = useState(null)
 
     //valida um campo no momento em que e editado
     function validarCampo(campo, valor){
-        const validacoes = validarRegisto({ nome, telefone, senha, confirmarSenha, [campo]: valor })
+        const validacoes = validarRegisto({ nome, telefone, [campo]: valor })
         setErros((prev) => ({ ...prev, [campo]: validacoes[campo] || null }))
-    }
-
-    async function handleSubmit(e){
-        e.preventDefault()
-        clearError()
-
-        const validados = validarRegisto({ nome, telefone, senha, confirmarSenha })
-        setErros(validados)
-        if(Object.values(validados).some(Boolean)){
-            return
-        }
-
-        const ok = await register({
-            nome: nome.trim(),
-            telefone: telefone.trim(),
-            senha
-        })
-
-        if(ok){
-            //registo nao autentica: direciona para o login com aviso
-            navigate("/login", {
-                replace: true,
-                state: { success: "Conta criada com sucesso! Faca login para entrar." }
-            })
-        }
     }
 
     //erro local de validacao tem prioridade sobre o erro do backend,
@@ -55,11 +29,70 @@ function Register(){
         return null
     }
 
+    async function handleSubmit(e){
+        e.preventDefault()
+        clearError()
+
+        const validados = validarRegisto({ nome, telefone })
+        setErros(validados)
+        if(Object.values(validados).some(Boolean)){
+            return
+        }
+
+        const resultado = await register({
+            nome: nome.trim(),
+            telefone: telefone.trim()
+        })
+
+        if(resultado.ok){
+            setContaCriada(resultado.data || {})
+        }
+    }
+
+    //segue para o login normal, levando o nome e a senha padrao preenchidos
+    function irParaLogin(){
+        const dados = contaCriada || {}
+        const senhaPadrao = dados.senha_padrao || "12345"
+
+        navigate("/login", {
+            replace: true,
+            state: {
+                success: `Conta criada com sucesso! A sua senha padrão é ${senhaPadrao}. Inicie sessão e defina uma nova senha.`,
+                nome: dados.user?.nome || nome.trim(),
+                senha: senhaPadrao
+            }
+        })
+    }
+
+    if(contaCriada){
+        return(
+            <section className="container">
+                <h1 className="h1">Conta Criada</h1>
+                <p className="success-msg" role="status">
+                    A sua senha padrão é <strong>{contaCriada.senha_padrao || "12345"}</strong>.
+                </p>
+                <p className="text">
+                    Inicie sessão com esta senha. Por ser o primeiro acesso, será pedido
+                    que defina uma nova senha antes de entrar no sistema.
+                </p>
+                <div className="input-section">
+                    <button type="button" className="submit-btn" onClick={irParaLogin}>
+                        Ir para o login
+                    </button>
+                </div>
+            </section>
+        )
+    }
+
     return(
        <section className="container">
-        
+
         <h1 className="h1">Crie a Sua Conta</h1>
         <p className="paragraph">Comece a gerir a sua conta agora</p>
+        <p className="text">
+            A conta será criada com a senha padrão <strong>12345</strong>.
+            No primeiro login será pedido que defina uma nova senha.
+        </p>
 
         {error && !errorField && <p className="error-msg" role="alert">{error}</p>}
 
@@ -96,38 +129,6 @@ function Register(){
                     required
                 />
             </div>
-            <div className="input-section">
-                <Input type="password"
-                    labelId="pass"
-                    className='text-input'
-                    labelName= "Senha"
-                    placeholder="8+ caracteres, 1 letra e 1 numero"
-                    icon={<Lock></Lock>}
-                    value={senha}
-                    onChange={(e) => { setSenha(e.target.value); validarCampo("senha", e.target.value) }}
-                    onBlur={() => validarCampo("senha", senha)}
-                    error={erroDe("senha")}
-                    autoComplete="new-password"
-                    maxLength={16}
-                    required
-                    />
-            </div>
-            <div className="input-section">
-                <Input type="password"
-                    labelId="confirm-pass"
-                    className='text-input'
-                    labelName= "Confirmar Senha"
-                    placeholder="repita a sua senha"
-                    icon={<Lock></Lock>}
-                    value={confirmarSenha}
-                    onChange={(e) => { setConfirmarSenha(e.target.value); validarCampo("confirmarSenha", e.target.value) }}
-                    onBlur={() => validarCampo("confirmarSenha", confirmarSenha)}
-                    error={erroDe("confirmarSenha")}
-                    autoComplete="new-password"
-                    maxLength={72}
-                    required
-                    />
-            </div>
             <div>
                 <Input
                     type="submit"
@@ -136,12 +137,11 @@ function Register(){
                     disabled={loading}
                 />
             </div>
-
         </form>
         <p className="footer-p">
             Ja tem conta? <Link to="/login" className="link">Entrar</Link>
         </p>
-       </section> 
+       </section>
     )
 }
 export default Register

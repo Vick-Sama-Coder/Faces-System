@@ -1,14 +1,11 @@
 import express from 'express';
-import crypto from 'node:crypto';
 import bcrypt from 'bcrypt';
 import generetedToken from '../utils/token.js';
 import Usuario from '../repository/usuario.js';
 import Permissao from '../repository/permissao.js';
-import RecuperacaoSenha from '../repository/recuperacaoSenha.js';
 import AuditoriaService from '../services/auditoria.js';
 import { authenticate, authorize } from '../middlewares/auth.js';
-import { validarNome, validarTelefone, validarSenha, validarCodigo, limparTelefone } from '../utils/validacoes.js';
-import { enviarSms } from '../utils/sms.js';
+import { validarNome, validarTelefone, validarSenha, limparTelefone } from '../utils/validacoes.js';
 
 const cookieOptions = {
     httpOnly: true,
@@ -18,14 +15,8 @@ const cookieOptions = {
 
 }
 
-//validacao do codigo de recuperacao de senha
-const CODIGO_VALIDADE_MINUTOS = 10;
-const CODIGO_MAX_TENTATIVAS = 5;
-
-//gera um codigo numerico de 6 digitos (criptograficamente seguro)
-function gerarCodigo(){
-    return String(crypto.randomInt(0, 1000000)).padStart(6, '0');
-}
+//senha inicial de quem se regista: tem de ser mostrada e trocada no primeiro acesso
+const SENHA_PADRAO_REGISTO = "12345";
 
 //resposta de validacao com campo especifico: {field, message}
 function erroCampo(res, field, message){
@@ -34,14 +25,15 @@ function erroCampo(res, field, message){
 
 const router = express.Router();
 
-//registo: cria sempre com perfil "Usuario" e NAO inicia sessao
-//(a autenticacao acontece apenas no /login)
+//registo: cria sempre com perfil "Usuario" e com a senha padrao 12345.
+//A conta entra em "primeiro acesso": o login funciona, mas o sistema obriga
+//a definir uma nova senha antes de permitir o uso normal.
 router.post('/register', async (req,res, next)=>{
     try{
-        const {nome, telefone, senha} = req.body;
+        const {nome, telefone} = req.body;
 
-        if(!nome || !telefone || !senha){
-            return res.status(400).json({message: "nome ou telefone ou senha nao forma providenciadas"})
+        if(!nome || !telefone){
+            return res.status(400).json({message: "nome e telefone sao obrigatorios"})
         }
 
         const erroNome = validarNome(nome);
@@ -52,11 +44,6 @@ router.post('/register', async (req,res, next)=>{
         const erroTel = validarTelefone(telefone);
         if(erroTel){
             return erroCampo(res, "telefone", erroTel);
-        }
-
-        const erroSenha = validarSenha(senha);
-        if(erroSenha){
-            return erroCampo(res, "senha", erroSenha);
         }
 
         const telefoneLimpo = limparTelefone(telefone);
@@ -71,19 +58,22 @@ router.post('/register', async (req,res, next)=>{
             return erroCampo(res, "nome", "O nome de utilizador ja existe");
         }
 
-        const senhaHash = await bcrypt.hash(senha,10);
+        //a senha padrao e pequena de proposito: obriga a troca no primeiro acesso
+        const senhaHash = await bcrypt.hash(SENHA_PADRAO_REGISTO,10);
 
         //perfil 2 = Usuario
         const novo = await Usuario.create({
             nome: nomeLimpo,
             telefone: telefoneLimpo,
             senhaHash,
-            id_perfil: 2
+            id_perfil: 2,
+            alteracaoObrigatoria: true
         });
 
-        //sem cookie/token: o cliente autentica-se depois no /login
+        //sem cookie/token: o utilizador autentica-se no login normal
         res.status(201).json({
-            message: "usuario registrado com sucesso",
+            message: "conta criada com sucesso",
+            senha_padrao: SENHA_PADRAO_REGISTO,
             user: {
                 id: novo.id,
                 nome: novo.nome,
@@ -149,65 +139,19 @@ router.post('/login', async(req,res, next)=>{
 
 })
 
-//recuperacao de senha (passo 1): pede o codigo, enviado por SMS ao telefone registado
-router.post('/recuperar-senha', async (req,res, next)=>{
-    try{
-        const {telefone} = req.body;
-
-        const erroTel = validarTelefone(telefone);
-        if(erroTel){
-            return erroCampo(res, "telefone", erroTel);
-        }
-
-        const telefoneLimpo = limparTelefone(telefone);
-        const utilizador = await Usuario.findByTelefone(telefoneLimpo);
-
-        //resposta generica: nao revela se o numero existe (evita enumeracao de contas)
-        const resposta = { message: "Se o numero estiver registado, enviaremos um codigo de redefinicao." };
-
-        if(utilizador){
-            const codigo = gerarCodigo();
-            const codigoHash = await bcrypt.hash(codigo, 10);
-            const expiraEm = new Date(Date.now() + CODIGO_VALIDADE_MINUTOS * 60 * 1000);
-
-            //um novo pedido invalida os codigos anteriores ainda pendentes
-            await RecuperacaoSenha.invalidarPendentes(utilizador.id);
-            await RecuperacaoSenha.create({ idUsuario: utilizador.id, codigoHash, expiraEm });
-
-            await enviarSms(
-                utilizador.telefone,
-                `Faces: o seu codigo de redefinicao e ${codigo}. Valido por ${CODIGO_VALIDADE_MINUTOS} minutos.`
-            );
-
-            //em desenvolvimento devolvemos o codigo no corpo para permitir testar sem SMS real
-            if(process.env.NODE_ENV !== 'production'){
-                resposta.codigo = codigo;
-            }
-        }
-
-        res.status(200).json(resposta);
-    }catch(err){
-        next(err);
-    }
+//sessao actual: devolve o utilizador logado (inclui permissoes efetivas)
+router.get('/me', authenticate, (req,res)=>{
+    res.status(200).json({user: req.user});
 })
 
-//recuperacao de senha (passo 2): valida o codigo e define a nova senha
-router.post('/redefinir-senha', async (req,res, next)=>{
+//primeiro acesso: a conta autenticou-se com a senha padrao e tem de definir
+//uma nova senha antes de poder usar o sistema
+router.post('/primeiro-acesso', authenticate, async (req,res, next)=>{
     try{
-        const {telefone, codigo, senha_nova} = req.body;
+        const {senha_nova} = req.body;
 
-        if(!telefone || !codigo || !senha_nova){
-            return res.status(400).json({message: "telefone, codigo e senha_nova sao obrigatorios"})
-        }
-
-        const erroTel = validarTelefone(telefone);
-        if(erroTel){
-            return erroCampo(res, "telefone", erroTel);
-        }
-
-        const erroCodigo = validarCodigo(codigo);
-        if(erroCodigo){
-            return erroCampo(res, "codigo", erroCodigo);
+        if(!senha_nova){
+            return res.status(400).json({message: "senha_nova e obrigatoria"})
         }
 
         const erroSenha = validarSenha(senha_nova);
@@ -215,46 +159,36 @@ router.post('/redefinir-senha', async (req,res, next)=>{
             return erroCampo(res, "senha_nova", erroSenha);
         }
 
-        const telefoneLimpo = limparTelefone(telefone);
-        const utilizador = await Usuario.findByTelefone(telefoneLimpo);
-        if(!utilizador){
-            return erroCampo(res, "codigo", "Codigo invalido ou expirado");
+        if(!req.user.alteracao_obrigatoria_senha){
+            return res.status(400).json({message: "Esta conta ja tem uma senha definida"});
         }
 
-        const registo = await RecuperacaoSenha.findAtivo(utilizador.id);
-        if(!registo){
-            return erroCampo(res, "codigo", "Codigo invalido ou expirado");
-        }
-
-        if(registo.tentativas >= CODIGO_MAX_TENTATIVAS){
-            return erroCampo(res, "codigo", "Demasiadas tentativas: peca um novo codigo");
-        }
-
-        const valido = await bcrypt.compare(String(codigo), registo.codigo_hash);
-        if(!valido){
-            await RecuperacaoSenha.incrementarTentativas(registo.id);
-            return erroCampo(res, "codigo", "Codigo invalido ou expirado");
-        }
-
-        //codigo de uso unico: marca como usado e aplica a nova senha
-        await RecuperacaoSenha.marcarUsado(registo.id);
         const senhaHash = await bcrypt.hash(senha_nova, 10);
-        await Usuario.updateSenha(utilizador.id, senhaHash, false);
+        await Usuario.updateSenha(req.user.id, senhaHash, false);
 
-        res.status(200).json({message: "Senha redefinida com sucesso"});
+        const perfilAtualizado = await Usuario.findById(req.user.id);
+        const permissoes = await Permissao.codigosEfetivos(req.user.id, req.user.id_perfil);
+
+        res.status(200).json({
+            message: "Senha definida com sucesso",
+            user: {
+                id: perfilAtualizado.id,
+                nome: perfilAtualizado.nome,
+                telefone: perfilAtualizado.telefone,
+                perfil: perfilAtualizado.perfil,
+                permissoes,
+                deve_alterar_senha: false,
+                alteracao_obrigatoria_senha: false
+            }
+        });
     }catch(err){
         next(err);
     }
 })
 
-//sessao actual: devolve o utilizador logado (inclui permissoes efetivas)
-router.get('/me', authenticate, (req,res)=>{
-    res.status(200).json({user: req.user});
-})
-
 //actualizacao do proprio perfil: o id vem sempre da sessao autenticada.
-//nome e telefone sao dados sensiveis (login e recuperacao de senha), por isso
-//a alteracao exige a confirmação da senha actual.
+//nome e telefone sao dados sensiveis de acesso, por isso a alteracao
+//exige a confirmação da senha actual.
 router.patch('/me', authenticate, async (req,res, next)=>{
     try{
         const {nome, telefone, senha_atual} = req.body || {};
