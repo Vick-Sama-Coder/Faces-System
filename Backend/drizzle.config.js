@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import { defineConfig } from 'drizzle-kit';
+import { sslConfig } from './src/config/pgSsl.js';
 
 
 dotenv.config();
@@ -14,7 +15,7 @@ export default defineConfig({
         database: process.env.DATABASE_NAME,
         user: process.env.DATABASE_USER,
         password: process.env.DATABASE_PASSWORD,
-        ssl: false
+        ssl: sslConfig()
     },
     strict: true,
     verbose: true
