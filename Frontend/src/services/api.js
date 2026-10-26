@@ -430,7 +430,11 @@ export const updateAssiduidade = (id, data) => {
     return server.put(`api/assiduidade/${id}`, data);
 };
 
-//---- relatorio financeiro ----
+export const registrarDiaAssiduidade = (data) => {
+    return server.put("api/assiduidade/dia", data);
+};
+
+//---- relatorio financeiro -----
 export const getRelatorioFinanceiro = (params) => {
     return server.get("api/relatorios/financeiro", { params });
 };

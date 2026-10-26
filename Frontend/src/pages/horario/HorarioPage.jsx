@@ -15,7 +15,7 @@ import {
     getApiError,
     getAssiduidade,
     getFuncionarios,
-    registarDiaAssiduidade
+    registrarDiaAssiduidade
 } from "../../services/api.js"
 import { useAuthStore } from "../../store/authStore.js"
 import { horaParaMinutos } from "../../utils/validacoes.js"
@@ -461,7 +461,7 @@ function HorarioPage() {
                 }
 
                 try {
-                    const resposta = await registarDiaAssiduidade({
+                    const resposta = await registrarDiaAssiduidade({
                         funcionario_id: Number(funcionarioId),
                         data,
                         hora_entrada_real: entrada,

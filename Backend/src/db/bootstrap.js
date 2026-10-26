@@ -107,50 +107,40 @@ export async function ensureMigrationsExist() {
     }
 }
 
-// Uma base antiga (scripts SQL manuais) ja tem as tabelas mas nao tem o
-// historico do Drizzle. Nesse caso o migrate falharia ao recriar tabelas.
-async function garantirBaseCompativel() {
+// Verifica se a base tem as tabelas principais e/ou o historico do Drizzle.
+async function estadoDaBase() {
     const { rows } = await pool.query(`
         select
-            to_regclass('public.usuario') as tabela_legada,
+            to_regclass('public.usuario') as tabela_principal,
             to_regclass('drizzle.__drizzle_migrations') as historico
     `);
 
-    const { tabela_legada: tabelaLegada, historico } = rows[0];
-
-    // Se as tabelas existem e há historico, ou se as tabelas existem sem historico
-    // (schema manual), consideramos a base compatível e seguimos em frente.
-    // O migrate só seráBloqueado se não houver tabelas de todo.
-    if (tabelaLegada && historico) {
-        // Já tem historico de migrações - nada a fazer
-    } else if (tabelaLegada && !historico) {
-        // Base antiga (scripts manuais) - considerar compatível, pular migração
-        console.log('[db] Base de dados existente (schema manual detectado); pulando migração.');
-    } else {
-        // Nenhuma tabela encontrada - isso é erro
-        throw new Error('Nenhuma tabela de sistema encontrada na base de dados.');
-    }
+    return rows[0];
 }
 
 // Fluxo chamado no arranque da aplicacao (e pelo script db:migrate).
+// As migracoes sao sempre aplicadas, mesmo quando a base ja tem dados.
+// O erro anterior era saltar o migrate quando existiam linhas em perfil/usuario,
+// deixando a base presa num schema antigo.
 export async function bootstrapDatabase() {
     await ensureDatabaseExists();
     await ensureMigrationsExist();
-    await garantirBaseCompativel();
 
-    // So aplicar migrate se ainda nao hamos tabelas para criar (schema ja existe)
-    // Verificamos se as tabelas principais ja existem
-    const { rows } = await pool.query(`
-        select exists(select 1 from "perfil" limit 1) as perfil_existe,
-               exists(select 1 from "usuario" limit 1) as usuario_existe
-    `);
-    const { perfil_existe, usuario_existe } = rows[0];
+    const { tabela_principal: tabelaPrincipal, historico } = await estadoDaBase();
 
-    if (perfil_existe && usuario_existe) {
-        console.log('[db] Schema ja existente; pulando aplicacao de migracoes.');
+    if (tabelaPrincipal && !historico) {
+        throw new Error(
+            'A base de dados tem tabelas mas nao tem historico de migracoes Drizzle. ' +
+            'Faz backup e reconcilia o schema antes de arrancar a aplicacao.'
+        );
+    }
+
+    await migrate(db, { migrationsFolder: MIGRATIONS_DIR });
+
+    if (tabelaPrincipal) {
+        console.log('[db] Migracoes pendentes aplicadas.');
     } else {
-        await migrate(db, { migrationsFolder: MIGRATIONS_DIR });
-        console.log('[db] Migracoes aplicadas.');
+        console.log('[db] Base de dados criada e migracoes aplicadas.');
     }
 }
 
