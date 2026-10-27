@@ -83,10 +83,21 @@ function Despesas() {
     const [movimentosStock, setMovimentosStock] = useState([]);
     const [stockError, setStockError] = useState(null);
 
+    const produtosAcabaram = produtosStock.filter((produto) =>
+        produto.stock_atual !== null &&
+        produto.stock_atual <= 0
+    );
+
     const produtosAbaixoMinimo = produtosStock.filter((produto) =>
         produto.stock_atual !== null &&
         produto.stock_minimo !== null &&
+        produto.stock_atual > 0 &&
         produto.stock_atual < produto.stock_minimo
+    );
+
+    const produtosComStock = produtosStock.filter((produto) =>
+        produto.stock_atual !== null &&
+        produto.stock_atual >= produto.stock_minimo
     );
 
     useEffect(() => {
@@ -287,13 +298,6 @@ function Despesas() {
 
         const nomes = new Map(categorias.map((categoria) => [String(categoria.id), categoria.nome]));
         nomes.set("sem", "Sem categoria");
-
-        despesasFiltradas.forEach((despesa) => {
-            const chave = chaveCategoria(despesa);
-            if (!nomes.has(chave)) {
-                nomes.set(chave, despesa.categoria_nome || "Sem categoria");
-            }
-        });
 
         return [...nomes.entries()]
             .map(([id, nome]) => ({
@@ -699,9 +703,17 @@ function Despesas() {
                                     <p className="despesas-panel-empty">Ainda nao ha produtos com stock registado. Registe uma compra de produtos para comecar a acompanhar o stock.</p>
                                 ) : (
                                     <div className="despesas-stock-info">
+                                        {produtosAcabaram.length > 0 ? (
+                                            <p>
+                                                Produtos <strong style={{ color: 'red' }}>acabados</strong> (stock zero):{" "}
+                                                {produtosAcabaram.map((produto) => produto.nome).join(", ")}
+                                            </p>
+                                        ) : (
+                                            <p>Nenhum produto completamente acabado.</p>
+                                        )}
                                         {produtosAbaixoMinimo.length > 0 ? (
                                             <p>
-                                                Produtos com stock abaixo do mínimo:{" "}
+                                                Produtos com stock <strong style={{ color: 'orange' }}>{produtosAbaixoMinimo.length}</strong> abaixo do mínimo:{" "}
                                                 <strong style={{ color: 'red' }}>
                                                     {produtosAbaixoMinimo.map((produto) => produto.nome).join(", ")}
                                                 </strong>
@@ -709,6 +721,14 @@ function Despesas() {
                                         ) : (
                                             <p>Stock dentro do mínimo definido.</p>
                                         )}
+                                        {produtosComStock.length > 0 ? (
+                                            <p>
+                                                Produtos com stock <strong style={{ color: 'green' }}>{produtosComStock.length}</strong> dentro do normal:
+                                                <strong style={{ color: 'green' }}>
+                                                    {produtosComStock.map((produto) => `${produto.nome} (${produto.stock_atual} utd)`).join(", ")}
+                                                </strong>
+                                            </p>
+                                        ) : null}
                                         <p>Total de produtos: {produtosStock.length}</p>
                                         <p>Total de movimentos: {movimentosStock.length}</p>
                                     </div>

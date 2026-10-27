@@ -20,32 +20,33 @@ import { useAuthStore } from '../../store/authStore.js';
 import './sidebar.css'
 
 //Seccoes da sidebar agrupadas: `perfis` define quem pode ver (vazio = todos)
+//`permissoes` define quais permissoes serao necessarias para ver o modulo (opcional)
 const GRUPOS = [
     {
         titulo: "Operacao",
         itens: [
-            { nome: "DashBoard",        path: "/dashboard",            Icone: LayoutDashboardIcon, perfis: [], title: "DashBoard" },
-            { nome: "Novo Atendimento", path: "/novoAtendimento",     Icone: CalendarPlus,       perfis: [], title: "Novo Atendimento" },
-            { nome: "Clientes",         path: "/clientes",            Icone: UserRound,          perfis: [], title: "Clientes" },
-            { nome: "Servicos",         path: "/servicos",            Icone: ScissorsIcon,       perfis: [], title: "Servicos" },
-            { nome : "Categorias",      path: "/categorias",          Icone: Tag,       perfis:[],   title: "Categorias"},
+            { nome: "DashBoard",        path: "/dashboard",            Icone: LayoutDashboardIcon, perfis: [], permissoes: [], title: "DashBoard" },
+            { nome: "Novo Atendimento", path: "/novoAtendimento",     Icone: CalendarPlus,       perfis: [], permissoes: [], title: "Novo Atendimento" },
+            { nome: "Clientes",         path: "/clientes",            Icone: UserRound,          perfis: [], permissoes: ["clientes:escrever"], title: "Clientes" },
+            { nome: "Servicos",         path: "/servicos",            Icone: ScissorsIcon,       perfis: [], permissoes: ["servicos:escrever"], title: "Servicos" },
+            { nome: "Categorias",      path: "/categorias",          Icone: Tag,       perfis: [], permissoes: ["servicos:escrever"], title: "Categorias"},
         ]
     },
     {
         titulo: "Financeiro",
         itens: [
-            { nome: "Relatorio",        path: "/relatorio",           Icone: ChartNoAxesCombinedIcon, perfis: [], title: "Relatorio" },
-            { nome: "Despesas",         path: "/despesas",            Icone: Receipt,             perfis: [], title: "Despesas" },
+            { nome: "Relatorio",        path: "/relatorio",           Icone: ChartNoAxesCombinedIcon, perfis: [], permissoes: [], title: "Relatorio" },
+            { nome: "Despesas",         path: "/despesas",            Icone: Receipt,             perfis: [], permissoes: ["despesas:escrever"], title: "Despesas" },
         ]
     },
     {
         titulo: "Administracao",
         itens: [
-            { nome: "Funcionarios",           path: "/funcionarios",        Icone: Users,  perfis: [], title: "Funcionarios"        },
-            { nome: "Gestao de Utilizadores", path: "/gestao-utilizadores", Icone: UserCog,       perfis: [], title: "Gestao de Utilizadores" },
-            { nome: "Permissoes",             path: "/permissoes",          Icone: ShieldCheck,   perfis: [], title: "Permissoes" },
-            { nome: "Horários",                    path: "/horarios",                  Icone: CalendarPlus,  perfis: [], title: "Horários" },
-            { nome: "Logs",             path: "/logs",          Icone: LogsIcon,   perfis: [], title: "logs" }
+            { nome: "Funcionarios",           path: "/funcionarios",        Icone: Users,  perfis: [], permissoes: ["funcionarios:escrever"], title: "Funcionarios"        },
+            { nome: "Gestao de Utilizadores", path: "/gestao-utilizadores", Icone: UserCog,       perfis: [], permissoes: ["contas:gerir"], title: "Gestao de Utilizadores" },
+            { nome: "Permissoes",             path: "/permissoes",          Icone: ShieldCheck,   perfis: [], permissoes: ["contas:gerir"], title: "Permissoes" },
+            { nome: "Horários",                    path: "/horarios",                  Icone: CalendarPlus,  perfis: [], permissoes: ["horarios:gerir"], title: "Horários" },
+            { nome: "Logs",             path: "/logs",          Icone: LogsIcon,   perfis: [], permissoes: ["auditoria:ler"], title: "logs" }
         ]
     },
 ];
@@ -59,11 +60,12 @@ function SideBar({ isOpen, setIsOpen }){
     }
 
     //filtra grupo a grupo: esconde itens e grupos vazios sem autorizacao
+    //Verifica permissao por perfil (perfis) ou por permissao especifica (permissoes)
     const grupos = GRUPOS
         .map((g) => ({
             ...g,
             itens: g.itens.filter(
-                (s) => s.perfis.length === 0 || s.perfis.includes(user?.perfil)
+                (s) => s.perfis.length === 0 || s.perfis.includes(user?.perfil) || (s.permissoes && user?.permissoes && s.permissoes.some((p) => user.permissoes.includes(p)))
             )
         }))
         .filter((g) => g.itens.length > 0)

@@ -98,7 +98,7 @@ function SaldoCell({ value }) {
     )
 }
 
-function AcoesCell({ data, onEditar, onAlternar, onCartao, podeCartao, onApagar }) {
+function AcoesCell({ data, onEditar, onAlternar, onCartao, podeCartao }) {
     const ativo = (data.estado || "Ativo") === "Ativo"
     return (
         <div className="mgmt-row-actions">
@@ -130,15 +130,6 @@ function AcoesCell({ data, onEditar, onAlternar, onCartao, podeCartao, onApagar 
                 aria-label={ativo ? `Desactivar ${data.nome}` : `Reactivar ${data.nome}`}
             >
                 <Power size={16} />
-            </button>
-            <button
-                type="button"
-                className="mgmt-row-btn danger"
-                onClick={() => onApagar(data)}
-                title="Apagar cliente"
-                aria-label={`Apagar ${data.nome}`}
-            >
-                <Trash2 size={16} />
             </button>
         </div>
     )

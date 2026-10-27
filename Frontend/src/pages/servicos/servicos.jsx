@@ -102,7 +102,7 @@ function EstadoCell({ value }) {
     )
 }
 
-function AcoesCell({ data, onEditar, onAlternar, onEliminar }) {
+function AcoesCell({ data, onEditar, onAlternar }) {
     const ativo = (data.estado || "Ativo") === "Ativo"
     return (
         <div className="mgmt-row-actions">
@@ -123,15 +123,6 @@ function AcoesCell({ data, onEditar, onAlternar, onEliminar }) {
                 aria-label={ativo ? `Desactivar ${data.nome}` : `Reactivar ${data.nome}`}
             >
                 <Power size={16} />
-            </button>
-            <button
-                type="button"
-                className="mgmt-row-btn danger"
-                onClick={() => onEliminar(data)}
-                title="Eliminar serviço"
-                aria-label={`Eliminar ${data.nome}`}
-            >
-                <Trash2 size={16} />
             </button>
         </div>
     )

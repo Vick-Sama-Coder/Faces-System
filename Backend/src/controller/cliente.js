@@ -1,6 +1,7 @@
 import Cliente from "../repository/cliente.js";
 import { limparTelefone } from "../utils/validacoes.js";
 import { codigoPostgres } from "../utils/erro.js";
+import AuditoriaService from "../services/auditoria.js";
 
 const getClientes = async (req, res, next) => {
     try {
@@ -46,6 +47,14 @@ const createCliente = async (req, res, next) => {
 
         const cliente = await Cliente.create({ nome, apelido, telefone: telefoneLimpo, endereco, data_nascimento, idade, sexo });
 
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "cliente",
+            id_registo: cliente.id,
+            operacao: "criar",
+            depois: cliente
+        });
+
         res.status(201).json(cliente);
     } catch (error) {
         next(error);
@@ -75,6 +84,7 @@ const updateCliente = async (req, res, next) => {
             telefoneLimpo = limparTelefone(telefone);
         }
 
+        const antes = await Cliente.findById(id);
         const cliente = await Cliente.update(id, {
             nome,
             apelido,
@@ -89,6 +99,15 @@ const updateCliente = async (req, res, next) => {
         if (!cliente) {
             return res.status(404).json({ message: "Cliente nao encontrado" });
         }
+
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "cliente",
+            id_registo: cliente.id,
+            operacao: "atualizar",
+            antes: antes ? { nome: antes.nome, telefone: antes.telefone } : null,
+            depois: { nome: cliente.nome, telefone: cliente.telefone }
+        });
 
         res.status(200).json(cliente);
     } catch (error) {
@@ -118,13 +137,26 @@ const updateEstadoCliente = async (req, res, next) => {
 
 const deleteCliente = async (req, res, next) => {
     try {
-        const apagado = await Cliente.delete(req.params.id);
+        const { id } = req.params;
+
+        const antes = await Cliente.findById(id);
+        if (!antes) {
+            return res.status(404).json({ message: "Cliente nao encontrado" });
+        }
+
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "cliente",
+            id_registo:antes.id,
+            operacao: "eliminar",
+            antes: { nome: antes.nome, telefone: antes.telefone }
+        });
+
+        const apagado = await Cliente.delete(id);
 
         if (!apagado) {
             return res.status(404).json({ message: "Cliente nao encontrado" });
         }
-
-        res.status(204).send();
     } catch (error) {
         //23503 = existem atendimentos associados a este cliente
         if (codigoPostgres(error) === "23503") {
