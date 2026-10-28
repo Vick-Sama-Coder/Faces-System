@@ -20,13 +20,14 @@ domínio:
 | `movimento_estoque.js` | `movimento_estoque` |
 | `rh.js` | `funcionario`, `horario_funcionario`, `assiduidade`, `processamento_salarial`, `deducao_salarial` |
 | `auditoria.js` | `log_auditoria` |
+| `idempotencia.js` | `requisicao_idempotencia` |
 | `legacy.js` | `aplicacao`* |
 
 \* Tabelas legadas mantidas por compatibilidade/histórico: `recuperacao_senha` (o fluxo de
 recuperação por telefone foi removido) e `aplicacao` (substituída por
 `servico.tipo_servico = 'Aplicacao'` + `servico_aplicacao`).
 
-**Total:** 37 tabelas (33 na migração inicial + 4 acrescentadas depois).
+**Total:** 38 tabelas (33 na migração inicial + 5 acrescentadas depois).
 
 A ligação é feita em `Backend/src/db/client.js`, que reutiliza o mesmo `Pool` do `pg`.
 As migrações ficam em `Backend/drizzle/` e são versionadas no repositório.
@@ -69,6 +70,10 @@ HTTP:
 | `0004_legal_meteorite` | Adiciona `cliente.sexo` (`M`/`F`) |
 | `0005_dapper_harry_osborn` | Reconcilia `cliente.idade`, `servico.tipo_servico`/`permite_aplicacoes`, `produto.unidade`/`stock_minimo`, cria `servico_modalidade`, `servico_aplicacao` e `desconto_atendimento`, e acrescenta campos a `atendimento_servico` |
 | `0006_powerful_firelord` | Cria `movimento_estoque` (entradas, saídas e ajustes) |
+| `0007_reconcile_catalogo` | Reconcilia colunas/tabelas do catálogo e stock que faltavam na base Neon |
+| `0008_cliente_telefone_nao_unico` | Remove a unicidade do telefone do cliente |
+| `0009_servico_faixa_etaria` | Adiciona `servico.faixa_etaria` (`Geral`/`Adulto`/`Crianca`) |
+| `0010_tidy_sandman` | Cria `requisicao_idempotencia` para a fila offline |
 
 > O ficheiro `drizzle/0005_stock_controlo.sql` é uma versão manual antiga da migração de
 > stock e **não** consta do `_journal.json`; por isso não é aplicado pelo `db:migrate`.
@@ -236,6 +241,10 @@ usuario 1───n log_auditoria
   `id_registo_afetado`, `tipo_operacao`, `valores_anteriores jsonb`,
   `valores_posteriores jsonb`, `motivo`, `identificador_operacao`. O trigger
   `log_auditoria_append_only` bloqueia `UPDATE`/`DELETE`.
+- **`requisicao_idempotencia`** — cache de respostas de escritas com
+  `Idempotency-Key`: `chave` (única), `metodo`, `caminho`, `id_utilizador`, `estado`
+  (`em_processamento`/`concluida`), `status_code`, `resposta jsonb` e timestamps. Permite
+  que a fila offline reenvie uma operação sem criar duplicados.
 - **`aplicacao`** — tabela legada, sem uso actual.
 
 ## Perfis e permissões

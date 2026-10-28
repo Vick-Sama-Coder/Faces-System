@@ -7,4 +7,5 @@ export * from './fidelizacao.js';
 export * from './financeiro.js';
 export * from './movimento_estoque.js';
 export * from './auditoria.js';
+export * from './idempotencia.js';
 export * from './legacy.js';

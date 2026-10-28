@@ -34,6 +34,10 @@ mock. As lacunas abaixo são de implementação ou de decisão de produto.
   recentes.
 - ✅ **Catálogo público** de serviços activos (`/api/public/servicos`), sem autenticação.
 - ✅ **Auditoria** append-only, consultável em `/logs`.
+- ✅ **PWA offline** com cache de leituras em IndexedDB, fila persistida de escritas,
+  sincronização ao reconectar, indicador de estado e `Idempotency-Key` no backend.
+  Operações de autenticação, perfil, gestão de utilizadores/perfis, todas as escritas de
+  salários e alterações manuais do cartão de fidelização continuam online-only.
 
 ## Limitações funcionais conhecidas
 
@@ -64,9 +68,8 @@ Prioridade alta porque afectam dinheiro, segurança ou requisitos explícitos.
 
 8. **Stock parcial em `/despesas`.** A página consulta `GET /api/movimentos`, mas nunca
    carrega a lista de produtos (`produtosStock` fica vazia), pelo que o painel de stock
-   aparece sempre vazio. Além disso, `services/api.js` chama `POST /api/estoque/*`,
-   enquanto o backend expõe `POST /api/entrada|saida|ajuste`; as acções de stock devolvem
-   `404` até a URL ser corrigida.
+   aparece sempre vazio. As URLs de escrita de stock já foram alinhadas com o backend
+   (`POST /api/entrada|saida|ajuste`), mas continua a faltar um CRUD/listagem de produtos.
 9. **Sem página dedicada de caixa.** As operações existem por API e são usadas por
    atendimentos/despesas, mas não há ecrã próprio de abertura/fecho/levantamentos.
 10. **Sem interface de salários.** Processamento, deduções, aprovação e pagamento só por
@@ -80,9 +83,15 @@ Prioridade alta porque afectam dinheiro, segurança ou requisitos explícitos.
 
 13. **Sem testes automatizados.** Não existe suite de testes no backend nem no frontend;
     a verificação é manual, através de [testes-endpoints.md](./testes-endpoints.md).
-14. **Sem off-line/sincronização (RF25).** Não há service worker de sincronização de
-    operações nem tabela `operacao_sincronizacao`. A PWA existente serve para instalação e
-    cache de assets, não para operação off-line.
+14. **Offline depende de dados pré-carregados.** O modo offline cobre o app shell, as
+    leituras já visitadas/pré-carregadas e as escritas não sensíveis. Ainda não existe
+    resolução automática de conflitos entre dispositivos (as escritas são
+    last-write-wins) nem sincronização em background quando a app está completamente
+    fechada; a fila é sincronizada quando a aplicação volta a estar aberta e com rede.
+    Erros definitivos (400/404/409) ficam marcados como falhados sem bloquear as
+    restantes operações; erros transitórios (rede/5xx/429) são repetidos. Operações de
+    autenticação, perfil, contas e **todas as escritas de salários** são online-only por
+    segurança. O cache expira ao fim de 30 dias (10 dias para a sessão).
 15. **Sem cópias de segurança (RF24).** Não há script de backup/restauro documentado.
 16. **Duração da sessão inconsistente.** O JWT expira em 30 dias e o cookie em 10 dias.
 17. **Paginação ausente.** As listagens devolvem arrays simples; não há paginação
@@ -109,7 +118,6 @@ implementadas por interpretação:
 - preço no catálogo público (fixo, inicial ou “variável”);
 - formatos de exportação dos relatórios;
 - migração de dados históricos;
-- estratégia offline;
 - reservas de clientes;
 - âmbito detalhado do stock.
 

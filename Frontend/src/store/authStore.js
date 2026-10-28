@@ -1,7 +1,23 @@
 import { create } from 'zustand';
 import { loginUser, registerUser, setFirstAccessPassword, getMe, logoutUser, getApiError, getApiErrorField } from '../services/api.js';
+import { iniciarSessaoOffline } from '../services/offline.js';
+import { useOfflineStore } from './offlineStore.js';
+import {
+    getLastOwner,
+    guardarUtilizadorAutenticado,
+    limparCacheAutenticacao,
+    logoutPendente,
+    marcarLogoutPendente,
+    setOfflineOwner
+} from '../services/offlineDb.js';
 
-export const useAuthStore = create((set) => ({
+function estaOffline() {
+    return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
+let checkAuthEmCurso = null;
+
+export const useAuthStore = create((set, get) => ({
     user: null,
     loading: false,
     initialized: false,
@@ -11,11 +27,72 @@ export const useAuthStore = create((set) => ({
 
     //verifica a sessao existente no arranque da app (cookie httpOnly)
     checkAuth: async () => {
-        try{
-            const res = await getMe();
-            set({ user: res.data.user, initialized: true });
-        }catch{
-            set({ user: null, initialized: true });
+        // O App e os guards de rota podem pedir a verificacao na mesma
+        // renderizacao inicial. Partilha-se a mesma promessa para nao
+        // multiplicar pedidos a /api/auth/me.
+        if (get().initialized) return;
+        if (checkAuthEmCurso) return checkAuthEmCurso;
+
+        checkAuthEmCurso = (async () => {
+            // O armazenamento offline e opcional: uma falha do IndexedDB (modo
+            // privado, quota, webview restrita) nunca pode impedir o arranque.
+            let pendente = false;
+            try {
+                pendente = await logoutPendente();
+            } catch {
+                // Sem armazenamento local: assume que nao ha logout pendente.
+            }
+
+            // Se o utilizador terminou sessao sem rede, nao restauramos a sessao
+            // antiga. Quando houver ligacao, o logout e concluido no servidor.
+            if (pendente) {
+                let logoutConcluido = false;
+
+                if (!estaOffline()) {
+                    try {
+                        await logoutUser();
+                        logoutConcluido = true;
+                    } catch (err) {
+                        // 401 significa que o cookie ja nao e valido.
+                        if (err?.response?.status === 401) logoutConcluido = true;
+                        // Outros erros: tentamos novamente no proximo arranque
+                        // sem restaurar a sessao local.
+                    }
+                }
+
+                if (logoutConcluido) await marcarLogoutPendente(false).catch(() => {});
+                await setOfflineOwner(null).catch(() => {});
+                await useOfflineStore.getState().atualizar().catch(() => {});
+                set({ user: null, initialized: true });
+                return;
+            }
+
+            try{
+                const res = await getMe();
+                const user = res.data.user;
+                // Define o dono do cache (em memoria, de forma sincrona) antes de
+                // a UI montar as paginas, para que as primeiras leituras ja sejam
+                // guardadas no utilizador certo.
+                setOfflineOwner(user.id).catch(() => {});
+                set({ user, initialized: true });
+                await iniciarSessaoOffline(user.id).catch(() => {});
+                await guardarUtilizadorAutenticado(user).catch(() => {});
+            }catch(err){
+                const status = err?.response?.status;
+                if (status === 401 || status === 403) {
+                    const owner = await getLastOwner().catch(() => null);
+                    if (owner) await limparCacheAutenticacao(owner).catch(() => {});
+                    await setOfflineOwner(null).catch(() => {});
+                    await useOfflineStore.getState().atualizar().catch(() => {});
+                }
+                set({ user: null, initialized: true });
+            }
+        })();
+
+        try {
+            return await checkAuthEmCurso;
+        } finally {
+            checkAuthEmCurso = null;
         }
     },
 
@@ -23,7 +100,12 @@ export const useAuthStore = create((set) => ({
         set({ loading: true, error: null, errorField: null, sucesso: null });
         try{
             const res = await loginUser(data);
-            set({ user: res.data.user, loading: false, error: null, errorField: null });
+            const user = res.data.user;
+            setOfflineOwner(user.id).catch(() => {});
+            set({ user, loading: false, error: null, errorField: null });
+            await marcarLogoutPendente(false).catch(() => {});
+            await iniciarSessaoOffline(user.id).catch(() => {});
+            await guardarUtilizadorAutenticado(user).catch(() => {});
             return true;
         }catch(err){
             set({ loading: false, error: getApiError(err), errorField: getApiErrorField(err) });
@@ -50,7 +132,9 @@ export const useAuthStore = create((set) => ({
         set({ loading: true, error: null, errorField: null });
         try{
             const res = await setFirstAccessPassword(data);
-            set({ user: res.data.user, loading: false, error: null, errorField: null });
+            const user = res.data.user;
+            set({ user, loading: false, error: null, errorField: null });
+            await guardarUtilizadorAutenticado(user).catch(() => {});
             return true;
         }catch(err){
             set({ loading: false, error: getApiError(err), errorField: getApiErrorField(err) });
@@ -59,17 +143,35 @@ export const useAuthStore = create((set) => ({
     },
 
     logout: async () => {
+        const owner = useAuthStore.getState().user?.id;
+
         try{
             await logoutUser();
+            await marcarLogoutPendente(false).catch(() => {});
+        }catch(err){
+            // Sem rede ou com falha do servidor, a sessao local termina
+            // imediatamente e o logout fica pendente para a proxima ligacao.
+            // Um 401 significa que o cookie ja nao era valido.
+            if (err?.response?.status !== 401) {
+                await marcarLogoutPendente(true).catch(() => {});
+            }
         }finally{
+            if (owner) await limparCacheAutenticacao(owner).catch(() => {});
+            await setOfflineOwner(null).catch(() => {});
+            await useOfflineStore.getState().atualizar().catch(() => {});
             set({ user: null, error: null, errorField: null });
         }
     },
 
-    //actualiza apenas os dados do utilizador em memoria (ex.: apos editar o perfil)
-    updateUser: (dados) => set((state) => ({
-        user: state.user ? { ...state.user, ...dados } : state.user
-    })),
+    //actualiza os dados do utilizador em memoria e no cache offline
+    //(ex.: apos editar o perfil)
+    updateUser: (dados) => set((state) => {
+        const user = state.user ? { ...state.user, ...dados } : state.user;
+        if (user?.id) {
+            guardarUtilizadorAutenticado(user).catch(() => {});
+        }
+        return { user };
+    }),
 
     clearError: () => set({ error: null, errorField: null }),
     clearSucesso: () => set({ sucesso: null }),

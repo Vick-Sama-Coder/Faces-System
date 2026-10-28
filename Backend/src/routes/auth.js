@@ -7,11 +7,16 @@ import AuditoriaService from '../services/auditoria.js';
 import { authenticate, authorize } from '../middlewares/auth.js';
 import { validarNome, validarTelefone, validarSenha, limparTelefone } from '../utils/validacoes.js';
 
+const PRODUCAO = process.env.NODE_ENV === 'production';
+
 const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'none',
-    partitioned: true,
+    secure: PRODUCAO,
+    // SameSite=None exige Secure; em desenvolvimento (HTTP) usamos Lax para
+    // que o browser nao rejeite o cookie. Em producao mantem-se first-party
+    // atraves do proxy /api do frontend.
+    sameSite: PRODUCAO ? 'none' : 'lax',
+    ...(PRODUCAO ? { partitioned: true } : {}),
     maxAge: 10 * 24 * 60 * 60 * 1000 //10 dias
 
 }

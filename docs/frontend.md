@@ -79,20 +79,45 @@ persistido localmente.
 
 ## Camada de API
 
-`Frontend/src/services/api.js`:
+`Frontend/src/services/http.js` cria as instâncias Axios (`server` e `syncServer`) com
+`withCredentials: true`. `BASE_API` = `VITE_API_URL`; se não existir, usa
+`http://localhost:5000` em desenvolvimento e a mesma origem em produção.
 
-- Cria uma instância Axios com `withCredentials: true`.
-- `BASE_API` = `VITE_API_URL`; se não existir, usa `http://localhost:5000` em
-  desenvolvimento e a mesma origem em produção.
-- Helpers: `getApiError(err)` e `getApiErrorField(err)`.
-- Funções agrupadas por módulo: autenticação/perfil, categorias, serviços (incluindo
-  modalidades e aplicações), funcionários, clientes, atendimentos (pagamentos, descontos,
-  anulação), fidelização, utilizadores/perfis/permissões, dashboard, relatórios (incluindo
-  o financeiro), despesas, stock, auditoria, horários, assiduidade e salários.
+`Frontend/src/services/api.js` contém as funções agrupadas por módulo: autenticação/perfil,
+categorias, serviços (incluindo modalidades e aplicações), funcionários, clientes,
+atendimentos (pagamentos, descontos, anulação), fidelização, utilizadores/perfis/permissões,
+dashboard, relatórios (incluindo o financeiro), despesas, stock, auditoria, horários,
+assiduidade e salários. Helpers: `getApiError(err)` e `getApiErrorField(err)`.
+
+### Offline e sincronização
+
+- `offlineDb.js` — stores IndexedDB (cache de API, fila, metadados e sessão).
+- `offline.js` — adapta o Axios: leituras usam cache quando não há rede e escritas são
+  enfileiradas com `Idempotency-Key`.
+- `offlineQueue.js` — fila persistida, locks, mapeamento de IDs temporários e retry.
+- `offlineCache.js` — atualização otimista do cache para clientes, atendimentos, pagamentos,
+  descontos, fidelização, stock, horários e assiduidade.
+- `offlinePrefetch.js` — prepara em segundo plano os dados das páginas e modais.
+- `OfflineStatus` — indicador global de ligação, fila pendente, erros e sincronização.
+
+Operações sensíveis continuam online-only: login, registo, primeiro acesso, alteração de
+senha, logout, `PATCH /api/auth/me`, gestão de utilizadores, **todas as escritas de
+salários** (processar, deduções, aprovar e pagar) e as **alterações manuais do cartão de
+fidelização** (marcar/remover marcas e utilizar benefícios). O cartão pode ser consultado
+offline, mas o ciclo e os benefícios são sempre calculados pelo servidor.
+
+A fila preserva a ordem das operações. Erros transitórios (rede, `429`, `5xx` e o `409`
+de “processamento em curso” da idempotência) param a fila e são repetidos; erros
+definitivos (`400`, `404`, `409`) ficam marcados como falhados e as restantes operações
+continuam. A sincronização só acontece com a aplicação aberta — não há Background Sync
+no service worker. O cache é limitado a 2000 entradas por utilizador (as mais antigas são
+removidas) e expira ao fim de 30 dias; a sessão restaurada offline dura 10 dias, alinhada
+com o cookie.
 
 > O backend só aceita CORS da origem definida em `CLIENT_URL`. Se o frontend correr noutra
 > porta/domínio, ajuste `CLIENT_URL` e/ou `VITE_API_URL` (ver
-> [instalacao.md](./instalacao.md)).
+> [instalacao.md](./instalacao.md)). Com o proxy `/api` do Vercel, os pedidos são
+> same-origin.
 
 ## Componentes
 
@@ -111,6 +136,7 @@ persistido localmente.
 | `Modals/*` | `components/Modals/` | Modais de atendimento, cliente, serviço e fidelização |
 | `ThemeToggle` | `components/ThemeToggle/ThemeToggle.jsx` | Alternância tema claro/escuro |
 | `PWAUpdatePrompt` | `components/PWAUpdatePrompt/` | Aviso de nova versão da PWA |
+| `OfflineStatus` | `components/OfflineStatus/` | Estado offline, fila pendente e ações de sincronização |
 | `Input` | `components/forms/input/input.jsx` | Campo de formulário com label, ícone e erro |
 | `Button` | `components/forms/button/button.jsx` | Botão |
 | `Search` | `components/forms/search/search.jsx` | Campo de pesquisa |
@@ -166,12 +192,23 @@ Ver [validacoes.md](./validacoes.md).
 - O tema claro/escuro é aplicado por `data-theme` no elemento raiz, com `ThemeToggle` no
   cabeçalho; as variáveis de cor ficam em `variables.css`.
 
-## PWA
+## PWA e modo offline
 
 - Configurada em `Frontend/vite.config.js` com `vite-plugin-pwa` e Workbox.
-- Permite instalar a aplicação e actualizar assets em cache; `PWAUpdatePrompt` avisa
-  quando há uma nova versão.
-- **Não** implementa operação off-line nem sincronização de dados (RF25).
+- O service worker faz precache do app shell, fontes, ícones e manifesto, com fallback
+  para `index.html` nas rotas da SPA.
+- O modo offline permite consultar os dados já carregados e continuar a criar/editar
+  clientes, atendimentos, pagamentos, serviços, despesas, stock, horários e assiduidade.
+  As escritas ficam numa fila persistida em IndexedDB e são sincronizadas quando a ligação
+  regressa; o backend usa `Idempotency-Key` para não duplicar operações.
+- O arranque offline restaura a última sessão guardada. O logout offline fica pendente e
+  é concluído no servidor quando houver rede.
+- `OfflineStatus` mostra o estado da ligação, a fila, erros e a última sincronização, com
+  ações para tentar novamente ou descartar operações falhadas.
+- Operações de autenticação, alteração do próprio perfil, gestão de utilizadores/perfis,
+  **todas as escritas de salários** e alterações manuais do cartão de fidelização
+  continuam online-only.
+- `PWAUpdatePrompt` avisa quando há uma nova versão do service worker.
 
 ## Padrão de tabelas (AG Grid)
 

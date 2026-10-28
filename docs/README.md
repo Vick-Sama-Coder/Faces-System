@@ -20,6 +20,7 @@ o sistema.
 | [testes-endpoints.md](./testes-endpoints.md) | **Guia de teste da API**: como testar cada endpoint, resultado esperado e verificação dos requisitos RF01–RF25 |
 | [autenticacao-permissoes.md](./autenticacao-permissoes.md) | Login, primeiro acesso, JWT/cookie, perfis e controlo de acesso (RBAC) |
 | [frontend.md](./frontend.md) | Rotas, estado global, componentes, páginas, tema e PWA |
+| [offline.md](./offline.md) | Modo offline: cache, fila de escritas, sincronização, limitações e checklist de teste |
 | [funcionalidades.md](./funcionalidades.md) | Descrição funcional de cada módulo do sistema |
 | [validacoes.md](./validacoes.md) | Regras de validação de nome, telefone, senha, horários e fidelização |
 | [desenvolvimento.md](./desenvolvimento.md) | Convenções de código, fluxo de trabalho e Git |

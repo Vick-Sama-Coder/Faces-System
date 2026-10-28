@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import cookieParser from 'cookie-parser';
 import { codigoPostgres } from './utils/erro.js';
+import idempotencia from './middlewares/idempotencia.js';
 import authRoutes from './routes/auth.js'
 import funcionarioRoutes from './routes/funcionario.js'
 import servicoRoutes from './routes/servico.js'
@@ -37,16 +38,59 @@ dotenv.config({
 });
 
 const app = express();
-//Normaliza a origem (o .env pode ter "/" final, senao o browser bloqueia o CORS)
-const CLIENT_URL = process.env.CLIENT_URL ;
+app.set('trust proxy', 1);
+
+// CLIENT_URL aceita uma lista separada por virgulas. Isso permite manter o
+// dominio de producao e, temporariamente, um URL de preview do Vercel.
+function normalizarOrigens(valor) {
+  return String(valor || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      try {
+        return new URL(item).origin;
+      } catch {
+        console.warn('[cors] CLIENT_URL invalido, ignorado:', item);
+        return null;
+      }
+    })
+    .filter(Boolean);
+}
+
+const CLIENT_ORIGINS = normalizarOrigens(
+  process.env.CLIENT_URL || 'http://localhost:5173/'
+);
+const ORIGENS_UNICAS = [...new Set(CLIENT_ORIGINS)];
+
 app.use(cors({
-  origin: new URL(CLIENT_URL).origin,
+  origin(origin, callback) {
+    // Pedidos sem Origin (curl, health checks, same-origin) sao permitidos.
+    if (!origin) return callback(null, true);
+    if (ORIGENS_UNICAS.includes(origin)) return callback(null, true);
+
+    // Nao lancar erro: apenas nao devolver cabecalhos CORS. O browser bloqueia
+    // a leitura, mas o backend continua a responder normalmente.
+    return callback(null, false);
+  },
   credentials: true,
+  optionsSuccessStatus: 204,
+  maxAge: 86400
 }));
-console.log('CLIENT_URL carregado:', process.env.CLIENT_URL);
+console.log('CLIENT_URL carregado:', ORIGENS_UNICAS.join(', ') || '(nenhum)');
+
 //adicionando middlewares globais
 app.use(express.json()); //para ler json
 app.use(cookieParser()); //transformar string cookies em objetos
+
+// Dados autenticados da API nunca devem ser guardados pelo browser, pelo CDN
+// do Render ou por um proxy externo (ex.: rewrites do Vercel).
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
+
+app.use(idempotencia); //respostas idempotentes para a fila offline
 
 app.use("/api/auth",authRoutes);
 app.use("/api", funcionarioRoutes);
