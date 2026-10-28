@@ -1,4 +1,4 @@
-import SideBar from "../../components/sidebar/siderbar.jsx"
+import Sidebar from "../../components/Sidebar/Sidebar.jsx"
 import Headers from "../../components/headers/header.jsx"
 import ServicoModal from "../../components/Modals/ServicoModal/ServicoModal.jsx"
 import FidelizacaoModal from "../../components/Modals/FidelizacaoModal/FidelizacaoModal.jsx"
@@ -401,7 +401,7 @@ function Servicos() {
             )}
 
             <div className="servicos-main">
-                <SideBar
+                <Sidebar
                     isOpen={isSidebarOpen}
                     setIsOpen={setIsSidebarOpen}
                 />
@@ -413,6 +413,7 @@ function Servicos() {
                     userClass="user"
                     bellClass="bell"
                     onMenuClick={() => setIsSidebarOpen(true)}
+                    sidebarOpen={isSidebarOpen}
                 />
                 <section className="servicos-content mgmt-page">
                     <header className="mgmt-hero">

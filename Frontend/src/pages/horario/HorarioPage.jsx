@@ -9,7 +9,7 @@ import {
     TrendingUp,
     UserRound
 } from "lucide-react"
-import SideBar from "../../components/sidebar/siderbar.jsx"
+import Sidebar from "../../components/Sidebar/Sidebar.jsx"
 import Headers from "../../components/headers/header.jsx"
 import {
     getApiError,
@@ -565,7 +565,7 @@ function HorarioPage() {
 
     return (
         <div className="admin-main">
-            <SideBar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+            <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
             <Headers
                 heady="admin-header"
                 title="Horários"
@@ -574,6 +574,7 @@ function HorarioPage() {
                 userClass="user"
                 bellClass="bell"
                 onMenuClick={() => setIsSidebarOpen(true)}
+                sidebarOpen={isSidebarOpen}
             />
 
             <main className="admin-content">

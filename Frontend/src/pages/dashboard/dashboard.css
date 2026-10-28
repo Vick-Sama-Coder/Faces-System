@@ -26,10 +26,6 @@
     padding-left: 4px;
 }
 
-.sidebar {
-    grid-area: 1 / 1 / -1 / 2;
-}
-
 .user,
 .menu > .lucide {
     cursor: pointer;
@@ -842,10 +838,6 @@
         flex-direction: column;
         height: auto;
         min-height: 100vh;
-    }
-
-    .sidebar {
-        position: fixed;
     }
 
     .dash-content {

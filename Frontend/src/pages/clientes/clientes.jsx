@@ -1,4 +1,4 @@
-import SideBar from "../../components/sidebar/siderbar"
+import Sidebar from "../../components/Sidebar/Sidebar.jsx"
 import Headers from "../../components/headers/header.jsx"
 import ClientModal from "../../components/Modals/ClientModal/ClientModal.jsx"
 import CartaoClienteModal from "../../components/Modals/CartaoClienteModal/CartaoClienteModal.jsx"
@@ -25,8 +25,7 @@ import {
     UserCheck,
     Users,
     UserX,
-    X,
-    Trash2
+    X
 } from "lucide-react"
 import { getClientes, updateClienteEstado, getApiError, deleteCliente } from "../../services/api.js"
 import { useAuthStore } from "../../store/authStore.js"
@@ -388,7 +387,7 @@ function Clientes() {
             )}
 
             <div className="clientes-main">
-                <SideBar
+                <Sidebar
                     isOpen={isSidebarOpen}
                     setIsOpen={setIsSidebarOpen}
                 />
@@ -400,6 +399,7 @@ function Clientes() {
                     userClass="user"
                     bellClass="bell"
                     onMenuClick={() => setIsSidebarOpen(true)}
+                    sidebarOpen={isSidebarOpen}
                 />
                 <section className="clientes-content mgmt-page">
                     <header className="mgmt-hero">

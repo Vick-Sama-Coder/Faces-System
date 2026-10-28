@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import SideBar from "../../components/sidebar/siderbar.jsx"
+import Sidebar from "../../components/Sidebar/Sidebar.jsx"
 import Headers from "../../components/headers/header.jsx"
 import "./admin.css"
 import { UserPlus, Edit, KeyRound, ShieldCheck, Power, X, Save, Users } from "lucide-react"
@@ -501,7 +501,7 @@ function GestaoUtilizadores() {
             )}
 
             <div className="admin-main">
-                <SideBar
+                <Sidebar
                     isOpen={isSidebarOpen}
                     setIsOpen={setIsSidebarOpen}
                 />
@@ -513,6 +513,7 @@ function GestaoUtilizadores() {
                     userClass="user"
                     bellClass="bell"
                     onMenuClick={() => setIsSidebarOpen(true)}
+                    sidebarOpen={isSidebarOpen}
                 />
 
                 <main className="admin-content">

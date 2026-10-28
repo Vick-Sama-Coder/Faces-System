@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { KeyRound, Save, ShieldCheck, UserRound } from "lucide-react"
-import SideBar from "../../components/sidebar/siderbar.jsx"
+import Sidebar from "../../components/Sidebar/Sidebar.jsx"
 import Headers from "../../components/headers/header.jsx"
 import "../admin/admin.css"
 import "./perfil.css"
@@ -301,7 +301,7 @@ function Perfil() {
 
     return (
         <div className="admin-main">
-            <SideBar
+            <Sidebar
                 isOpen={isSidebarOpen}
                 setIsOpen={setIsSidebarOpen}
             />
@@ -313,6 +313,7 @@ function Perfil() {
                 userClass="user"
                 bellClass="bell"
                 onMenuClick={() => setIsSidebarOpen(true)}
+                sidebarOpen={isSidebarOpen}
             />
 
             <main className="admin-content profile-content">

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import SideBar from "../../components/sidebar/siderbar.jsx";
+import Sidebar from "../../components/Sidebar/Sidebar.jsx"
 import Headers from "../../components/headers/header.jsx";
 import "../admin/admin.css";
 import "./relatorio.css";
@@ -616,7 +616,7 @@ function Relatorio() {
 
     return (
         <div className="admin-main">
-            <SideBar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+            <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
             <Headers
                 heady="admin-header"
                 title="Relatorios"
@@ -625,6 +625,7 @@ function Relatorio() {
                 userClass="user"
                 bellClass="bell"
                 onMenuClick={() => setIsSidebarOpen(true)}
+                sidebarOpen={isSidebarOpen}
             />
 
             <main className="admin-content">

@@ -1,4 +1,4 @@
-import Sidebar from "../../components/sidebar/siderbar.jsx"
+import Sidebar from "../../components/Sidebar/Sidebar.jsx"
 import Headers from "../../components/headers/header.jsx"
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router"
@@ -129,6 +129,7 @@ function DashBoard() {
                 bellClass="bell"
                 pClass="p-profile"
                 onMenuClick={() => setIsSidebarOpen(true)}
+                sidebarOpen={isSidebarOpen}
             />
             <Sidebar
                 isOpen={isSidebarOpen}
