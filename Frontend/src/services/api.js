@@ -16,9 +16,48 @@ const server = axios.create({
 
 });
 
+// Em desenvolvimento, deixa no console o metodo/URL e o motivo exato da falha.
+if (import.meta.env.DEV) {
+    server.interceptors.response.use(
+        (response) => response,
+        (error) => {
+            const metodo = error.config?.method?.toUpperCase() || "?"
+            const url = error.config?.url || "?"
+            const motivo = error.response?.status ?? error.code ?? error.message
+            console.error(`[api] ${metodo} ${url} falhou:`, motivo)
+            return Promise.reject(error)
+        }
+    )
+}
+
 //extrai a mensagem de erro vinda do backend
 export const getApiError = (err) => {
-    return err?.response?.data?.message || "Erro de conexao com o servidor";
+    const mensagem = err?.response?.data?.message;
+
+    if (typeof mensagem === "string" && mensagem.trim()) {
+        return mensagem;
+    }
+
+    if (err?.code === "ECONNABORTED" || err?.code === "ETIMEDOUT") {
+        return "O servidor demorou demasiado a responder. Tente novamente.";
+    }
+
+    // Erros de programacao (por exemplo, null.trim()) nao sao falhas de rede.
+    if (err && !err.isAxiosError && !err.response) {
+        return "Ocorreu um erro inesperado. Tente novamente.";
+    }
+
+    if (err?.response) {
+        const status = err.response.status;
+
+        if (status >= 500) {
+            return `O servidor esta temporariamente indisponivel (erro ${status}). Tente novamente.`;
+        }
+
+        return `O servidor respondeu com um erro inesperado (${status}).`;
+    }
+
+    return "Nao foi possivel ligar ao servidor. Verifique a ligacao e tente novamente.";
 };
 
 //extrai o campo associado ao erro (backend devolve {field, message})

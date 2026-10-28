@@ -157,6 +157,8 @@ const deleteCliente = async (req, res, next) => {
         if (!apagado) {
             return res.status(404).json({ message: "Cliente nao encontrado" });
         }
+
+        res.status(204).send();
     } catch (error) {
         //23503 = existem atendimentos associados a este cliente
         if (codigoPostgres(error) === "23503") {
