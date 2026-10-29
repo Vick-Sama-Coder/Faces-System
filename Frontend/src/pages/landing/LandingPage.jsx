@@ -552,6 +552,10 @@ function LandingPage() {
                 <p className="landing-footer-copy">
                     © {new Date().getFullYear()} Salão Faces. Todos os direitos reservados.
                 </p>
+
+                <p className="landing-creditos">
+                    Criação: <span>Vick-Sama-Coder</span> · <span>Malik-Mangue</span>
+                </p>
             </footer>
         </div>
     )

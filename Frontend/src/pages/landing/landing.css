@@ -539,6 +539,16 @@
     color: var(--text-muted);
 }
 
+.landing-creditos {
+    margin: 0.4rem 0 0;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+.landing-creditos span {
+    font-weight: 600;
+}
+
 /* ------------------------------------------------------------------
    Responsivo
 ------------------------------------------------------------------ */
