@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { createPortal } from "react-dom"
 import {
     AlertTriangle,
     CloudOff,
@@ -139,7 +140,7 @@ function OfflineStatus() {
                 </div>
             </aside>
 
-            {detalhesAbertos ? (
+            {detalhesAbertos ? createPortal(
                 <div
                     className="offline-details-backdrop"
                     role="presentation"
@@ -202,7 +203,8 @@ function OfflineStatus() {
                             </button>
                         </footer>
                     </section>
-                </div>
+                </div>,
+                document.body
             ) : null}
         </>
     )

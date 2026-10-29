@@ -186,6 +186,11 @@ async function enfileirarPedido(config, ownerId, chave) {
     return respostaOtimista(config, item.entidade);
 }
 
+function donoAindaAtivo(owner) {
+    const atual = getOfflineOwner();
+    return owner === atual || (owner === 'public' && !atual);
+}
+
 async function tratarGet(config, adaptador) {
     const caminho = normalizarCaminho(config.url);
     const owner = await ownerDoPedido(caminho);
@@ -205,7 +210,9 @@ async function tratarGet(config, adaptador) {
         const resposta = await adaptador(config);
         const status = resposta?.status ?? 200;
 
-        if (owner && status >= 200 && status < 300 && resposta?.data !== undefined) {
+        // Uma resposta que chega depois do logout (por exemplo, um prefetch
+        // atrasado) nao pode voltar a gravar a cache do utilizador antigo.
+        if (donoAindaAtivo(owner) && status >= 200 && status < 300 && resposta?.data !== undefined) {
             // Gravar o cache e uma otimizacao. Uma quota cheia ou um erro do
             // IndexedDB nunca deve transformar uma leitura bem-sucedida num
             // erro para o utilizador.

@@ -1,13 +1,10 @@
 .offline-status {
-    position: fixed;
-    left: 24px;
-    bottom: 24px;
-    z-index: 1090;
+    position: relative;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
     gap: 10px 12px;
-    width: min(calc(100vw - 32px), 520px);
+    width: min(100%, 520px);
     padding: 12px 14px;
     border: 1px solid var(--border);
     border-radius: 14px;
@@ -248,10 +245,7 @@
 
 @media (max-width: 620px) {
     .offline-status {
-        right: 16px;
-        left: 16px;
-        bottom: 16px;
-        width: auto;
+        width: 100%;
         grid-template-columns: auto minmax(0, 1fr);
     }
 

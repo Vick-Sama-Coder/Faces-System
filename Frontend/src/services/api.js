@@ -1,6 +1,7 @@
 import server from "./http.js";
 import { installOfflineSupport } from "./offline.js";
 
+// Instalacao unica no arranque do modulo, antes de qualquer pedido da API.
 installOfflineSupport();
 
 // Em desenvolvimento, deixa no console o metodo/URL e o motivo exato da falha.

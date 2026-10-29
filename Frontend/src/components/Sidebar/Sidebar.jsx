@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef } from "react"
 import { NavLink, useNavigate } from "react-router"
 import { LogOut, UserCircle, X } from "lucide-react"
 import Photo from "../../assets/logo/faces-logo.png"
+import InstallAppButton from "../InstallApp/InstallAppButton.jsx"
+import OfflinePreparation from "../OfflinePreparation/OfflinePreparation.jsx"
 import { useAuthStore } from "../../store/authStore.js"
 import { useMediaQuery } from "../../hooks/useMediaQuery.js"
 import { getVisibleGroups } from "./navigation.js"
@@ -196,6 +198,14 @@ function Sidebar({ isOpen = false, setIsOpen }) {
                 </nav>
 
                 <div className="sidebar__footer">
+                    <InstallAppButton
+                        variant="sidebar"
+                        label="Instalar aplicação"
+                        className="sidebar__link sidebar__install"
+                    />
+
+                    <OfflinePreparation />
+
                     <SidebarLink
                         to="/perfil"
                         icon={UserCircle}

@@ -1,0 +1,33 @@
+.app-notification-stack {
+    position: fixed;
+    left: 24px;
+    right: 24px;
+    bottom: 24px;
+    z-index: 1090;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    pointer-events: none;
+}
+
+.app-notification-stack > * {
+    pointer-events: auto;
+}
+
+@media (min-width: 1100px) {
+    .app-notification-stack {
+        flex-direction: row;
+        align-items: flex-end;
+        justify-content: space-between;
+    }
+}
+
+@media (max-width: 620px) {
+    .app-notification-stack {
+        left: 16px;
+        right: 16px;
+        bottom: 16px;
+        gap: 10px;
+    }
+}

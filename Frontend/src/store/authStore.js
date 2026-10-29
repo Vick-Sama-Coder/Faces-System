@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { loginUser, registerUser, setFirstAccessPassword, getMe, logoutUser, getApiError, getApiErrorField } from '../services/api.js';
+import { cancelarPrefetchOffline, limparPreparacaoOffline } from '../services/offlinePrefetch.js';
 import { iniciarSessaoOffline } from '../services/offline.js';
 import { useOfflineStore } from './offlineStore.js';
 import {
@@ -81,8 +82,13 @@ export const useAuthStore = create((set, get) => ({
                 const status = err?.response?.status;
                 if (status === 401 || status === 403) {
                     const owner = await getLastOwner().catch(() => null);
-                    if (owner) await limparCacheAutenticacao(owner).catch(() => {});
+                    // Invalida o dono antes de limpar: impede que uma resposta
+                    // atrasada volte a gravar cache depois da limpeza.
                     await setOfflineOwner(null).catch(() => {});
+                    if (owner) {
+                        await limparCacheAutenticacao(owner).catch(() => {});
+                        limparPreparacaoOffline(owner);
+                    }
                     await useOfflineStore.getState().atualizar().catch(() => {});
                 }
                 set({ user: null, initialized: true });
@@ -143,6 +149,7 @@ export const useAuthStore = create((set, get) => ({
     },
 
     logout: async () => {
+        cancelarPrefetchOffline();
         const owner = useAuthStore.getState().user?.id;
 
         try{
@@ -156,8 +163,13 @@ export const useAuthStore = create((set, get) => ({
                 await marcarLogoutPendente(true).catch(() => {});
             }
         }finally{
-            if (owner) await limparCacheAutenticacao(owner).catch(() => {});
+            // Invalida o dono antes de limpar: impede que uma resposta
+            // atrasada (por exemplo, do prefetch) reponha a cache antiga.
             await setOfflineOwner(null).catch(() => {});
+            if (owner) {
+                await limparCacheAutenticacao(owner).catch(() => {});
+                limparPreparacaoOffline(owner);
+            }
             await useOfflineStore.getState().atualizar().catch(() => {});
             set({ user: null, error: null, errorField: null });
         }

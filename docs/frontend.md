@@ -97,7 +97,11 @@ assiduidade e salários. Helpers: `getApiError(err)` e `getApiErrorField(err)`.
 - `offlineQueue.js` — fila persistida, locks, mapeamento de IDs temporários e retry.
 - `offlineCache.js` — atualização otimista do cache para clientes, atendimentos, pagamentos,
   descontos, fidelização, stock, horários e assiduidade.
-- `offlinePrefetch.js` — prepara em segundo plano os dados das páginas e modais.
+- `offlinePrefetch.js` — prepara em segundo plano os dados das páginas e modais; também
+  aceita preparação manual com progresso.
+- `OfflinePreparation` — botão **Preparar offline** na sidebar, com progresso e data da
+  última preparação.
+- `InstallAppButton` — instalação da PWA no Android/desktop e instruções no iOS.
 - `OfflineStatus` — indicador global de ligação, fila pendente, erros e sincronização.
 
 Operações sensíveis continuam online-only: login, registo, primeiro acesso, alteração de
@@ -136,6 +140,8 @@ com o cookie.
 | `Modals/*` | `components/Modals/` | Modais de atendimento, cliente, serviço e fidelização |
 | `ThemeToggle` | `components/ThemeToggle/ThemeToggle.jsx` | Alternância tema claro/escuro |
 | `PWAUpdatePrompt` | `components/PWAUpdatePrompt/` | Aviso de nova versão da PWA |
+| `InstallAppButton` | `components/InstallApp/` | Botão de instalação da PWA e instruções por plataforma |
+| `OfflinePreparation` | `components/OfflinePreparation/` | Preparação manual dos dados offline com progresso e última execução |
 | `OfflineStatus` | `components/OfflineStatus/` | Estado offline, fila pendente e ações de sincronização |
 | `Input` | `components/forms/input/input.jsx` | Campo de formulário com label, ícone e erro |
 | `Button` | `components/forms/button/button.jsx` | Botão |
@@ -156,7 +162,7 @@ Grupos sem itens visíveis são escondidos automaticamente.
 
 | Página | Caminho | Estado |
 | --- | --- | --- |
-| `LandingPage` | `pages/landing/LandingPage.jsx` | 🟡 Página pública com catálogo, sobre nós e contactos; alguns dados ainda são de exemplo |
+| `LandingPage` | `pages/landing/LandingPage.jsx` | 🟡 Página pública com catálogo, sobre nós e contactos; CTAs adaptados à sessão e botão de instalação |
 | `LoginPage` | `pages/auth/Login/LoginPage.jsx` | ✅ Login por nome de utilizador + senha; redireciona para primeiro acesso quando aplicável |
 | `RegisterPage` | `pages/auth/Register/RegisterPage.jsx` | ✅ Nome + telefone; a conta nasce com a senha inicial `12345` |
 | `FirstAccess` | `pages/auth/FirstAccess/FirstAccess.jsx` | ✅ Define a nova senha obrigatória, com validação local e do backend |
@@ -205,6 +211,10 @@ Ver [validacoes.md](./validacoes.md).
   é concluído no servidor quando houver rede.
 - `OfflineStatus` mostra o estado da ligação, a fila, erros e a última sincronização, com
   ações para tentar novamente ou descartar operações falhadas.
+- `InstallAppButton` permite instalar a PWA no Android/desktop e apresenta instruções
+  manuais quando o prompt nativo não está disponível; no iOS indica o fluxo do Safari.
+- `OfflinePreparation` permite forçar a preparação completa, com progresso e data da
+  última execução, a partir da sidebar.
 - Operações de autenticação, alteração do próprio perfil, gestão de utilizadores/perfis,
   **todas as escritas de salários** e alterações manuais do cartão de fidelização
   continuam online-only.

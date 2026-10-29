@@ -1,6 +1,8 @@
 import { ArrowLeft, CalendarDays, Users, Wallet } from "lucide-react"
 import { Link } from "react-router-dom"
 import Logo from "../../components/Logo/logo.jsx"
+import { useOfflineStore } from "../../store/offlineStore.js"
+import AuthAlert from "./components/AuthAlert.jsx"
 import "./auth.css"
 
 const FEATURES = [
@@ -21,6 +23,8 @@ function AuthLayout({
     children,
     footer
 }) {
+    const online = useOfflineStore((state) => state.online)
+
     return (
         <main className="auth-page">
             <aside className="auth-brand">
@@ -76,6 +80,15 @@ function AuthLayout({
                             </div>
                         )}
                     </header>
+
+                    {!online && (
+                        <div className="auth-alerts">
+                            <AuthAlert type="info">
+                                Sem ligação à internet. Para iniciar sessão ou criar uma conta
+                                pela primeira vez, ligue-se à rede.
+                            </AuthAlert>
+                        </div>
+                    )}
 
                     {children}
 

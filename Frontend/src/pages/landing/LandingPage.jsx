@@ -10,25 +10,28 @@ import {
     UtensilsCrossed
 } from "lucide-react"
 import Logo from "../../components/Logo/logo.jsx"
+import imagemSalaoPadrao from "../../assets/logo/faces-logo.png"
 import ThemeToggle from "../../components/ThemeToggle/ThemeToggle.jsx"
+import InstallAppButton from "../../components/InstallApp/InstallAppButton.jsx"
+import { useAuthStore } from "../../store/authStore.js"
 import { getApiError, getServicosPublicos } from "../../services/api.js"
 import "./landing.css"
 
 // A versao instalada do lucide-react nao inclui icones de marcas.
-function FacebookIcon({ size = 16, ...props }) {
-    return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" {...props}>
-            <path d="M22 12a10 10 0 1 0-11.56 9.88v-6.99H7.9V12h2.54V9.8c0-2.5 1.49-3.89 3.77-3.89 1.09 0 2.23.2 2.23.2v2.45h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.44 2.89h-2.34v6.99A10 10 0 0 0 22 12Z" />
-        </svg>
-    )
-}
-
 function InstagramIcon({ size = 16, ...props }) {
     return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
             <rect x="2" y="2" width="20" height="20" rx="5" />
             <circle cx="12" cy="12" r="4" />
             <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+        </svg>
+    )
+}
+
+function TikTokIcon({ size = 16, ...props }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" {...props}>
+            <path d="M16.6 5.82A4.27 4.27 0 0 1 15.05 3h-3.09v12.4a2.59 2.59 0 0 1-2.59 2.59c-1.22 0-2.21-.99-2.21-2.21 0-.48.16-.92.43-1.28.18-.24.42-.44.7-.58a2.59 2.59 0 0 0 .95 3.66 2.59 2.59 0 0 0 1.77.18 2.6 2.6 0 0 0 1.95-2.45V3h3.09c.25 1.07.75 2.03 1.44 2.82.82.94 1.91 1.6 3.16 1.86v3.1a7.3 7.3 0 0 1-4.1-1.45v6.19a6.06 6.06 0 0 1-4.55 5.86 6.06 6.06 0 0 1-4.55-.94A6.06 6.06 0 0 1 3.2 13.4a6.06 6.06 0 0 1 4.16-5.43 6.06 6.06 0 0 1 2.6-.2v3.1a3.07 3.07 0 0 0-4.06 2.93 3.07 3.07 0 0 0 3.07 3.07 3.07 3.07 0 0 0 3.07-3.07V3h3.09c.04.8.18 1.57.44 2.82Z" />
         </svg>
     )
 }
@@ -40,13 +43,15 @@ function InstagramIcon({ size = 16, ...props }) {
  * definitivos. Nada disto e guardado na base de dados por agora.
  */
 const CONTACTOS = {
-    nome: "Faces Salon",
-    telefone: "+258 84 000 0000",        // <-- preencher com o numero do salao
-    telefoneHref: "+258840000000",
-    morada: "Av. Exemplo, 123 — Maputo, Mozambique", // <-- preencher com a morada real
-    horario: "Seg a Sex · 08h00 – 18h00 | Sáb · 08h00 – 14h00", // <-- preencher
+    nome: "Salão Faces",
+    telefone: "+258 84 250 5093",
+    telefoneHref: "+258842505093",
+    telefoneAdicional: "+258 84 386 0276",
+    telefoneAdicionalHref: "+258843860276",
+    morada: "Kumbeza, Maputo, Moçambique",
+    horario: "Seg–Dom · 09h00 – 19h00",
     redes: [
-        { nome: "Facebook", url: "https://facebook.com/", Icone: FacebookIcon },   // <-- colocar o link da pagina
+        { nome: "TikTok", url: "https://tiktok.com/", Icone: TikTokIcon }, // <-- colocar o perfil
         { nome: "Instagram", url: "https://instagram.com/", Icone: InstagramIcon } // <-- colocar o perfil
     ]
 }
@@ -112,11 +117,18 @@ function comprimirImagem(ficheiro, larguraMaxima = LARGURA_MAXIMA) {
 }
 
 function LandingPage() {
+    const user = useAuthStore((state) => state.user)
+    const logout = useAuthStore((state) => state.logout)
     const [servicos, setServicos] = useState([])
     const [carregando, setCarregando] = useState(true)
     const [erroCatalogo, setErroCatalogo] = useState(null)
     const [erroImagem, setErroImagem] = useState(null)
+    const [aTerminarSessao, setATerminarSessao] = useState(false)
     const inputImagemRef = useRef(null)
+
+    const destinoSessao = user?.deve_alterar_senha || user?.alteracao_obrigatoria_senha
+        ? "/primeiro-acesso"
+        : "/dashboard"
 
     // fotografia do salao: guardada localmente ate existir um lugar definitivo
     // (lida na inicializacao do estado, para nao causar um render extra)
@@ -127,6 +139,10 @@ function LandingPage() {
             return null
         }
     })
+
+    // Se o utilizador ainda nao escolheu fotografias, usamos a logo como imagem
+    // do salao (com fundo transparente) para a pagina ficar completa.
+    const imagemSalaoActual = imagemSalao || imagemSalaoPadrao
 
     // catalogo de servicos vindo da base de dados (endpoint publico)
     useEffect(() => {
@@ -194,6 +210,16 @@ function LandingPage() {
         }
     }
 
+    async function terminarSessao() {
+        if (aTerminarSessao) return
+        setATerminarSessao(true)
+        try {
+            await logout()
+        } finally {
+            setATerminarSessao(false)
+        }
+    }
+
     return (
         <div className="landing">
             <header className="landing-nav">
@@ -209,8 +235,31 @@ function LandingPage() {
 
                 <div className="landing-nav-actions">
                     <ThemeToggle />
-                    <Link to="/login" className="landing-btn landing-btn-ghost">Entrar</Link>
-                    <Link to="/register" className="landing-btn landing-btn-primary">Criar conta</Link>
+                    <InstallAppButton
+                        className="landing-btn landing-btn-ghost landing-install-btn"
+                        label="Instalar app"
+                    />
+
+                    {user ? (
+                        <>
+                            <Link to={destinoSessao} className="landing-btn landing-btn-primary">
+                                Painel
+                            </Link>
+                            <button
+                                type="button"
+                                className="landing-btn landing-btn-ghost"
+                                onClick={terminarSessao}
+                                disabled={aTerminarSessao}
+                            >
+                                {aTerminarSessao ? "A sair..." : "Sair"}
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <Link to="/login" className="landing-btn landing-btn-ghost">Entrar</Link>
+                            <Link to="/register" className="landing-btn landing-btn-primary">Criar conta</Link>
+                        </>
+                    )}
                 </div>
             </header>
 
@@ -228,13 +277,29 @@ function LandingPage() {
 
                     <div className="landing-hero-acoes">
                         <a href="#catalogo" className="landing-btn landing-btn-primary">Ver serviços</a>
-                        <Link to="/register" className="landing-btn landing-btn-ghost">Marcar online</Link>
+                        {user ? (
+                            <Link to={destinoSessao} className="landing-btn landing-btn-ghost">
+                                Ir para o painel
+                            </Link>
+                        ) : (
+                            <Link to="/register" className="landing-btn landing-btn-ghost">
+                                Marcar online
+                            </Link>
+                        )}
+                        <InstallAppButton
+                            className="landing-btn landing-btn-ghost"
+                            label="Instalar aplicação"
+                        />
                     </div>
                 </div>
 
                 <figure className="landing-hero-media">
-                    {imagemSalao ? (
-                        <img src={imagemSalao} alt={`Fotografia do salao ${CONTACTOS.nome}`} />
+                    {imagemSalaoActual ? (
+                        <img
+                            src={imagemSalaoActual}
+                            alt={`Fotografia do salao ${CONTACTOS.nome}`}
+                            className={imagemSalao ? undefined : "landing-media-padrao"}
+                        />
                     ) : (
                         <div className="landing-hero-placeholder" aria-hidden="true">
                             <Scissors size={42} strokeWidth={1.5} />
@@ -259,17 +324,17 @@ function LandingPage() {
                             {imagemSalao ? "Trocar fotografia" : "Adicionar fotografia"}
                         </button>
 
-                        {imagemSalao && (
-                            <button
-                                type="button"
-                                className="landing-btn landing-btn-ghost-ic"
-                                onClick={removerImagem}
-                                aria-label="Remover fotografia do salao"
-                                title="Remover fotografia"
-                            >
-                                <Trash2 size={16} aria-hidden="true" />
-                            </button>
-                        )}
+                        {imagemSalaoActual &&
+                        <button
+                            type="button"
+                            className="landing-btn landing-btn-ghost-ic"
+                            onClick={removerImagem}
+                            aria-label="Remover fotografia do salao"
+                            title="Remover fotografia"
+                        >
+                            <Trash2 size={16} aria-hidden="true" />
+                        </button>
+                        }
                     </figcaption>
 
                     {erroImagem && <p className="landing-erro">{erroImagem}</p>}
@@ -296,8 +361,13 @@ function LandingPage() {
                     </div>
 
                     <div className="landing-sobre-media">
-                        {imagemSalao ? (
-                            <img src={imagemSalao} alt={`Ambiente do salao ${CONTACTOS.nome}`} loading="lazy" />
+                        {imagemSalaoActual ? (
+                            <img
+                                src={imagemSalaoActual}
+                                alt={`Ambiente do salao ${CONTACTOS.nome}`}
+                                loading="lazy"
+                                className={imagemSalao ? undefined : "landing-media-padrao"}
+                            />
                         ) : (
                             <div className="landing-hero-placeholder" aria-hidden="true">
                                 <ImageUp size={36} strokeWidth={1.5} />
@@ -371,13 +441,40 @@ function LandingPage() {
 
             <section className="landing-cta">
                 <div>
-                    <h2>Pronto para a sua próxima visita?</h2>
-                    <p>Crie a sua conta e acompanhe os seus atendimentos com o nosso sistema.</p>
+                    {user ? (
+                        <>
+                            <h2>A sua sessão está ativa</h2>
+                            <p>Continue para o painel para gerir os seus atendimentos.</p>
+                        </>
+                    ) : (
+                        <>
+                            <h2>Pronto para a sua próxima visita?</h2>
+                            <p>Crie a sua conta e acompanhe os seus atendimentos com o nosso sistema.</p>
+                        </>
+                    )}
                 </div>
 
                 <div className="landing-cta-acoes">
-                    <Link to="/login" className="landing-btn landing-btn-ghost">Entrar</Link>
-                    <Link to="/register" className="landing-btn landing-btn-primary">Criar conta</Link>
+                    {user ? (
+                        <>
+                            <Link to={destinoSessao} className="landing-btn landing-btn-primary">
+                                Continuar para o painel
+                            </Link>
+                            <button
+                                type="button"
+                                className="landing-btn landing-btn-ghost"
+                                onClick={terminarSessao}
+                                disabled={aTerminarSessao}
+                            >
+                                {aTerminarSessao ? "A terminar..." : "Terminar sessão"}
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <Link to="/login" className="landing-btn landing-btn-ghost">Entrar</Link>
+                            <Link to="/register" className="landing-btn landing-btn-primary">Criar conta</Link>
+                        </>
+                    )}
                 </div>
             </section>
 
@@ -399,6 +496,12 @@ function LandingPage() {
                             <a href={`tel:${CONTACTOS.telefoneHref}`}>
                                 <Phone size={15} aria-hidden="true" />
                                 {CONTACTOS.telefone}
+                            </a>
+                        </li>
+                        <li>
+                            <a href={`tel:${CONTACTOS.telefoneAdicionalHref}`}>
+                                <Phone size={15} aria-hidden="true" />
+                                {CONTACTOS.telefoneAdicional}
                             </a>
                         </li>
                         <li>
@@ -435,13 +538,19 @@ function LandingPage() {
                     <ul className="landing-footer-lista">
                         <li><a href="#catalogo">Serviços</a></li>
                         <li><a href="#sobre">Sobre nós</a></li>
-                        <li><Link to="/login">Entrar</Link></li>
-                        <li><Link to="/register">Criar conta</Link></li>
+                        {user ? (
+                            <li><Link to={destinoSessao}>Painel</Link></li>
+                        ) : (
+                            <>
+                                <li><Link to="/login">Entrar</Link></li>
+                                <li><Link to="/register">Criar conta</Link></li>
+                            </>
+                        )}
                     </ul>
                 </div>
 
                 <p className="landing-footer-copy">
-                    © {new Date().getFullYear()} {CONTACTOS.nome}. Todos os direitos reservados.
+                    © {new Date().getFullYear()} Salão Faces. Todos os direitos reservados.
                 </p>
             </footer>
         </div>

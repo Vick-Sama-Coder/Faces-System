@@ -34,9 +34,75 @@ import {
 } from './api.js';
 
 const INTERVALO_PREFETCH_MS = 10 * 60 * 1000;
-let prefetchEmCurso = false;
+const PREPARACAO_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+const CHAVE_PREPARACAO = 'faces.offline.preparado';
 let ultimoPrefetch = 0;
 let sessaoPrefetch = null;
+let execucaoAtual = null;
+
+function chavePreparacao(userId) {
+    return `${CHAVE_PREPARACAO}:${userId}`;
+}
+
+export function lerPreparacaoOffline(userId) {
+    if (!userId || typeof window === 'undefined') return null;
+
+    try {
+        const dados = JSON.parse(window.localStorage.getItem(chavePreparacao(userId)));
+        const preparadoEm = Number(dados?.at);
+        if (!Number.isFinite(preparadoEm)) return null;
+        if (Date.now() - preparadoEm > PREPARACAO_MAX_AGE_MS) return null;
+        return dados;
+    } catch {
+        return null;
+    }
+}
+
+export function limparPreparacaoOffline(userId) {
+    if (!userId || typeof window === 'undefined') return;
+
+    try {
+        window.localStorage.removeItem(chavePreparacao(userId));
+    } catch {
+        // Sem localStorage nao ha metadados para limpar.
+    }
+}
+
+function guardarPreparacaoOffline(user, resultado) {
+    if (!user?.id || typeof window === 'undefined') return;
+
+    const preparacao = {
+        userId: String(user.id),
+        at: Date.now(),
+        sucessos: Number(resultado.sucessos || 0),
+        total: Number(resultado.total || 0)
+    };
+
+    try {
+        window.localStorage.setItem(
+            chavePreparacao(user.id),
+            JSON.stringify(preparacao)
+        );
+    } catch {
+        // Sem localStorage a preparacao continua valida nesta sessao.
+    }
+
+    window.dispatchEvent(new CustomEvent('faces:offline-prepared', {
+        detail: preparacao
+    }));
+}
+
+export function cancelarPrefetchOffline() {
+    if (execucaoAtual) {
+        execucaoAtual.cancelado = true;
+        execucaoAtual = null;
+    }
+
+    // Ao cancelar por logout, mudanca de sessao ou perda de rede, a cache pode
+    // ter sido limpa. O proximo arranque deve poder voltar a preparar os dados.
+    sessaoPrefetch = null;
+    ultimoPrefetch = 0;
+}
 
 function estaOffline() {
     return typeof navigator !== 'undefined' && navigator.onLine === false;
@@ -57,15 +123,35 @@ function paramsMesAtual() {
     };
 }
 
-async function comLimite(tarefas, limite = 5) {
+async function comLimite(
+    tarefas,
+    limite = 5,
+    deveContinuar = () => true,
+    aoProgresso
+) {
     const resultados = [];
+    let sucessos = 0;
+    let concluidos = 0;
     let indice = 0;
 
     async function trabalhar() {
-        while (indice < tarefas.length) {
+        while (indice < tarefas.length && deveContinuar()) {
             const atual = indice;
             indice += 1;
-            resultados.push(await tarefas[atual]().catch(() => null));
+
+            try {
+                resultados.push(await tarefas[atual]());
+                sucessos += 1;
+            } catch {
+                resultados.push(null);
+            } finally {
+                concluidos += 1;
+                try {
+                    aoProgresso?.({ concluidos, total: tarefas.length });
+                } catch {
+                    // O progresso e apenas informativo.
+                }
+            }
         }
     }
 
@@ -74,7 +160,7 @@ async function comLimite(tarefas, limite = 5) {
         () => trabalhar()
     );
     await Promise.all(trabalhadores);
-    return resultados;
+    return { resultados, sucessos, concluidos, total: tarefas.length };
 }
 
 function temPermissao(user, ...codigos) {
@@ -82,15 +168,46 @@ function temPermissao(user, ...codigos) {
     return codigos.some((codigo) => user.permissoes.includes(codigo));
 }
 
-export async function prefetchOfflineData(user) {
-    if (!user?.id || estaOffline() || prefetchEmCurso) return;
-    if (sessaoPrefetch === user.id && Date.now() - ultimoPrefetch < INTERVALO_PREFETCH_MS) return;
+export async function prefetchOfflineData(user, { force = false, onProgress } = {}) {
+    if (!user?.id) {
+        return { cancelado: false, sucessos: 0, total: 0, offline: false };
+    }
 
-    prefetchEmCurso = true;
+    if (estaOffline()) {
+        return { cancelado: false, sucessos: 0, total: 0, offline: true };
+    }
+
+    if (execucaoAtual?.sessao === user.id) {
+        if (!force) return { cancelado: false, sucessos: 0, total: 0, emCurso: true };
+        execucaoAtual.cancelado = true;
+        execucaoAtual = null;
+    }
+
+    if (!force && sessaoPrefetch === user.id && Date.now() - ultimoPrefetch < INTERVALO_PREFETCH_MS) {
+        return { cancelado: false, sucessos: 0, total: 0, recente: true };
+    }
+
+    if (execucaoAtual) {
+        execucaoAtual.cancelado = true;
+    }
+
+    const execucao = { sessao: user.id, cancelado: false };
+    execucaoAtual = execucao;
     sessaoPrefetch = user.id;
-    ultimoPrefetch = Date.now();
 
     const mes = paramsMesAtual();
+    const deveContinuar = () => !execucao.cancelado && !estaOffline();
+    const reportar = (fase) => (estado) => {
+        onProgress?.({ fase, ...estado });
+    };
+    const podeFuncionarios = temPermissao(
+        user,
+        'funcionarios:ler',
+        'funcionarios:escrever',
+        'assiduidade:gerir',
+        'salarios:gerir',
+        'atendimentos:escrever'
+    );
 
     try {
         const tarefasBase = [
@@ -99,14 +216,23 @@ export async function prefetchOfflineData(user) {
             () => getServicos(),
             () => getServicos({ estado: 'todos' }),
             () => getClientes(),
-            () => getFuncionarios(),
-            () => getCategoriasDespesa(),
-            () => getDespesas({}),
-            () => getDespesas({ estado: 'Ativo' }),
             () => getAtendimentos(),
-            () => getDashboard(),
-            () => getMovimentosEstoque({})
+            () => getDashboard()
         ];
+
+        if (podeFuncionarios) {
+            tarefasBase.push(() => getFuncionarios());
+        }
+
+        if (temPermissao(user, 'despesas:escrever', 'relatorios:ler')) {
+            tarefasBase.push(() => getDespesas({}));
+            tarefasBase.push(() => getDespesas({ estado: 'Ativo' }));
+        }
+
+        if (temPermissao(user, 'despesas:escrever')) {
+            tarefasBase.push(() => getCategoriasDespesa());
+            tarefasBase.push(() => getMovimentosEstoque({}));
+        }
 
         if (temPermissao(user, 'contas:gerir')) {
             tarefasBase.push(() => getUsuarios());
@@ -140,7 +266,28 @@ export async function prefetchOfflineData(user) {
             tarefasBase.push(() => getRelatorioMovimentos(mes));
         }
 
-        await comLimite(tarefasBase, 4);
+        const base = await comLimite(
+            tarefasBase,
+            4,
+            deveContinuar,
+            reportar('essencial')
+        );
+
+        if (!deveContinuar()) {
+            return {
+                cancelado: true,
+                sucessos: base.sucessos,
+                total: base.total
+            };
+        }
+
+        if (base.sucessos === 0) {
+            return {
+                cancelado: false,
+                sucessos: 0,
+                total: base.total
+            };
+        }
 
         // Dados de detalhe usados pelos modais. Sao pedidos depois do essencial
         // para nao atrasar a abertura da app.
@@ -148,42 +295,101 @@ export async function prefetchOfflineData(user) {
             Array.isArray(res.data) ? res.data : []
         )).catch(() => []);
 
-        const funcionarios = await getFuncionarios().then((res) => (
-            Array.isArray(res.data) ? res.data : []
-        )).catch(() => []);
+        if (!deveContinuar()) {
+            return {
+                cancelado: true,
+                sucessos: base.sucessos,
+                total: base.total
+            };
+        }
+
+        const funcionarios = podeFuncionarios
+            ? await getFuncionarios().then((res) => (
+                Array.isArray(res.data) ? res.data : []
+            )).catch(() => [])
+            : [];
+
+        if (!deveContinuar()) {
+            return {
+                cancelado: true,
+                sucessos: base.sucessos,
+                total: base.total
+            };
+        }
 
         const clientes = await getClientes().then((res) => (
             Array.isArray(res.data) ? res.data : []
         )).catch(() => []);
+
+        if (!deveContinuar()) {
+            return {
+                cancelado: true,
+                sucessos: base.sucessos,
+                total: base.total
+            };
+        }
 
         const atendimentos = await getAtendimentos().then((res) => {
             if (Array.isArray(res.data)) return res.data;
             return Array.isArray(res.data?.atendimentos) ? res.data.atendimentos : [];
         }).catch(() => []);
 
+        if (!deveContinuar()) {
+            return {
+                cancelado: true,
+                sucessos: base.sucessos,
+                total: base.total
+            };
+        }
+
         const tarefasDetalhe = [];
 
         for (const servico of servicos.slice(0, 80)) {
+            if (!deveContinuar()) break;
             tarefasDetalhe.push(() => getServicoModalidades(servico.id));
             tarefasDetalhe.push(() => getServicoAplicacoes(servico.id));
         }
 
         for (const funcionario of funcionarios.slice(0, 80)) {
+            if (!deveContinuar()) break;
             tarefasDetalhe.push(() => getHorariosFuncionario(funcionario.id));
         }
 
         for (const cliente of clientes.slice(0, 200)) {
+            if (!deveContinuar()) break;
             tarefasDetalhe.push(() => getFidelizacao(cliente.id));
         }
 
         for (const atendimento of atendimentos.slice(0, 40)) {
+            if (!deveContinuar()) break;
             if (Number(atendimento.valor_pago || 0) > 0) {
                 tarefasDetalhe.push(() => getPagamentoAtendimento(atendimento.id));
             }
         }
 
-        await comLimite(tarefasDetalhe, 3);
+        const detalhe = await comLimite(
+            tarefasDetalhe,
+            3,
+            deveContinuar,
+            reportar('detalhe')
+        );
+
+        const resultado = {
+            cancelado: !deveContinuar(),
+            sucessos: base.sucessos + detalhe.sucessos,
+            total: base.total + detalhe.total
+        };
+
+        if (!resultado.cancelado && resultado.sucessos > 0) {
+            ultimoPrefetch = Date.now();
+            guardarPreparacaoOffline(user, resultado);
+            return { ...resultado, preparado: true };
+        }
+
+        return resultado;
     } finally {
-        prefetchEmCurso = false;
+        if (execucaoAtual === execucao) {
+            execucaoAtual = null;
+        }
     }
 }

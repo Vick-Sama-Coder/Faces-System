@@ -1,5 +1,6 @@
 import {
     atualizarEntradasCache,
+    getOfflineOwner,
     lerCache,
     listarCache
 } from './offlineDb.js';
@@ -354,7 +355,9 @@ async function enriquecerEntidade(entidade, mutacao, owner) {
 
 export async function aplicarMutacaoCache(mutacao, resposta = null) {
     const owner = mutacao.ownerId;
-    if (!owner) return;
+    // Depois do logout (ou de uma troca de utilizador), uma mutacao atrasada
+    // nao pode voltar a escrever na cache do dono anterior.
+    if (!owner || owner !== getOfflineOwner()) return;
 
     const recurso = obterRecurso(mutacao.url);
     const agregados = recursosParaInvalidar(recurso);
@@ -394,7 +397,7 @@ export async function aplicarMutacaoCache(mutacao, resposta = null) {
 }
 
 export async function aplicarMapaIdsNoCache(owner, mapa) {
-    if (!owner || !mapa || Object.keys(mapa).length === 0) return;
+    if (!owner || owner !== getOfflineOwner() || !mapa || Object.keys(mapa).length === 0) return;
 
     await atualizarEntradasCache(owner, (entrada) => ({
         ...entrada,

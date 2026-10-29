@@ -1,0 +1,116 @@
+.error-boundary {
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    padding: 24px;
+    background: var(--bg-page);
+    color: var(--text);
+}
+
+.error-boundary-card {
+    width: min(100%, 520px);
+    padding: 32px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--surface);
+    box-shadow: var(--shadow-lg);
+    text-align: center;
+}
+
+.error-boundary-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: var(--danger-soft);
+    color: var(--danger-text);
+}
+
+.error-boundary-card h1 {
+    margin: 18px 0 0;
+    font-family: "Manrope", sans-serif;
+    font-size: var(--text-2xl);
+    font-weight: 800;
+    line-height: 1.25;
+}
+
+.error-boundary-card p {
+    margin: 8px auto 0;
+    max-width: 42ch;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    line-height: 1.55;
+}
+
+.error-boundary-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 24px;
+}
+
+.error-boundary-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 0 16px;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: var(--text-sm);
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+}
+
+.error-boundary-btn.primary {
+    border: 1px solid transparent;
+    background: var(--primary);
+    color: var(--on-primary);
+}
+
+.error-boundary-btn.primary:hover:not(:disabled) {
+    background: var(--primary-hover);
+}
+
+.error-boundary-btn.ghost {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+}
+
+.error-boundary-btn.ghost:hover:not(:disabled) {
+    background: var(--surface-tint);
+}
+
+.error-boundary-btn:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+.error-boundary-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+@media (max-width: 520px) {
+    .error-boundary {
+        padding: 16px;
+    }
+
+    .error-boundary-card {
+        padding: 24px;
+    }
+
+    .error-boundary-actions {
+        flex-direction: column-reverse;
+    }
+
+    .error-boundary-btn {
+        width: 100%;
+    }
+}
