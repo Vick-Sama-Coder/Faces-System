@@ -554,7 +554,14 @@ function LandingPage() {
                 </p>
 
                 <p className="landing-creditos">
-                    Criação: <span>Vick-Sama-Coder</span> · <span>Malik-Mangue</span>
+                    Criação:&nbsp;
+                    <a href="https://github.com/Vick-Sama-Coder" target="_blank" rel="noreferrer">
+                        Vick-Sama-Coder
+                    </a>
+                    &nbsp;·&nbsp;
+                    <a href="https://github.com/Malik-Mangue" target="_blank" rel="noreferrer">
+                        Malik-Mangue
+                    </a>
                 </p>
             </footer>
         </div>

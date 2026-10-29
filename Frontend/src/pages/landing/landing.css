@@ -545,8 +545,14 @@
     color: var(--text-muted);
 }
 
-.landing-creditos span {
+.landing-creditos a {
+    color: inherit;
     font-weight: 600;
+    text-decoration: underline;
+}
+
+.landing-creditos a:hover {
+    color: var(--primary-text);
 }
 
 /* ------------------------------------------------------------------
