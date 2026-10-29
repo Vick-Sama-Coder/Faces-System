@@ -59,7 +59,7 @@ function normalizarOrigens(valor) {
 }
 
 const CLIENT_ORIGINS = normalizarOrigens(
-  process.env.CLIENT_URL || 'http://localhost:5173/'
+  process.env.CLIENT_URL || 'https://faces-system.vercel.app/'
 );
 const ORIGENS_UNICAS = [...new Set(CLIENT_ORIGINS)];
 
