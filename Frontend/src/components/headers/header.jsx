@@ -4,7 +4,7 @@ import ThemeToggle from "../ThemeToggle/ThemeToggle.jsx"
 import { useAuthStore } from "../../store/authStore.js"
 import './header.css'
 
-function Headers({heady, title, h1Class, menuClass, userClass, bellClass, pClass, onMenuClick}){
+function Headers({heady, title, h1Class, menuClass, userClass, bellClass, pClass, onMenuClick, sidebarOpen = false}){
     const { user, logout } = useAuthStore()
     const navigate = useNavigate()
 
@@ -29,6 +29,8 @@ function Headers({heady, title, h1Class, menuClass, userClass, bellClass, pClass
                     className={`app-header-menu ${menuClass || ""}`}
                     onClick={onMenuClick}
                     aria-label="Abrir menu de navegação"
+                    aria-controls="app-sidebar"
+                    aria-expanded={sidebarOpen}
                     title="Abrir menu"
                 >
                     <MenuIcon size={20} strokeWidth={2.2} />

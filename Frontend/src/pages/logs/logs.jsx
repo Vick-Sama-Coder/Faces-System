@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import SideBar from "../../components/sidebar/siderbar.jsx"
+import Sidebar from "../../components/Sidebar/Sidebar.jsx"
 import Headers from "../../components/headers/header.jsx"
 import "../admin/admin.css"
 import "./logs.css"
@@ -196,7 +196,7 @@ function Logs() {
             )}
 
             <div className="admin-main">
-                <SideBar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+                <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
                 <Headers
                     heady="admin-header"
                     title="Logs"
@@ -205,6 +205,7 @@ function Logs() {
                     userClass="user"
                     bellClass="bell"
                     onMenuClick={() => setIsSidebarOpen(true)}
+                    sidebarOpen={isSidebarOpen}
                 />
 
                 <main className="admin-content">

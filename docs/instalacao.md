@@ -129,21 +129,25 @@ rede local).
 
 ### URL da API
 
-A URL é resolvida em `Frontend/src/services/api.js`:
+A URL é resolvida em `Frontend/src/services/http.js`:
 
 1. `VITE_API_URL`, se definida;
 2. `http://localhost:5000` em desenvolvimento;
 3. a mesma origem em produção (útil quando o frontend e a API são servidos pelo mesmo
    domínio/reverse proxy).
 
-Para apontar para outra API, crie `Frontend/.env` (ou `.env.production`):
+O repositório inclui `Frontend/.env` com `VITE_API_URL=` vazio. Assim, o build de produção
+chama `/api` na mesma origem e o proxy configurado em `Frontend/vercel.json` encaminha para
+o backend no Render. Para apontar diretamente para outra API, defina no `.env`:
 
 ```env
 VITE_API_URL=https://api.exemplo.com
 ```
 
 > As variáveis `VITE_*` são embutidas no build; é preciso reconstruir o frontend depois de
-> as alterar. O backend só aceita CORS da origem definida em `CLIENT_URL`.
+> as alterar. Se usar uma API noutro domínio, o backend só aceita CORS da origem definida
+> em `CLIENT_URL`. Com o proxy do Vercel, os pedidos são same-origin e não precisam de CORS
+> adicional.
 
 ## 4. Build e deploy
 
@@ -158,10 +162,33 @@ npm run preview   # pré-visualiza a build localmente
 - Sirva `Frontend/dist/` com Nginx, Caddy, Vercel, Netlify ou equivalente.
 - A app é uma **PWA** (manifesto + service worker via Workbox). É preciso servir por
   **HTTPS** (ou `localhost`) para a instalação e o service worker funcionarem.
-- O service worker faz cache de assets e tem fallback para `index.html`, excepto rotas
+- O service worker faz cache do app shell e tem fallback para `index.html`, exceto rotas
   `/api/*`.
+- Leituras da API são guardadas em IndexedDB e as escritas são enfileiradas localmente
+  quando não há rede. A fila é sincronizada ao voltar a ligação, com `Idempotency-Key`
+  para evitar duplicados. Login, registo, primeiro acesso, alteração de senha, logout,
+  `/api/auth/me` (PATCH), gestão de utilizadores e processamento salarial continuam a
+  exigir ligação.
 - Configure `VITE_API_URL` antes do build se a API estiver noutro domínio; garanta que
   esse domínio está em `CLIENT_URL` no backend.
+
+### Deploy do frontend no Vercel
+
+1. Importe o repositório no Vercel.
+2. Defina **Root Directory = `Frontend`**.
+3. Não defina `VITE_API_URL` no projeto do Vercel (ou deixe-o vazio). O build usa `/api`
+   na mesma origem e o proxy de `Frontend/vercel.json` encaminha para
+   `https://faces-system.onrender.com`.
+4. Confirme que o backend no Render tem a migração `0010_tidy_sandman.sql` aplicada. O
+   arranque do backend aplica automaticamente as migrações pendentes.
+5. Depois do deploy, valide login, recarregamento de rotas diretas (`/clientes`,
+   `/dashboard`), instalação da PWA e o modo offline.
+
+Se o projeto Vercel for criado a partir da raiz do repositório, o `vercel.json` da raiz
+funciona como alternativa: instala e compila `Frontend/` e publica `Frontend/dist/`.
+
+> O proxy do Vercel mantém os cookies de sessão no domínio do frontend. O `CLIENT_URL` do
+> Render continua a ser necessário apenas se o frontend chamar a API diretamente.
 
 ### Backend
 

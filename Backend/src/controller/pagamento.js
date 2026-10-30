@@ -49,6 +49,21 @@ const registrarPagamento = async (req, res, next) => {
 
         const pagamento = await Pagamento.findById(id);
         pagamento.parcelas = await Pagamento.findParcelas(id);
+
+        // A fila offline precisa do estado absoluto do atendimento para nao
+        // somar o valor duas vezes ao cache local (uma na criacao otimista e
+        // outra na sincronizacao). "atendimento" e um campo adicional e nao
+        // altera o formato anterior da resposta.
+        const atendimento = await Atendimento.findById(req.params.id);
+        if (atendimento) {
+            pagamento.atendimento = {
+                id: atendimento.id,
+                valor_total: atendimento.valor_total,
+                valor_pago: atendimento.valor_pago,
+                estado: atendimento.estado
+            };
+        }
+
         res.status(201).json(pagamento);
 
         await AuditoriaService.registar({

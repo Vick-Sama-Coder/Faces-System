@@ -1,24 +1,67 @@
-import axios from 'axios';
+import server from "./http.js";
+import { installOfflineSupport } from "./offline.js";
 
+// Instalacao unica no arranque do modulo, antes de qualquer pedido da API.
+installOfflineSupport();
 
-
-
-
-const DEFAULT_API_URL = import.meta.env.DEV ? "http://localhost:5000" : "";
-const BASE_API = (
-    import.meta.env.VITE_API_URL || DEFAULT_API_URL
-).replace(/\/+$/, "");
-
-
-const server = axios.create({
-    baseURL: BASE_API,
-    withCredentials: true
-
-});
+// Em desenvolvimento, deixa no console o metodo/URL e o motivo exato da falha.
+if (import.meta.env.DEV) {
+    server.interceptors.response.use(
+        (response) => response,
+        (error) => {
+            const metodo = error.config?.method?.toUpperCase() || "?"
+            const url = error.config?.url || "?"
+            const motivo = error.response?.status ?? error.code ?? error.message
+            console.error(`[api] ${metodo} ${url} falhou:`, motivo)
+            return Promise.reject(error)
+        }
+    )
+}
 
 //extrai a mensagem de erro vinda do backend
 export const getApiError = (err) => {
-    return err?.response?.data?.message || "Erro de conexao com o servidor";
+    const mensagem = err?.response?.data?.message;
+
+    if (typeof mensagem === "string" && mensagem.trim()) {
+        return mensagem;
+    }
+
+    if (err?.code === "ERR_OFFLINE_WRITE") {
+        return "Esta operacao precisa de ligacao a internet. Tente novamente quando estiver online.";
+    }
+
+    if (err?.code === "ERR_OFFLINE_AUTH") {
+        return "Sem sessao ativa. Inicie sessao quando houver ligacao a internet.";
+    }
+
+    if (err?.code === "ERR_OFFLINE") {
+        return "Sem ligacao a internet e sem dados guardados para esta pagina. Volte a ligar-se e tente novamente.";
+    }
+
+    if (err?.code === "ERR_OFFLINE_STORAGE") {
+        return "Nao foi possivel guardar a alteracao neste dispositivo (armazenamento cheio). Liberte espaco e tente novamente.";
+    }
+
+    if (err?.code === "ECONNABORTED" || err?.code === "ETIMEDOUT") {
+        return "O servidor demorou demasiado a responder. Tente novamente.";
+    }
+
+    // Erros de programacao (por exemplo, null.trim()) nao sao falhas de rede.
+    if (err && !err.isAxiosError && !err.response) {
+        return "Ocorreu um erro inesperado. Tente novamente.";
+    }
+
+    if (err?.response) {
+        const status = err.response.status;
+
+        if (status >= 500) {
+            return `O servidor esta temporariamente indisponivel (erro ${status}). Tente novamente.`;
+        }
+
+        return `O servidor respondeu com um erro inesperado (${status}).`;
+    }
+
+    return "Nao foi possivel ligar ao servidor. Verifique a ligacao e tente novamente.";
 };
 
 //extrai o campo associado ao erro (backend devolve {field, message})
@@ -372,15 +415,15 @@ export const getStockProduto = (produtoId) => {
 };
 
 export const registrarEntradaEstoque = (data) => {
-    return server.post("api/estoque/entrada", data);
+    return server.post("api/entrada", data);
 };
 
 export const registrarSaidaEstoque = (data) => {
-    return server.post("api/estoque/saida", data);
+    return server.post("api/saida", data);
 };
 
 export const registrarAjusteEstoque = (data) => {
-    return server.post("api/estoque/ajuste", data);
+    return server.post("api/ajuste", data);
 };
 
 //---- auditoria / logs ----

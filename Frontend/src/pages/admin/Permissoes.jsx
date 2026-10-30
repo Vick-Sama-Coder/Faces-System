@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import SideBar from "../../components/sidebar/siderbar.jsx"
+import Sidebar from "../../components/Sidebar/Sidebar.jsx"
 import Headers from "../../components/headers/header.jsx"
 import "./admin.css"
 import { ShieldCheck, Save, CheckCheck, Eraser, Users } from "lucide-react"
@@ -136,7 +136,7 @@ function Permissoes() {
 
     return (
         <div className="admin-main">
-            <SideBar
+            <Sidebar
                 isOpen={isSidebarOpen}
                 setIsOpen={setIsSidebarOpen}
             />
@@ -148,6 +148,7 @@ function Permissoes() {
                 userClass="user"
                 bellClass="bell"
                 onMenuClick={() => setIsSidebarOpen(true)}
+                sidebarOpen={isSidebarOpen}
             />
 
             <main className="admin-content">

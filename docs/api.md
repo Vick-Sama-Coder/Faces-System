@@ -13,6 +13,13 @@
 - **Prefixo de rotas:** `/api`.
 - **Autenticação:** cookie `token` (`httpOnly`). Pedidos autenticados devem incluir cookies
   (`withCredentials` no Axios).
+- **Idempotência:** pedidos `POST`/`PUT`/`PATCH`/`DELETE` podem enviar
+  `Idempotency-Key` (8–120 caracteres). A resposta é guardada por 7 dias; repetir a mesma
+  chave para o mesmo método/caminho devolve a resposta original sem repetir a operação.
+  Reutilizar a chave noutro pedido devolve `409`; chaves de respostas transitórias
+  (`401`, `403`, `408`, `425`, `429`, `5xx`) são removidas para permitir retry.
+- **CORS:** `CLIENT_URL` aceita várias origens separadas por vírgulas. Pedidos sem
+  `Origin` (curl, health checks) são permitidos.
 - **Corpo das respostas:** a maioria dos controladores devolve **arrays/objetos directos**;
   `auth` devolve objetos embrulhados (`{ user }`, `{ users }`, `{ message }`). Alguns
   endpoints específicos (permissões, relatórios, caixa) devolvem objetos com chaves

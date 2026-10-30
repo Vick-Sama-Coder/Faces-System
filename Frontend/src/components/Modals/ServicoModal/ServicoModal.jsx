@@ -8,7 +8,7 @@ function ServicoModal({ onclose, servico = null, onSuccess }) {
 
     const [formData, setFormData] = useState({
         nome: servico ? servico.nome : "",
-        descricao: servico ? servico.descricao : "",
+        descricao: servico ? (servico.descricao ?? "") : "",
         valor: servico ? servico.valor : "",
         faixa_etaria: servico ? (servico.faixa_etaria || "Geral") : "Geral",
         tipo_preco: servico ? servico.tipo_preco : "fixo",
@@ -143,7 +143,7 @@ function ServicoModal({ onclose, servico = null, onSuccess }) {
 
     const validate = () => {
         const erros = {};
-        if (!formData.nome.trim()) erros.nome = "O nome do servico e obrigatorio";
+        if (!formData.nome?.trim()) erros.nome = "O nome do servico e obrigatorio";
         if (formData.valor === "" || formData.valor === null) {
             erros.valor = "O valor e obrigatorio";
         } else if (Number(formData.valor) < 0) {
@@ -163,8 +163,8 @@ function ServicoModal({ onclose, servico = null, onSuccess }) {
 
         try {
             const payload = {
-                nome: formData.nome.trim(),
-                descricao: formData.descricao.trim() || null,
+                nome: (formData.nome ?? "").trim(),
+                descricao: formData.descricao?.trim() || null,
                 valor: Number.parseInt(formData.valor, 10),
                 faixa_etaria: formData.faixa_etaria,
                 tipo_preco: formData.tipo_preco,

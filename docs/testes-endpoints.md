@@ -190,7 +190,7 @@ Legenda: ✅ implementado · ⚠️ implementado com desvio/lacuna · ❌ não i
 | **RF22 — Catálogo público** | ✅ | `routes/publico.js`, `repository/servico.js` | Sem autenticação; só ativos e campos de divulgação; inativo devolve `404`. |
 | **RF23 — Logs de auditoria** | ⚠️ | `services/auditoria.js`, `repository/auditoria.js` | Utilizador, data/hora, tipo, entidade, id e valores antes/depois; append-only por trigger. **Não** guarda “resultado da operação” nem registos de falhas (só grava em sucesso); **não** audita criação/edição/estado de contas. |
 | **RF24 — Cópias de segurança** | ❌ | — | Não existe script de backup/restauro documentado. |
-| **RF25 — Offline** | ❌ | — | Planeado para a Fase 14; tabela `operacao_sincronizacao` ainda não existe. |
+| **RF25 — Offline** | ⚠️ | `Frontend/src/services/offline*.js`, `Backend/src/middlewares/idempotencia.js` | Cache de leituras em IndexedDB, fila persistida de escritas com `Idempotency-Key`, prefetch e indicador de estado. Sincroniza apenas com a app aberta (sem Background Sync); conflitos entre dispositivos são last-write-wins; autenticação, perfil, contas, salários e fidelização manual são online-only. |
 
 ### 3.1. Lacunas que merecem correção prioritária
 

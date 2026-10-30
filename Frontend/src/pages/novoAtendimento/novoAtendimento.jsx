@@ -1,4 +1,4 @@
-import SideBar from "../../components/sidebar/siderbar"
+import Sidebar from "../../components/Sidebar/Sidebar.jsx"
 import Headers from "../../components/headers/header.jsx"
 import NewMarkModal from "../../components/Modals/NewMark/New-Mark-Modal.jsx"
 import FidelizacaoCard from "../../components/FidelizacaoCard/FidelizacaoCard.jsx"
@@ -922,7 +922,7 @@ function NovoAtendimento() {
             )}
 
             <div className="newbookmark-main">
-                <SideBar
+                <Sidebar
                     isOpen={isSidebarOpen}
                     setIsOpen={setIsSidebarOpen}
                 />
@@ -934,6 +934,7 @@ function NovoAtendimento() {
                     userClass="user"
                     bellClass="bell"
                     onMenuClick={() => setIsSidebarOpen(true)}
+                    sidebarOpen={isSidebarOpen}
                 />
                 <section className="newbookmark-content mgmt-page">
                     <header className="mgmt-hero">

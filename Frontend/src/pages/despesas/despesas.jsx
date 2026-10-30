@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import SideBar from "../../components/sidebar/siderbar.jsx";
+import Sidebar from "../../components/Sidebar/Sidebar.jsx"
 import Headers from "../../components/headers/header.jsx";
 import DespesaModal from "../../components/Modals/DespesaModal/DespesaModal.jsx";
 import "../admin/admin.css";
@@ -347,7 +347,7 @@ function Despesas() {
             )}
 
             <div className="admin-main">
-                <SideBar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+                <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
                 <Headers
                     heady="admin-header"
                     title="Despesas"
@@ -356,6 +356,7 @@ function Despesas() {
                     userClass="user"
                     bellClass="bell"
                     onMenuClick={() => setIsSidebarOpen(true)}
+                    sidebarOpen={isSidebarOpen}
                 />
 
                 <main className="admin-content">

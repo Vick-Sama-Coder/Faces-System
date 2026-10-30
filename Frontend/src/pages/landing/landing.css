@@ -45,8 +45,9 @@
         color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-.landing-btn:hover { transform: translateY(-1px); }
-.landing-btn:active { transform: translateY(0); }
+.landing-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.landing-btn:active:not(:disabled) { transform: translateY(0); }
+.landing-btn:disabled { cursor: wait; opacity: 0.65; }
 
 .landing-btn-primary {
     background: var(--primary-gradient);
@@ -210,6 +211,14 @@
     object-fit: cover;
     display: block;
 }
+
+.landing-hero-media img.landing-media-padrao,
+.landing-sobre-media img.landing-media-padrao {
+    object-fit: contain;
+    object-position: center;
+    background: var(--surface-muted);
+}
+
 
 .landing-hero-placeholder {
     width: 100%;
@@ -530,6 +539,22 @@
     color: var(--text-muted);
 }
 
+.landing-creditos {
+    margin: 0.4rem 0 0;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+.landing-creditos a {
+    color: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+}
+
+.landing-creditos a:hover {
+    color: var(--primary-text);
+}
+
 /* ------------------------------------------------------------------
    Responsivo
 ------------------------------------------------------------------ */
@@ -542,8 +567,50 @@
 }
 
 @media (max-width: 720px) {
-    .landing-nav { flex-wrap: wrap; }
-    .landing-nav-links { order: 3; width: 100%; justify-content: center; padding-top: 0.35rem; }
-    .landing-nav-actions .landing-btn-ghost { display: none; }
+    .landing-nav {
+        flex-wrap: wrap;
+        row-gap: 0.5rem;
+        padding-left: clamp(0.75rem, 3vw, 1rem);
+        padding-right: clamp(0.75rem, 3vw, 1rem);
+    }
+
+    .landing-nav-links {
+        order: 3;
+        width: 100%;
+        justify-content: center;
+        padding-top: 0.35rem;
+    }
+
+    .landing-nav-brand img { height: 36px; }
+
+    .landing-nav-actions {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 0.4rem;
+    }
+
+    .landing-nav-actions .landing-btn {
+        padding: 0.55rem 0.85rem;
+        font-size: var(--text-xs);
+    }
+
+    .landing-install-btn {
+        padding: 0.55rem 0.65rem;
+    }
+
+    .landing-install-btn .install-app-label {
+        display: none;
+    }
+
     .landing-footer { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 420px) {
+    .landing-nav-actions .landing-btn {
+        padding: 0.5rem 0.7rem;
+    }
+
+    .landing-install-btn {
+        padding: 0.5rem 0.58rem;
+    }
 }

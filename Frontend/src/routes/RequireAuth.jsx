@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore.js';
 import AuthLoading from '../pages/auth/AuthLoading.jsx';
@@ -10,14 +9,9 @@ function precisaDefinirSenha(user){
 
 //Exige sessao activa — redireciona para /login se nao houver
 export function RequireAuth({ children }){
-    const { user, initialized, checkAuth } = useAuthStore();
+    const user = useAuthStore((state) => state.user);
+    const initialized = useAuthStore((state) => state.initialized);
     const location = useLocation();
-
-    useEffect(() => {
-        if(!initialized){
-            checkAuth();
-        }
-    }, [initialized, checkAuth]);
 
     if(!initialized){
         return <AuthLoading/>;
@@ -36,14 +30,9 @@ export function RequireAuth({ children }){
 
 //Exige pelo menos uma das permissoes indicadas — ex.: <RequirePermission permissoes={["clientes:ler"]}>
 export function RequirePermission({ children, permissoes }){
-    const { user, initialized, checkAuth } = useAuthStore();
+    const user = useAuthStore((state) => state.user);
+    const initialized = useAuthStore((state) => state.initialized);
     const location = useLocation();
-
-    useEffect(() => {
-        if(!initialized){
-            checkAuth();
-        }
-    }, [initialized, checkAuth]);
 
     if(!initialized){
         return <AuthLoading/>;
@@ -68,14 +57,9 @@ export function RequirePermission({ children, permissoes }){
 
 //Exige um perfil especifico — ex.: <RequireRole perfis={["Administrador"]}>
 export function RequireRole({ children, perfis }){
-    const { user, initialized, checkAuth } = useAuthStore();
+    const user = useAuthStore((state) => state.user);
+    const initialized = useAuthStore((state) => state.initialized);
     const location = useLocation();
-
-    useEffect(() => {
-        if(!initialized){
-            checkAuth();
-        }
-    }, [initialized, checkAuth]);
 
     if(!initialized){
         return <AuthLoading/>;
@@ -99,13 +83,8 @@ export function RequireRole({ children, perfis }){
 
 //Para rotas publicas de auth (/login, /register) — ja logado vai directo ao painel
 export function RedirectIfAuth({ children }){
-    const { user, initialized, checkAuth } = useAuthStore();
-
-    useEffect(() => {
-        if(!initialized){
-            checkAuth();
-        }
-    }, [initialized, checkAuth]);
+    const user = useAuthStore((state) => state.user);
+    const initialized = useAuthStore((state) => state.initialized);
 
     if(!initialized){
         return <AuthLoading/>;
@@ -120,13 +99,8 @@ export function RedirectIfAuth({ children }){
 
 //Exige apenas sessao activa (usado pela pagina de primeiro acesso)
 export function RequireSession({ children }){
-    const { user, initialized, checkAuth } = useAuthStore();
-
-    useEffect(() => {
-        if(!initialized){
-            checkAuth();
-        }
-    }, [initialized, checkAuth]);
+    const user = useAuthStore((state) => state.user);
+    const initialized = useAuthStore((state) => state.initialized);
 
     if(!initialized){
         return <AuthLoading/>;

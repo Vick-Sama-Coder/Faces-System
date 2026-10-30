@@ -18,12 +18,12 @@ function DespesaModal({ onclose, despesa = null, onSuccess }) {
     const isEdit = !!despesa;
 
     const [formData, setFormData] = useState({
-        descricao: despesa ? despesa.descricao : "",
+        descricao: despesa ? (despesa.descricao ?? "") : "",
         categoria_id: despesa ? String(despesa.categoria_id || "") : "",
         valor_total: despesa ? String(despesa.valor_total || "") : "",
         data_compra: despesa ? String(despesa.data_compra || "").slice(0, 10) : dataHoje(),
         metodo_pagamento: despesa ? despesa.metodo_pagamento : "Dinheiro",
-        comprovativo: despesa ? despesa.comprovativo : ""
+        comprovativo: despesa ? (despesa.comprovativo ?? "") : ""
     });
 
     const [categorias, setCategorias] = useState([]);
@@ -58,7 +58,7 @@ function DespesaModal({ onclose, despesa = null, onSuccess }) {
 
     const validate = () => {
         const erros = {};
-        if (!formData.descricao.trim()) erros.descricao = "A descricao e obrigatoria";
+        if (!formData.descricao?.trim()) erros.descricao = "A descricao e obrigatoria";
         if (!formData.valor_total || Number(formData.valor_total) <= 0) erros.valor_total = "O valor deve ser maior que zero";
         if (!formData.data_compra) erros.data_compra = "Indique a data da despesa";
         setErrors(erros);
@@ -74,12 +74,12 @@ function DespesaModal({ onclose, despesa = null, onSuccess }) {
 
         try {
             const payload = {
-                descricao: formData.descricao.trim(),
+                descricao: formData.descricao?.trim() || "",
                 categoria_id: formData.categoria_id ? Number.parseInt(formData.categoria_id, 10) : null,
                 valor_total: Number.parseInt(formData.valor_total, 10),
                 data_compra: formData.data_compra,
                 metodo_pagamento: formData.metodo_pagamento,
-                comprovativo: formData.comprovativo.trim() || null
+                comprovativo: formData.comprovativo?.trim() || null
             };
 
             if (isEdit) {
