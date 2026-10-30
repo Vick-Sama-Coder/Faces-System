@@ -1,6 +1,7 @@
 import Pagamento from "../repository/pagamento.js";
 import Atendimento from "../repository/atendimento.js";
 import PagamentoService from "../services/pagamento.js";
+import AuditoriaService from "../services/auditoria.js";
 
 const getPagamentos = async (req, res, next) => {
     try {
@@ -49,6 +50,14 @@ const registrarPagamento = async (req, res, next) => {
         const pagamento = await Pagamento.findById(id);
         pagamento.parcelas = await Pagamento.findParcelas(id);
         res.status(201).json(pagamento);
+
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "pagamento",
+            id_registo: id,
+            operacao: "registar",
+            depois: { metodo_pagamento: parcelas[0].metodo_pagamento, total: parcelas.reduce((sum, p) => sum + p.valor, 0) }
+        });
     } catch (error) {
         next(error);
     }
@@ -84,6 +93,14 @@ const anularPagamento = async (req, res, next) => {
 
         await PagamentoService.anular(req.params.id, { motivo, registado_por: req.user.id });
         res.status(200).json({ message: "Pagamento anulado" });
+
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "pagamento",
+            id_registo: req.params.id,
+            operacao: "anular",
+            motivo
+        });
     } catch (error) {
         next(error);
     }

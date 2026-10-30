@@ -1,6 +1,7 @@
 import Funcionario from "../repository/funcionario.js";
 import ComissaoConfig from "../repository/comissao_config.js";
 import { codigoPostgres } from "../utils/erro.js";
+import AuditoriaService from "../services/auditoria.js";
 
 //arredonda valores monetarios a 2 casas
 const arredondar = (valor) => Math.round(valor * 100) / 100;
@@ -40,6 +41,14 @@ const createFuncionario = async (req, res, next) => {
         res.status(201).json(await Funcionario.create({
             nome, telefone, cargo, data_admissao, salario, comissao_percentual
         }));
+
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "funcionario",
+            id_registo: null,
+            operacao: "criar",
+            depois: { nome, salario, telefone, cargo, data_admissao, comissao_percentual }
+        });
     } catch (error) {
         next(error);
     }
@@ -55,6 +64,7 @@ const updateFuncionario = async (req, res, next) => {
             return res.status(400).json({ message: "Nenhum campo para atualizar foi enviado" });
         }
 
+        const antes = await Funcionario.findById(req.params.id);
         const funcionario = await Funcionario.update(req.params.id, {
             nome, telefone, cargo, data_admissao, salario, comissao_percentual
         });
@@ -62,6 +72,15 @@ const updateFuncionario = async (req, res, next) => {
         if (!funcionario) {
             return res.status(404).json({ message: "Funcionario nao encontrado" });
         }
+
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "funcionario",
+            id_registo: funcionario.id,
+            operacao: "atualizar",
+            antes: antes ? { nome: antes.nome, salario: antes.salario } : null,
+            depois: { nome: funcionario.nome, salario: funcionario.salario }
+        });
 
         res.status(200).json(funcionario);
     } catch (error) {
@@ -77,11 +96,21 @@ const updateEstadoFuncionario = async (req, res, next) => {
             return res.status(400).json({ message: "O campo estado e obrigatorio" });
         }
 
+        const antes = await Funcionario.findById(req.params.id);
         const funcionario = await Funcionario.updateEstado(req.params.id, estado);
 
         if (!funcionario) {
             return res.status(404).json({ message: "Funcionario nao encontrado" });
         }
+
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "funcionario",
+            id_registo: funcionario.id,
+            operacao: "atualizar_estado",
+            antes: antes ? { nome: antes.nome, estado: antes.estado } : null,
+            depois: { nome: funcionario.nome, estado: funcionario.estado }
+        });
 
         res.status(200).json(funcionario);
     } catch (error) {
@@ -91,13 +120,24 @@ const updateEstadoFuncionario = async (req, res, next) => {
 
 const deleteFuncionario = async (req, res, next) => {
     try {
+        const antes = await Funcionario.findById(req.params.id);
+        if (!antes) {
+            return res.status(404).json({ message: "Funcionario nao encontrado" });
+        }
+
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "funcionario",
+            id_registo: antes.id,
+            operacao: "eliminar",
+            antes: { nome: antes.nome, salario: antes.salario }
+        });
+
         const apagado = await Funcionario.delete(req.params.id);
 
         if (!apagado) {
             return res.status(404).json({ message: "Funcionario nao encontrado" });
         }
-
-        res.status(204).send();
     } catch (error) {
         //23503 = existem atendimentos associados a este funcionario
         if (codigoPostgres(error) === "23503") {

@@ -1,4 +1,6 @@
 import express from 'express';
+
+import { middlewareLogOperacoes, middlewareLogSeguranca } from './middleware/logs.js';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
@@ -47,6 +49,8 @@ console.log('CLIENT_URL carregado:', process.env.CLIENT_URL);
 //adicionando middlewares globais
 app.use(express.json()); //para ler json
 app.use(cookieParser()); //transformar string cookies em objetos
+app.use(middlewareLogOperacoes);
+app.use(middlewareLogSeguranca);
 
 app.use("/api/auth",authRoutes);
 app.use("/api", funcionarioRoutes);

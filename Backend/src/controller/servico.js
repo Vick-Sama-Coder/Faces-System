@@ -1,6 +1,7 @@
 import Servico from "../repository/servico.js";
 import { validarElegibilidadeFidelizacao } from "../utils/validacoes.js";
 import { codigoPostgres, constraintPostgres } from "../utils/erro.js";
+import AuditoriaService from "../services/auditoria.js";
 
 // Valores aceites em servico.faixa_etaria (mesma convencao das modalidades).
 const FAIXAS_ETARIAS = ["Geral", "Adulto", "Crianca"];
@@ -52,6 +53,14 @@ const createServico = async (req, res, next) => {
         const servico = await Servico.create({ nome, descricao, valor, duracao_min, faixa_etaria, tipo_preco, tipo_servico, permite_aplicacoes, elegivel_fidelizacao, categoria_id });
 
         res.status(201).json(servico);
+
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "servico",
+            id_registo: servico.id,
+            operacao: "criar",
+            depois: { nome, valor, tipo_servico, faixa_etaria }
+        });
     } catch (error) {
         //23503 = a categoria informada nao existe
         if (codigoPostgres(error) === "23503") {
@@ -113,6 +122,17 @@ const updateServico = async (req, res, next) => {
                 alterado_por: req.user.id
             });
         }
+     
+        
+// Registar log de auditoria quando houver alteracao de dados
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: 'servico',
+            id_registo: servico.id,
+            operacao: 'atualizar',
+            antes: { nome: atual.nome, valor: atual.valor, tipo_servico: atual.tipo_servico },
+            depois: { nome: servico.nome, valor: servico.valor, tipo_servico: servico.tipo_servico }
+        });
 
         res.status(200).json(servico);
     } catch (error) {

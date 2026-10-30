@@ -1,5 +1,6 @@
 import CaixaService from "../services/caixa.js";
 import Caixa from "../repository/caixa.js";
+import AuditoriaService from "../services/auditoria.js";
 
 const abrirCaixa = async (req, res, next) => {
     try {
@@ -10,6 +11,14 @@ const abrirCaixa = async (req, res, next) => {
         }
 
         res.status(201).json(await CaixaService.abrir({ saldo_inicial, aberto_por: req.user.id }));
+
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "caixa",
+            id_registo: null,
+            operacao: "abrir",
+            depois: { saldo_inicial }
+        });
     } catch (error) {
         next(error);
     }
@@ -33,6 +42,14 @@ const registarLevantamento = async (req, res, next) => {
 
         await CaixaService.levantamento({ valor, descricao, registado_por: req.user.id });
         res.status(201).json({ message: "Levantamento registado" });
+
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "caixa_levantamento",
+            id_registo: null,
+            operacao: "registar",
+            depois: { valor, descricao }
+        });
     } catch (error) {
         next(error);
     }
@@ -55,6 +72,14 @@ const fecharCaixa = async (req, res, next) => {
         }
 
         res.status(200).json(await CaixaService.fechar({ valor_contado, observacoes, fechado_por: req.user.id }));
+
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "caixa",
+            id_registo: null,
+            operacao: "fechar",
+            depois: { valor_contado, observacoes }
+        });
     } catch (error) {
         next(error);
     }

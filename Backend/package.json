@@ -2,7 +2,7 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon --watch src --watch .env src/server.js",
-    "dev:full":"sudo systemctl start postgresql && npm run dev",
+    "dev:full": "sudo systemctl start postgresql && npm run dev",
     "start": "node src/server.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node src/db/migrate.js",
@@ -19,6 +19,7 @@
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.4",
     "express": "^5.2.1",
+    "jquery": "^4.0.0",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.23.0"
   },
