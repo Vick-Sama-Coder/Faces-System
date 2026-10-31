@@ -476,9 +476,9 @@
 }
 
 .nm-body {
-    display: grid;
-    grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1.6fr);
-    gap: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
     padding: 24px;
     overflow-y: auto;
 }
@@ -560,6 +560,10 @@
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, 1.2fr) 110px 40px;
     gap: 10px;
     align-items: end;
+}
+
+.nm-item-fields.com-modalidade {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.2fr) 110px 40px;
 }
 
 .nm-field {
@@ -1044,6 +1048,418 @@
 
     .nm-confirm-footer .nm-cancel-btn,
     .nm-confirm-footer .submit-btn {
+        width: 100%;
+    }
+}
+
+/* ---- Atendimento multi-cliente ---- */
+
+.nm-section-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.nm-section-title-row .nm-secondary-btn {
+    align-self: center;
+}
+
+.nm-client-group {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: 0 4px 18px var(--shadow-color-soft);
+}
+
+.nm-client-group-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.nm-client-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    background: var(--primary-soft);
+    color: var(--primary-text);
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.nm-client-group-title {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.nm-client-group-title strong {
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.nm-client-group-title span {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.nm-client-group-header .nm-remove-btn {
+    flex-shrink: 0;
+}
+
+.nm-client-picker {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) auto;
+    gap: 10px;
+    align-items: end;
+}
+
+.nm-new-client-btn {
+    align-self: end;
+    height: 42px;
+    white-space: nowrap;
+}
+
+.nm-client-loyalty {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.nm-client-loyalty .nm-hint {
+    padding: 9px 11px;
+}
+
+.nm-client-services {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.nm-applications {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border);
+}
+
+.nm-applications-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.nm-app-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.nm-app-line {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 100px 30px;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--surface);
+}
+
+.nm-app-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.nm-app-employee {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nm-app-line input {
+    box-sizing: border-box;
+    width: 100%;
+    height: 34px;
+    padding: 0 8px;
+    color: var(--text);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 7px;
+    outline: none;
+    font: inherit;
+    font-size: 12px;
+}
+
+.nm-app-line input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.nm-app-picker {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+}
+
+.btn-add-aplicacao {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 10px;
+    border: 1px dashed var(--border-strong);
+    border-radius: 7px;
+    background: var(--primary-soft-subtle);
+    color: var(--primary-text);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.btn-add-aplicacao:hover {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+}
+
+.btn-remove-inline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 7px;
+    background: var(--danger-soft);
+    color: var(--danger-text);
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-remove-inline:hover {
+    background: var(--danger-soft-strong);
+}
+
+.nm-loyalty-select-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    padding-top: 9px;
+    border-top: 1px dashed var(--border);
+}
+
+.nm-loyalty-select {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.nm-loyalty-select:hover {
+    border-color: var(--primary);
+    color: var(--primary-text);
+    background: var(--primary-soft-subtle);
+}
+
+.nm-loyalty-select.active {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+    color: var(--primary-text);
+}
+
+.nm-loyalty-select-row > span {
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.nm-client-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-muted);
+}
+
+.nm-client-summary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.nm-client-summary-row > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.nm-client-summary-row strong {
+    color: var(--text);
+    font-size: 13px;
+    text-align: right;
+}
+
+.nm-client-summary-row.free strong {
+    color: var(--success-text);
+}
+
+.nm-resumo {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-muted);
+}
+
+.nm-resumo-cliente {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 9px 0;
+    border-top: 1px dashed var(--border);
+}
+
+.resumo-linha {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.resumo-linha strong {
+    color: var(--text);
+    text-align: right;
+}
+
+.resumo-linha.resumo-detalhe {
+    font-size: 12px;
+}
+
+.resumo-linha.resumo-total {
+    margin-top: 4px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.resumo-linha.resumo-total strong {
+    font-size: 18px;
+}
+
+.resumo-linha.resumo-pendente strong {
+    color: var(--warning-text);
+}
+
+.resumo-linha.resumo-liquidado strong {
+    color: var(--success-text);
+}
+
+.nm-confirm-client {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-muted);
+}
+
+.nm-confirm-client-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--text);
+    font-size: 13px;
+}
+
+.nm-confirm-client-head strong {
+    font-weight: 700;
+}
+
+.nm-confirm-client-head span {
+    flex-shrink: 0;
+    font-weight: 700;
+}
+
+.nm-confirm-client .nm-summary-services {
+    margin-top: 0;
+    padding-top: 8px;
+}
+
+.nm-confirm-loyalty {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+@media (max-width: 760px) {
+    .nm-client-picker,
+    .nm-app-line {
+        grid-template-columns: 1fr;
+    }
+
+    .nm-new-client-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .nm-app-line .btn-remove-inline {
         width: 100%;
     }
 }

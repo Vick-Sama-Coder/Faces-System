@@ -129,9 +129,74 @@ export function validarCliente({nome, apelido, telefone, sexo}) {
     return erros;
 }
 
+function validarItensAtendimento(itens, erros) {
+    itens.forEach((item, index) => {
+        const chave = item.uid ?? index;
+        const aplicacao = item.tipo_servico === "Aplicacao";
+        const precoVazio = item.preco_praticado === "" || item.preco_praticado === null || item.preco_praticado === undefined;
+        const preco = Number(item.preco_praticado);
+
+        if (!item.servico_id) {
+            erros[`servico_${chave}`] = aplicacao ? "Selecione a aplicacao" : "Selecione o servico";
+        }
+
+        if (!aplicacao && !item.funcionario_id) {
+            erros[`funcionario_${chave}`] = "Selecione o funcionario";
+        }
+
+        if (precoVazio || !Number.isFinite(preco) || preco < 0 || (!aplicacao && preco <= 0)) {
+            erros[`preco_${chave}`] = aplicacao
+                ? "Indique um valor valido"
+                : "Indique um valor maior que zero";
+        } else if (item.usar_beneficio_fidelizacao && preco > LIMITE_FIDELIZACAO) {
+            erros[`preco_${chave}`] = `O servico gratuito nao pode ultrapassar ${LIMITE_FIDELIZACAO} MT`;
+        }
+    });
+
+    if (itens.filter((item) => item.usar_beneficio_fidelizacao).length > 1) {
+        erros.servicos = "So e possivel marcar um servico gratis por cliente";
+    }
+
+    if (itens.filter((item) => item.fidelizacao_selecionada).length > 1) {
+        erros.servicos = "So e possivel escolher um servico para fidelizacao por cliente";
+    }
+}
+
 //valida o registo imediato de atendimento; devolve {campo: mensagem}
-export function validarAtendimento({ cliente_id, servicos }) {
+//aceita o formato multi-cliente { clientes: [{ uid, cliente_id, itens }] }
+//e mantem compatibilidade com o formato anterior { cliente_id, servicos }
+export function validarAtendimento({ clientes, cliente_id, servicos }) {
     const erros = {};
+
+    if (Array.isArray(clientes)) {
+        if (clientes.length === 0) {
+            erros.servicos = "Adicione pelo menos um cliente";
+            return erros;
+        }
+
+        const ids = new Set();
+
+        clientes.forEach((grupo) => {
+            const chave = grupo.uid;
+
+            if (!grupo.cliente_id) {
+                erros[`cliente_${chave}`] = "Selecione o cliente";
+            } else if (ids.has(String(grupo.cliente_id))) {
+                erros[`cliente_${chave}`] = "O mesmo cliente nao pode ser adicionado duas vezes";
+            } else {
+                ids.add(String(grupo.cliente_id));
+            }
+
+            if (!Array.isArray(grupo.itens) || grupo.itens.length === 0) {
+                erros[`servicos_${chave}`] = "Adicione pelo menos um servico";
+                return;
+            }
+
+            validarItensAtendimento(grupo.itens, erros);
+        });
+
+        return erros;
+    }
 
     if (!cliente_id) {
         erros.cliente_id = "Selecione o cliente";
@@ -140,24 +205,7 @@ export function validarAtendimento({ cliente_id, servicos }) {
     if (!Array.isArray(servicos) || servicos.length === 0) {
         erros.servicos = "Adicione pelo menos um servico";
     } else {
-        servicos.forEach((item, index) => {
-            if (!item.servico_id) {
-                erros[`servico_${index}`] = "Selecione o servico";
-            }
-            if (!item.funcionario_id) {
-                erros[`funcionario_${index}`] = "Selecione o funcionario";
-            }
-            const preco = Number(item.preco_praticado);
-            if (!preco || preco <= 0) {
-                erros[`preco_${index}`] = "Indique um valor maior que zero";
-            } else if (item.usar_beneficio_fidelizacao && preco > LIMITE_FIDELIZACAO) {
-                erros[`preco_${index}`] = `O servico gratuito nao pode ultrapassar ${LIMITE_FIDELIZACAO} MT`;
-            }
-        });
-
-        if (servicos.filter((item) => item.usar_beneficio_fidelizacao).length > 1) {
-            erros.servicos = "So e possivel marcar um servico gratis por atendimento";
-        }
+        validarItensAtendimento(servicos, erros);
     }
 
     return erros;

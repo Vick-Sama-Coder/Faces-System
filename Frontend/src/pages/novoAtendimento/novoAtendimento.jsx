@@ -20,6 +20,7 @@ import {
     Download,
     Edit3,
     Eye,
+    Gift,
     Heart,
     Phone,
     Receipt,
@@ -27,6 +28,7 @@ import {
     ScissorsIcon,
     Search,
     Sparkles,
+    Tag,
     Trash2,
     UserRound,
     Wallet,
@@ -108,6 +110,56 @@ function iniciais(nome, apelido) {
 function saldoDoAtendimento(atendimento) {
     if (!atendimento || atendimento.estado === "Anulado") return 0
     return Math.max(Number(atendimento.valor_total || 0) - Number(atendimento.valor_pago || 0), 0)
+}
+
+function nomeClienteAtendimento(cliente) {
+    return `${cliente?.cliente_nome || cliente?.nome || ""} ${cliente?.cliente_apelido || cliente?.apelido || ""}`.trim()
+}
+
+function clientesDoAtendimento(atendimento) {
+    if (Array.isArray(atendimento?.clientes) && atendimento.clientes.length > 0) {
+        return atendimento.clientes
+    }
+
+    const mapa = new Map()
+
+    ;(atendimento?.servicos || []).forEach((servico) => {
+        const id = String(servico.cliente_id || "")
+        if (!id || mapa.has(id)) return
+        mapa.set(id, {
+            cliente_id: servico.cliente_id,
+            cliente_nome: servico.cliente_nome,
+            cliente_apelido: servico.cliente_apelido,
+            cliente_telefone: "",
+            subtotal: 0,
+            total_servicos: 0,
+            total_aplicacoes: 0
+        })
+    })
+
+    if (mapa.size === 0) {
+        mapa.set(String(atendimento?.cliente_id || ""), {
+            cliente_id: atendimento?.cliente_id,
+            cliente_nome: atendimento?.cliente_nome,
+            cliente_apelido: atendimento?.cliente_apelido,
+            cliente_telefone: atendimento?.cliente_telefone,
+            subtotal: atendimento?.valor_total || 0,
+            total_servicos: atendimento?.servicos?.length || 0,
+            total_aplicacoes: 0
+        })
+    }
+
+    return [...mapa.values()]
+}
+
+function nomesDosClientes(atendimento) {
+    if (atendimento?.clientes_nomes) return atendimento.clientes_nomes
+
+    const nomes = clientesDoAtendimento(atendimento)
+        .map((cliente) => nomeClienteAtendimento(cliente))
+        .filter(Boolean)
+
+    return nomes.join(", ") || "Cliente por identificar"
 }
 
 async function buscarAtendimentos() {
@@ -603,6 +655,11 @@ function NovoAtendimento() {
         ? "Nenhum atendimento corresponde aos filtros aplicados."
         : "Registe o primeiro atendimento para começar a acompanhar o movimento do salão."
 
+    const clientesDetalhe = detalhe ? clientesDoAtendimento(detalhe) : []
+    const fidelizacoesDetalhe = new Map(
+        (detalhe?.fidelizacoes || []).map((fidelizacao) => [String(fidelizacao.cliente_id), fidelizacao])
+    )
+
     return (
         <>
             {isModalOpen && (
@@ -723,7 +780,7 @@ function NovoAtendimento() {
                         <header className="appointment-detail-header">
                             <div>
                                 <h2>Atendimento #{detalhe.id}</h2>
-                                <p>{detalhe.cliente_nome} {detalhe.cliente_apelido || ""} · {formatarData(detalhe.data_hora)}</p>
+                                <p>{nomesDosClientes(detalhe)} · {formatarData(detalhe.data_hora)}</p>
                             </div>
                             <button
                                 type="button"
@@ -757,15 +814,16 @@ function NovoAtendimento() {
                             ) : (
                                 <>
                                     <section className="appointment-detail-section">
-                                        <h3><UserRound size={16} /> Cliente</h3>
+                                        <h3><UserRound size={16} /> Clientes e serviços</h3>
+
                                         <div className="appointment-info-grid">
                                             <div>
-                                                <span>Nome</span>
-                                                <strong>{detalhe.cliente_nome} {detalhe.cliente_apelido || ""}</strong>
+                                                <span>Clientes</span>
+                                                <strong>{clientesDetalhe.length}</strong>
                                             </div>
                                             <div>
-                                                <span>Telefone</span>
-                                                <strong><Phone size={13} /> {detalhe.cliente_telefone || "—"}</strong>
+                                                <span>Serviços</span>
+                                                <strong>{detalhe.servicos?.filter((item) => item.tipo_servico !== "Aplicacao").length || 0}</strong>
                                             </div>
                                             <div>
                                                 <span>Registado por</span>
@@ -776,38 +834,118 @@ function NovoAtendimento() {
                                                 <strong><Clock3 size={13} /> {formatarData(detalhe.data_hora)}</strong>
                                             </div>
                                         </div>
-                                    </section>
 
-                                    <section className="appointment-detail-section">
-                                        <h3><ScissorsIcon size={16} /> Serviços realizados</h3>
-                                        {detalhe.servicos?.length ? (
-                                            <ul className="appointment-services">
-                                                {detalhe.servicos.map((item) => (
-                                                    <li key={item.id}>
-                                                        <span className="appointment-service-info">
-                                                            <span className="appointment-service-name">
-                                                                <ScissorsIcon size={16} />
-                                                                {item.servico_nome}
-                                                                {item.elegivel_fidelizacao && (
-                                                                    <span className="appointment-loyalty-tag">
-                                                                        <Heart size={11} /> Fidelização
-                                                                    </span>
-                                                                )}
-                                                            </span>
-                                                            <small>{item.categoria_nome || "Sem categoria"}</small>
+                                        {clientesDetalhe.length ? clientesDetalhe.map((cliente, index) => {
+                                            const servicosCliente = (detalhe.servicos || []).filter((item) => (
+                                                String(item.cliente_id) === String(cliente.cliente_id)
+                                            ))
+                                            const principais = servicosCliente.filter((item) => item.tipo_servico !== "Aplicacao")
+                                            const aplicacoes = servicosCliente.filter((item) => item.tipo_servico === "Aplicacao")
+                                            const fidelizacao = fidelizacoesDetalhe.get(String(cliente.cliente_id))
+                                            const selecionado = servicosCliente.find((item) => item.fidelizacao_selecionada)
+                                            const gratuito = servicosCliente.find((item) => (
+                                                item.tipo_servico !== "Aplicacao"
+                                                && Number(item.preco_original) > 0
+                                                && Number(item.valor_final) === 0
+                                            ))
+
+                                            return (
+                                                <div className="appointment-client-block" key={cliente.cliente_id}>
+                                                    <div className="appointment-client-block-head">
+                                                        <div>
+                                                            <strong>Cliente {index + 1} · {nomeClienteAtendimento(cliente)}</strong>
+                                                            <small>
+                                                                <Phone size={12} /> {cliente.cliente_telefone || "—"}
+                                                            </small>
+                                                        </div>
+                                                        <span>
+                                                            {Number(cliente.total_servicos ?? principais.length)} serviço(s)
+                                                            {Number(cliente.total_aplicacoes ?? aplicacoes.length) > 0
+                                                                ? ` · ${Number(cliente.total_aplicacoes ?? aplicacoes.length)} aplicação(ões)`
+                                                                : ""}
+                                                            {" · "}
+                                                            <strong>{formatarMoeda(cliente.subtotal)}</strong>
                                                         </span>
-                                                        <span>{item.funcionario_nome}</span>
-                                                        <strong>{formatarMoeda(item.valor_final)}</strong>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        ) : (
-                                            <p className="appointment-empty">Nenhum serviço associado.</p>
+                                                    </div>
+
+                                                    {principais.length > 0 ? (
+                                                        <ul className="appointment-services">
+                                                            {principais.map((item) => {
+                                                                const aplicacoesDoServico = aplicacoes.filter((aplicacao) => (
+                                                                    String(aplicacao.servico_principal_id) === String(item.id)
+                                                                ))
+                                                                const itemGratuito = Number(item.preco_original) > 0 && Number(item.valor_final) === 0
+
+                                                                return (
+                                                                    <li key={item.id}>
+                                                                        <span className="appointment-service-info">
+                                                                            <span className="appointment-service-name">
+                                                                                <ScissorsIcon size={16} />
+                                                                                {item.servico_nome}
+                                                                                {item.fidelizacao_selecionada && (
+                                                                                    <span className="appointment-loyalty-tag">
+                                                                                        <Heart size={11} /> Fidelização
+                                                                                    </span>
+                                                                                )}
+                                                                                {itemGratuito && (
+                                                                                    <span className="appointment-loyalty-tag free">
+                                                                                        <Gift size={11} /> 6.º grátis
+                                                                                    </span>
+                                                                                )}
+                                                                            </span>
+                                                                            <small>
+                                                                                {item.categoria_nome || "Sem categoria"}
+                                                                                {item.modalidade_nome ? ` · ${item.modalidade_nome}` : ""}
+                                                                            </small>
+                                                                        </span>
+                                                                        <span>{item.funcionario_nome}</span>
+                                                                        <strong>{formatarMoeda(item.valor_final)}</strong>
+
+                                                                        {aplicacoesDoServico.length > 0 && (
+                                                                            <ul className="appointment-applications">
+                                                                                {aplicacoesDoServico.map((aplicacao) => (
+                                                                                    <li key={aplicacao.id}>
+                                                                                        <span>
+                                                                                            <Tag size={12} />
+                                                                                            {aplicacao.servico_nome}
+                                                                                        </span>
+                                                                                        <span>{aplicacao.funcionario_nome}</span>
+                                                                                        <strong>{formatarMoeda(aplicacao.valor_final)}</strong>
+                                                                                    </li>
+                                                                                ))}
+                                                                            </ul>
+                                                                        )}
+                                                                    </li>
+                                                                )
+                                                            })}
+                                                        </ul>
+                                                    ) : (
+                                                        <p className="appointment-empty">Nenhum serviço associado a este cliente.</p>
+                                                    )}
+
+                                                    <div className="appointment-client-loyalty">
+                                                        <div>
+                                                            <span>Fidelização</span>
+                                                            <strong>
+                                                                {selecionado
+                                                                    ? `Conta: ${selecionado.servico_nome}`
+                                                                    : "Não conta neste atendimento"}
+                                                                {gratuito ? ` · 6.º grátis: ${gratuito.servico_nome}` : ""}
+                                                            </strong>
+                                                        </div>
+                                                        <FidelizacaoCard fidelizacao={fidelizacao} compact />
+                                                    </div>
+                                                </div>
+                                            )
+                                        }) : (
+                                            <p className="appointment-empty">Nenhum cliente associado.</p>
                                         )}
 
                                         <div className="appointment-totals">
                                             <span>Bruto <strong>{formatarMoeda(detalhe.valor_bruto)}</strong></span>
-                                            <span>Desconto <strong>{formatarMoeda(detalhe.valor_desconto)}</strong></span>
+                                            {Number(detalhe.valor_desconto) > 0 && (
+                                                <span>Benefícios <strong>{formatarMoeda(detalhe.valor_desconto)}</strong></span>
+                                            )}
                                             <span>Total <strong>{formatarMoeda(detalhe.valor_total)}</strong></span>
                                         </div>
                                     </section>
@@ -842,11 +980,6 @@ function NovoAtendimento() {
                                         ) : (
                                             <p className="appointment-empty">Ainda não existem pagamentos registados.</p>
                                         )}
-                                    </section>
-
-                                    <section className="appointment-detail-section">
-                                        <h3><Heart size={16} /> Fidelização do cliente</h3>
-                                        <FidelizacaoCard fidelizacao={detalhe.fidelizacao} compact />
                                     </section>
 
                                     {podePagar && saldoDoAtendimento(detalhe) > 0 && detalhe.estado !== "Anulado" && (
