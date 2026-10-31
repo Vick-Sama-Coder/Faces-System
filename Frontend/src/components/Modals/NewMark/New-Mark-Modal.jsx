@@ -39,7 +39,7 @@ import ClientModal from "../ClientModal/ClientModal.jsx";
 import FidelizacaoCard from "../../FidelizacaoCard/FidelizacaoCard.jsx";
 import './New-Mark-Modal.css'
 
-const FORMAS_PAGAMENTO = ["Dinheiro", "M-Pesa", "e-Mola", "Cartao", "Transferencia", "Outro"];
+const FORMAS_PAGAMENTO = ["Dinheiro", "M-Pesa", "e-Mola", "POS", "IZI", "Outro"];
 
 const itemVazio = () => ({
     categoria_id: "",
