@@ -47,7 +47,8 @@ const createAtendimento = async (req, res, next) => {
             return res.status(400).json({ message: "cliente_id e uma lista de servicos sao obrigatorios" });
         }
 
-        const incompleto = servicos.find((s) => !s.servico_id || !s.funcionario_id || s.preco_praticado === undefined);
+        const incompleto = servicos.find((s) => !s.servico_id || !s.funcionario_id || s.preco_praticado === undefined || s.preco_praticado === null);
+        
         if (incompleto) {
             return res.status(400).json({ message: "Cada servico exige servico_id, funcionario_id e preco_praticado" });
         }
