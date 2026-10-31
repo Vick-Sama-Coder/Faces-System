@@ -6,6 +6,7 @@ import {
     timestamp,
     date,
     numeric,
+    boolean,
     uniqueIndex,
     index,
     check
@@ -34,6 +35,10 @@ export const atendimento = pgTable('atendimento', {
 export const atendimentoServico = pgTable('atendimento_servico', {
     id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
     atendimento_id: integer('atendimento_id').notNull().references(() => atendimento.id),
+    // Cliente a quem pertence esta linha. O cabecalho mantem cliente_id como
+    // cliente principal (compatibilidade), mas cada servico pode pertencer a
+    // um cliente diferente do mesmo atendimento.
+    cliente_id: integer('cliente_id').notNull().references(() => cliente.id),
     servico_id: integer('servico_id').notNull().references(() => servico.id),
     servico_principal_id: integer('servico_principal_id').references(() => atendimentoServico.id),
     funcionario_id: integer('funcionario_id').notNull().references(() => funcionario.id),
@@ -44,6 +49,9 @@ export const atendimentoServico = pgTable('atendimento_servico', {
     tipo_preco: varchar('tipo_preco', { length: 20 }),
     valor_desconto: integer('valor_desconto').notNull().default(0),
     valor_final: integer('valor_final').notNull(),
+    // Servico escolhido explicitamente pelo utilizador para contar para a
+    // fidelizacao do cliente. No maximo uma linha por cliente/atendimento.
+    fidelizacao_selecionada: boolean('fidelizacao_selecionada').notNull().default(false),
     estado: varchar('estado', { length: 20 }).notNull().default('Ativo'),
     registado_por: integer('registado_por').references(() => usuario.id),
     criado_em: timestamp('criado_em').notNull().defaultNow()
@@ -51,7 +59,13 @@ export const atendimentoServico = pgTable('atendimento_servico', {
     check('atendimento_servico_preco_original_check', sql`${table.preco_original} >= 0`),
     check('atendimento_servico_valor_desconto_check', sql`${table.valor_desconto} >= 0`),
     check('atendimento_servico_tipo_check', sql`${table.tipo_servico} in ('Servico', 'Aplicacao')`),
-    index('atendimento_servico_atendimento_idx').on(table.atendimento_id)
+    index('atendimento_servico_atendimento_idx').on(table.atendimento_id),
+    index('atendimento_servico_cliente_idx').on(table.cliente_id),
+    // Um cliente so pode ter um servico selecionado para fidelizacao no
+    // mesmo atendimento.
+    uniqueIndex('atendimento_servico_fidelizacao_unica')
+        .on(table.atendimento_id, table.cliente_id)
+        .where(sql`${table.fidelizacao_selecionada} = true`)
 ]);
 
 // Registo das operacoes de desconto aplicadas a um atendimento.

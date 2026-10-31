@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, ne, or, sql } from 'drizzle-orm';
 import db from '../db/client.js';
 import {
     atendimento,
@@ -27,6 +27,19 @@ const campos = {
     registado_por: atendimento.registado_por,
     registado_por_nome: usuario.nome,
     motivo_anulacao: atendimento.motivo_anulacao,
+    total_clientes: sql`greatest(coalesce((
+        select count(distinct asv.cliente_id)::int
+          from atendimento_servico asv
+         where asv.atendimento_id = ${atendimento.id}
+           and asv.estado = 'Ativo'
+    ), 0), 1)`,
+    clientes_nomes: sql`coalesce((
+        select string_agg(distinct concat_ws(' ', c2.nome, c2.apelido), ', ')
+          from atendimento_servico asv
+          join cliente c2 on c2.id = asv.cliente_id
+         where asv.atendimento_id = ${atendimento.id}
+           and asv.estado = 'Ativo'
+    ), concat_ws(' ', ${cliente.nome}, ${cliente.apelido}))`,
     valor_pago: sql`coalesce((
         select sum(pp.valor)::int
           from pagamento_parcela pp
@@ -56,7 +69,17 @@ const findAll = async ({ de, ate, cliente: clienteId, funcionario: funcionarioId
     if (de) condicoes.push(sql`${atendimento.data_hora}::date >= ${de}`);
     if (ate) condicoes.push(sql`${atendimento.data_hora}::date <= ${ate}`);
     if (clienteId !== undefined && clienteId !== null && clienteId !== '') {
-        condicoes.push(eq(atendimento.cliente_id, clienteId));
+        // O cliente pode ser o principal (cabecalho) ou um cliente adicional
+        // com servicos no mesmo atendimento.
+        condicoes.push(or(
+            eq(atendimento.cliente_id, clienteId),
+            inArray(
+                atendimento.id,
+                db.select({ id: atendimentoServico.atendimento_id })
+                    .from(atendimentoServico)
+                    .where(eq(atendimentoServico.cliente_id, clienteId))
+            )
+        ));
     }
     if (funcionarioId !== undefined && funcionarioId !== null && funcionarioId !== '') {
         condicoes.push(inArray(
@@ -92,6 +115,10 @@ const findById = async (id, executor = db) => {
 const findServicos = async (atendimento_id) => {
     return db.select({
         id: atendimentoServico.id,
+        atendimento_id: atendimentoServico.atendimento_id,
+        cliente_id: atendimentoServico.cliente_id,
+        cliente_nome: cliente.nome,
+        cliente_apelido: cliente.apelido,
         servico_id: atendimentoServico.servico_id,
         servico_nome: servico.nome,
         categoria_nome: categoriaSalao.nome,
@@ -104,6 +131,7 @@ const findServicos = async (atendimento_id) => {
         preco_original: atendimentoServico.preco_original,
         tipo_preco: atendimentoServico.tipo_preco,
         elegivel_fidelizacao: servico.elegivel_fidelizacao,
+        fidelizacao_selecionada: atendimentoServico.fidelizacao_selecionada,
         valor_desconto: atendimentoServico.valor_desconto,
         valor_final: atendimentoServico.valor_final,
         estado: atendimentoServico.estado
@@ -112,8 +140,37 @@ const findServicos = async (atendimento_id) => {
         .innerJoin(servico, eq(servico.id, atendimentoServico.servico_id))
         .innerJoin(categoriaSalao, eq(categoriaSalao.id, servico.categoria_id))
         .innerJoin(funcionario, eq(funcionario.id, atendimentoServico.funcionario_id))
+        .innerJoin(cliente, eq(cliente.id, atendimentoServico.cliente_id))
         .where(eq(atendimentoServico.atendimento_id, atendimento_id))
         .orderBy(asc(atendimentoServico.id));
+};
+
+// Clientes envolvidos no atendimento, com o subtotal dos servicos de cada um.
+// O subtotal inclui aplicacoes, porque estas sao linhas faturaveis do servico.
+const findClientes = async (atendimento_id) => {
+    return db.select({
+        cliente_id: atendimentoServico.cliente_id,
+        cliente_nome: cliente.nome,
+        cliente_apelido: cliente.apelido,
+        cliente_telefone: cliente.telefone,
+        subtotal: sql`coalesce(sum(${atendimentoServico.valor_final}), 0)::int`,
+        total_servicos: sql`(count(*) filter (where ${atendimentoServico.tipo_servico} = 'Servico'))::int`,
+        total_aplicacoes: sql`(count(*) filter (where ${atendimentoServico.tipo_servico} = 'Aplicacao'))::int`,
+        fidelizacao_servico_id: sql`(max(${atendimentoServico.id}) filter (where ${atendimentoServico.fidelizacao_selecionada} = true))::int`
+    })
+        .from(atendimentoServico)
+        .innerJoin(cliente, eq(cliente.id, atendimentoServico.cliente_id))
+        .where(and(
+            eq(atendimentoServico.atendimento_id, atendimento_id),
+            eq(atendimentoServico.estado, 'Ativo')
+        ))
+        .groupBy(
+            atendimentoServico.cliente_id,
+            cliente.nome,
+            cliente.apelido,
+            cliente.telefone
+        )
+        .orderBy(sql`min(${atendimentoServico.id})`);
 };
 
 // Buscar descontos aplicados a um atendimento
@@ -138,35 +195,48 @@ const findDescontos = async (atendimento_id) => {
         .orderBy(asc(descontoAtendimento.id));
 };
 
-// Verifica se o atendimento já consumiu um benefício gratuito
-const temBeneficioFidelizacao = async (executor, atendimento_id) => {
+// Verifica se o cliente já consumiu um benefício gratuito neste atendimento.
+// A fidelização é individual: cada cliente tem o seu próprio benefício.
+const temBeneficioFidelizacao = async (executor, atendimento_id, cliente_id = null) => {
+    const condicoes = [
+        eq(atendimentoServico.atendimento_id, atendimento_id),
+        eq(movimentoFidelizacao.tipo_movimento, 'beneficio_utilizado')
+    ];
+
+    if (cliente_id !== null && cliente_id !== undefined) {
+        condicoes.push(eq(atendimentoServico.cliente_id, cliente_id));
+    }
+
     const linhas = await executor.select({ id: movimentoFidelizacao.id })
         .from(movimentoFidelizacao)
         .innerJoin(
             atendimentoServico,
             eq(atendimentoServico.id, movimentoFidelizacao.atendimento_servico_id)
         )
-        .where(and(
-            eq(atendimentoServico.atendimento_id, atendimento_id),
-            eq(movimentoFidelizacao.tipo_movimento, 'beneficio_utilizado')
-        ))
+        .where(and(...condicoes))
         .limit(1);
 
     return linhas.length > 0;
 };
 
-// Verifica se o atendimento já gerou uma marca de fidelização
-const temMarcaFidelizacao = async (executor, atendimento_id) => {
+// Verifica se o cliente já gerou uma marca de fidelização neste atendimento.
+const temMarcaFidelizacao = async (executor, atendimento_id, cliente_id = null) => {
+    const condicoes = [
+        eq(atendimentoServico.atendimento_id, atendimento_id),
+        eq(movimentoFidelizacao.tipo_movimento, 'marca')
+    ];
+
+    if (cliente_id !== null && cliente_id !== undefined) {
+        condicoes.push(eq(atendimentoServico.cliente_id, cliente_id));
+    }
+
     const linhas = await executor.select({ id: movimentoFidelizacao.id })
         .from(movimentoFidelizacao)
         .innerJoin(
             atendimentoServico,
             eq(atendimentoServico.id, movimentoFidelizacao.atendimento_servico_id)
         )
-        .where(and(
-            eq(atendimentoServico.atendimento_id, atendimento_id),
-            eq(movimentoFidelizacao.tipo_movimento, 'marca')
-        ))
+        .where(and(...condicoes))
         .limit(1);
 
     return linhas.length > 0;
@@ -190,6 +260,7 @@ const insertHeader = async (tx, { cliente_id, valor_bruto, valor_desconto, valor
 
 const insertServico = async (tx, {
     atendimento_id,
+    cliente_id,
     servico_id,
     servico_principal_id,
     funcionario_id,
@@ -200,11 +271,13 @@ const insertServico = async (tx, {
     tipo_preco,
     valor_desconto,
     valor_final,
+    fidelizacao_selecionada = false,
     registado_por
 }) => {
     const [linha] = await tx.insert(atendimentoServico)
         .values({
             atendimento_id,
+            cliente_id,
             servico_id,
             servico_principal_id: servico_principal_id ?? null,
             funcionario_id,
@@ -215,11 +288,30 @@ const insertServico = async (tx, {
             tipo_preco: tipo_preco ?? null,
             valor_desconto,
             valor_final,
+            fidelizacao_selecionada: fidelizacao_selecionada === true,
             registado_por
         })
         .returning({ id: atendimentoServico.id });
 
     return linha.id;
+};
+
+// Remove a selecao de fidelizacao de todas as linhas do cliente no
+// atendimento. Usado quando o utilizador escolhe outro servico.
+const limparSelecaoFidelizacao = async (tx, atendimento_id, cliente_id, exceptItemId = null) => {
+    const condicoes = [
+        eq(atendimentoServico.atendimento_id, atendimento_id),
+        eq(atendimentoServico.cliente_id, cliente_id),
+        eq(atendimentoServico.fidelizacao_selecionada, true)
+    ];
+
+    if (exceptItemId !== null && exceptItemId !== undefined) {
+        condicoes.push(ne(atendimentoServico.id, exceptItemId));
+    }
+
+    await tx.update(atendimentoServico)
+        .set({ fidelizacao_selecionada: false })
+        .where(and(...condicoes));
 };
 
 //recalcula os totais do cabecalho a partir das linhas ativas
@@ -331,6 +423,7 @@ const Atendimento = {
     findAll,
     findById,
     findServicos,
+    findClientes,
     findDescontos,
     insertHeader,
     insertServico,
@@ -340,6 +433,7 @@ const Atendimento = {
     deleteServicoItem,
     temBeneficioFidelizacao,
     temMarcaFidelizacao,
+    limparSelecaoFidelizacao,
     updateHeader,
     updateEstado
 };

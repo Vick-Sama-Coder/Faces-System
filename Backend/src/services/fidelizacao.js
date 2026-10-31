@@ -124,9 +124,15 @@ const registarCorte = async (executor, {
 const registarAtendimento = async (executor, {
     cliente_id,
     itens,
-    registado_por
+    registado_por,
+    selecao_explicita = false
 }) => {
-    const elegiveis = itens.filter((item) => servicoContaParaFidelizacao(item.servico));
+    // Aplicacoes nunca contam para fidelizacao; o servico tem de ser principal,
+    // elegivel e pago.
+    const elegiveis = itens.filter((item) => (
+        item.tipo_servico !== 'Aplicacao'
+        && servicoContaParaFidelizacao(item.servico)
+    ));
 
     if (elegiveis.length === 0) {
         return { marca: false, beneficio: false, beneficio_utilizado: false };
@@ -134,7 +140,12 @@ const registarAtendimento = async (executor, {
 
     const gratuitos = elegiveis.filter((item) => item.usar_beneficio);
     if (gratuitos.length > 1) {
-        throw criarErro(409, "So e possivel usar um beneficio gratuito por atendimento");
+        throw criarErro(409, "So e possivel usar um beneficio gratuito por cliente");
+    }
+
+    const selecionados = elegiveis.filter((item) => item.fidelizacao_selecionada === true);
+    if (selecionados.length > 1) {
+        throw criarErro(409, "So e possivel escolher um servico para fidelizacao por cliente");
     }
 
     //um servico com valor final zero nao e um servico pago e nao pode gerar
@@ -187,11 +198,24 @@ const registarAtendimento = async (executor, {
         return { marca: false, beneficio: false, ciclo };
     }
 
+    // Seleccao explicita: so o servico escolhido conta. Sem escolha, nao ha
+    // marca (o utilizador pode optar por nao usar a fidelizacao neste
+    // atendimento). Pedidos antigos, sem a propriedade, mantem o
+    // comportamento anterior de escolher o primeiro servico elegivel.
+    if (selecao_explicita && selecionados.length === 0) {
+        return { marca: false, beneficio: false, ciclo };
+    }
+
+    const primeiro = selecao_explicita ? selecionados[0] : elegiveisPagos[0];
+
+    if (!primeiro || !elegiveisPagos.includes(primeiro)) {
+        return { marca: false, beneficio: false, ciclo };
+    }
+
     if (await Fidelizacao.existeMarcaHoje(executor, cartao.id)) {
         return { marca: false, beneficio: false, ciclo };
     }
 
-    const primeiro = elegiveisPagos[0];
     await Fidelizacao.insertMovimento(executor, {
         cartao_id: cartao.id,
         atendimento_servico_id: primeiro.atendimento_servico_id,

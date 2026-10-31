@@ -310,6 +310,19 @@ const desassociarAplicacao = async (servico_id, aplicacao_id) => {
         .where(and(eq(servicoAplicacao.servico_id, servico_id), eq(servicoAplicacao.aplicacao_id, aplicacao_id)));
 };
 
+// Uma aplicacao so pode ser usada num servico se estiver associada a ele.
+const aplicacaoPermitida = async (servico_id, aplicacao_id, executor = db) => {
+    const [linha] = await executor.select({ id: servicoAplicacao.id })
+        .from(servicoAplicacao)
+        .where(and(
+            eq(servicoAplicacao.servico_id, servico_id),
+            eq(servicoAplicacao.aplicacao_id, aplicacao_id)
+        ))
+        .limit(1);
+
+    return Boolean(linha);
+};
+
 const Servico = {
     findAll,
     findById,
@@ -327,7 +340,8 @@ const Servico = {
     deleteModalidade,
     findAplicacoes,
     associarAplicacao,
-    desassociarAplicacao
+    desassociarAplicacao,
+    aplicacaoPermitida
 };
 
 export default Servico;
