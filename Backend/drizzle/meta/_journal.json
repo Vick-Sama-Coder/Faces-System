@@ -78,13 +78,7 @@
       "when": 1793190866218,
       "tag": "0010_tidy_sandman",
       "breakpoints": true
-    },
-    {
-      "idx": 11,
-      "version": "7",
-      "when": 1793462088653,
-      "tag": "0011_special_tyger_tiger",
-      "breakpoints": true
     }
+  
   ]
 }
