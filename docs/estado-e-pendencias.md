@@ -18,14 +18,15 @@ mock. As lacunas abaixo são de implementação ou de decisão de produto.
   de senha.
 - ✅ CRUD de **categorias**, **serviços** (com modalidades, aplicações, histórico de preços
   e elegibilidade para fidelização), **funcionários** (com comissões) e **clientes**.
-- ✅ **Atendimentos** com vários serviços por funcionário, totais automáticos, descontos e
-  preço gravado por linha.
+- ✅ **Atendimentos** com um ou vários clientes, serviços e aplicações por cliente,
+  fidelização explícita por cliente, totais automáticos e preço gravado por linha.
 - ✅ **Pagamentos** com parcelas e vários métodos; comissões geradas na liquidação.
 - ✅ **Caixa** único (abertura, movimentos, levantamentos e fecho com diferença), por API.
 - ✅ **Despesas** e categorias de despesa, com itens e ligação ao caixa.
 - ✅ **Stock** por API (movimentos, saldo por produto, entrada/saída/ajuste).
-- ✅ **Fidelização** (ambos os sexos, serviços elegíveis até 200 MT, uma marca por dia,
-  5 marcas → 6.º serviço obrigatoriamente gratuito, sem acumulação).
+- ✅ **Fidelização** (ambos os sexos, serviços elegíveis até 200 MT, seleção explícita e
+  uma marca por dia por cliente, 5 marcas → 6.º serviço obrigatoriamente gratuito, sem
+  acumulação).
 - ✅ **Horários** semanais e **controlo mensal de assiduidade** (`/horarios`).
 - ✅ **Salários** (processamento mensal, deduções, aprovação e pagamento), por API.
 - ✅ **Relatórios** operacionais e financeiros, com exportação CSV e impressão/PDF pelo
@@ -109,6 +110,7 @@ fidelização já ficou resolvida) e estão consolidadas na **Fase 16** de
 implementadas por interpretação:
 
 - métodos de pagamento (2.º serviço móvel além de M-Pesa);
+- adiantamentos/crédito do cliente (saldo, uso como meio de pagamento e devoluções);
 - descontos (valor fixo, percentagem ou ambos);
 - deduções salariais (automáticas ou manuais);
 - âmbito das anulações (todos os administradores ou restrito por módulo);

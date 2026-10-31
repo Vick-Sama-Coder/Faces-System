@@ -91,17 +91,25 @@ no primeiro acesso.
 
 ## Atendimento
 
-`validarAtendimento({ cliente_id, servicos })`:
+`validarAtendimento({ clientes })` (multi-cliente) ou
+`validarAtendimento({ cliente_id, servicos })` (formato legado):
 
 | Situação | Mensagem |
 | --- | --- |
-| Sem cliente | `Selecione o cliente` |
-| Sem serviços | `Adicione pelo menos um servico` |
-| Linha sem serviço | `Selecione o servico` |
-| Linha sem funcionário | `Selecione o funcionario` |
-| Preço ≤ 0 | `Indique um valor maior que zero` |
+| Sem clientes | `Adicione pelo menos um cliente` |
+| Grupo sem cliente | `Selecione o cliente` |
+| Cliente repetido | `O mesmo cliente nao pode ser adicionado duas vezes` |
+| Grupo sem serviços | `Adicione pelo menos um servico` |
+| Linha sem serviço/aplicação | `Selecione o servico` / `Selecione a aplicacao` |
+| Linha sem funcionário (serviço) | `Selecione o funcionario` |
+| Preço inválido (serviço) | `Indique um valor maior que zero` |
+| Preço inválido (aplicação) | `Indique um valor valido` |
 | Serviço gratuito acima de 200 MT | `O servico gratuito nao pode ultrapassar 200 MT` |
-| Mais de um serviço gratuito | `So e possivel marcar um servico gratis por atendimento` |
+| Mais de um serviço gratuito por cliente | `So e possivel marcar um servico gratis por cliente` |
+| Mais de um serviço selecionado para fidelização por cliente | `So e possivel escolher um servico para fidelizacao por cliente` |
+
+Os erros usam o `uid` do grupo/linha (`cliente_<uid>`, `servicos_<uid>`,
+`servico_<uid>`, `funcionario_<uid>`, `preco_<uid>`, `fidelizacao_<uid>`).
 
 ## Fidelização
 

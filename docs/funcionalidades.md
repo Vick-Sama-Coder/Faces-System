@@ -37,18 +37,31 @@ Painel interno protegido por sessão, alimentado por `GET /api/dashboard`.
 
 ## Atendimentos (`/novoAtendimento`) ✅
 
-- Lista (AG Grid) com filtros por período, estado, cliente e funcionário; detalhe do
-  atendimento com serviços, totais, pagamentos e cartão de fidelização.
-- **Novo atendimento** (modal): cliente, vários serviços, funcionário por linha, preço
-  praticado, desconto e possibilidade de usar o 6.º serviço gratuito.
+- Lista (AG Grid) com filtros por período, estado, cliente e funcionário; o filtro por
+  cliente encontra também clientes adicionais do mesmo atendimento. O detalhe mostra os
+  serviços agrupados por cliente, aplicações, subtotais, totais, pagamentos e o cartão de
+  fidelização de cada cliente.
+- **Novo atendimento** (modal): começa com um cliente e permite **adicionar outros
+  clientes**. Cada cliente tem os seus próprios serviços, aplicações, subtotal e seleção de
+  fidelização; os serviços não se misturam entre clientes.
+- **Aplicações** só podem ser adicionadas a serviços que as permitam e ficam ligadas ao
+  serviço principal e ao cliente respetivo. Podem herdar o funcionário do serviço principal.
+- **Fidelização explícita por cliente**: o utilizador escolhe (ou não) um único serviço
+  elegível para contar para o cartão. Sem escolha não é criada marca; o 6.º serviço
+  gratuito é indicado por cliente.
+- **Resumo e pagamento único**: o resumo mostra número, data/hora, clientes, serviços,
+  aplicações, fidelização, subtotais, total, valor pago e saldo. O pagamento é registado
+  uma única vez para o atendimento completo.
 - Criação transaccional (`POST /api/atendimentos`); o preço fica gravado na linha.
 - **Pagamentos** (`POST /api/atendimentos/:id/pagamentos`): várias parcelas e métodos
   (Dinheiro, M-Pesa, e-Mola, Cartão, Transferência, Outro); o pagamento liquidado gera
   comissões.
-- **Descontos** (`POST /api/atendimentos/:id/descontos`), usado no modal e no detalhe.
 - **Anulação** com motivo obrigatório (`POST /api/atendimentos/:id/anular`), sujeita à
   permissão `atendimentos:anular`.
 - Edição do cabeçalho, conclusão e remoção de linhas de serviço.
+- **Descontos**: não fazem parte deste fluxo. A rota legada
+  `POST /api/atendimentos/:id/descontos` mantém-se no backend por compatibilidade, mas já
+  não é usada pela interface.
 
 ## Clientes (`/clientes`) ✅
 
@@ -126,11 +139,16 @@ Painel interno protegido por sessão, alimentado por `GET /api/dashboard`.
 ## Fidelização ✅
 
 - Cartão de 5 marcas para clientes de ambos os sexos.
-- Só contam serviços marcados como elegíveis e com valor até **200 MT**.
-- Uma marca por dia por atendimento; marcas manuais (cartões físicos) entram no mesmo ciclo.
+- Só contam serviços marcados como elegíveis e com valor até **200 MT**; aplicações nunca
+  contam.
+- **Seleção explícita por cliente**: num atendimento com vários clientes, cada cliente
+  escolhe no máximo um serviço para contar. Sem seleção não é criada marca.
+- Uma marca por dia por cliente; marcas manuais (cartões físicos) entram no mesmo ciclo.
 - Ao completar 5/5, o **6.º serviço é obrigatoriamente gratuito** e o ciclo reinicia em 0/5.
 - Benefício não acumula; enquanto pendente, o próximo atendimento com serviços elegíveis
-  tem de indicar exactamente um deles como gratuito.
+  desse cliente tem de indicar exactamente um deles como gratuito.
+- O processamento é individual por cliente: o benefício de um cliente não altera o ciclo
+  dos restantes clientes do mesmo atendimento.
 - Correcção de fidelização auditada e preenchimento/remoção manual restritos ao
   `Administrador` (`GET/POST/DELETE` em `/api/clientes/:id/fidelizacao/...`).
 

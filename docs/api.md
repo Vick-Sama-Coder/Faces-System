@@ -350,33 +350,119 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 
 ## Atendimentos — `/api/atendimentos`
 
-- `GET /api/atendimentos?de=&ate=&cliente=&funcionario=&estado=` 🔒 — lista com filtros
-- `GET /api/atendimentos/:id` 🔒 — detalhe + `servicos`
-- `POST /api/atendimentos` 🔒🛠️ — corpo:
-  `{ cliente_id, servicos: [{ servico_id, funcionario_id, preco_praticado, desconto?, tipo_preco?, usar_beneficio_fidelizacao? }] }`.
-  Cria cabeçalho + linhas **numa transação**. `201`; a resposta inclui `fidelizacao`
-  com o progresso já atualizado (por exemplo, `0/5` depois de usar o 6.º serviço gratuito).
-  - `400` se faltar `cliente_id`/`servicos` ou campos de cada serviço
-  - `400` se `usar_beneficio_fidelizacao: true` num serviço não elegível, acima de 200 MT
-    ou sem preço praticado válido
-  - `409` se algum serviço estiver **inativo**
-  - `409` se o cartão estiver completo (5/5) e o atendimento tiver serviços elegíveis sem
-    exatamente um deles marcado como gratuito; o 6.º serviço não pode ser pago
-  - `409` se for indicado `usar_beneficio_fidelizacao: true` sem o 6.º serviço pendente ou
-    se forem indicados dois serviços gratuitos no mesmo atendimento
-  - `usar_beneficio_fidelizacao: true` aplica 100% de desconto a **uma única** linha; o
-    `desconto` enviado nessa linha é ignorado. O atendimento que usa o 6.º serviço gratuito
-    não gera marca em nenhum dos seus serviços
-- `PUT /api/atendimentos/:id` 🔒🛠️ — corpo: `{ cliente_id }`
-- `POST /api/atendimentos/:id/servicos` 🔒🛠️ — adiciona serviço (recalcula totais).
-  Aceita os mesmos campos, incluindo `usar_beneficio_fidelizacao`; rejeita com `409` se o
-  atendimento já tiver um serviço gratuito, se o cartão estiver completo e o novo serviço
-  for elegível sem ser o gratuito, ou se o serviço gratuito for acrescentado depois de o
-  atendimento já ter gerado marca
+Um atendimento tem **um cliente principal** (`atendimento.cliente_id`, por compatibilidade)
+e pode ter **vários clientes**. Cada linha de `atendimento_servico` indica o cliente a quem
+pertence (`cliente_id`); os serviços de clientes diferentes não se misturam.
+
+### `GET /api/atendimentos?de=&ate=&cliente=&funcionario=&estado=` 🔒
+
+Lista com filtros. Cada item inclui os totais do cabeçalho, `valor_pago`,
+`metodos_pagamento` e:
+- `total_clientes` — número de clientes com linhas ativas (mínimo `1`);
+- `clientes_nomes` — nomes dos clientes separados por vírgula.
+
+O filtro `cliente` devolve o atendimento quando o cliente é o principal **ou** tem serviços
+como cliente adicional. O filtro `funcionario` considera qualquer linha do atendimento.
+
+### `GET /api/atendimentos/:id` 🔒
+
+Detalhe completo:
+- campos do cabeçalho (`cliente_id` = cliente principal, `valor_bruto`, `valor_desconto`,
+  `valor_total`, `estado`, …);
+- `clientes: [{ cliente_id, cliente_nome, cliente_apelido, cliente_telefone, subtotal,
+  total_servicos, total_aplicacoes, fidelizacao_servico_id, fidelizacao }]` — `subtotal`
+  soma os `valor_final` das linhas do cliente (serviços **e** aplicações);
+- `servicos: [...]` — cada linha inclui `cliente_id`, `tipo_servico`
+  (`Servico`/`Aplicacao`), `servico_principal_id`, `fidelizacao_selecionada`,
+  `preco_original`, `valor_desconto`, `valor_final`, etc.;
+- `descontos: [...]` — histórico legado de descontos;
+- `fidelizacoes: [{ cliente_id, ciclo_atual, marcas_no_ciclo, beneficios_disponiveis, … }]`
+  — progresso de cada cliente;
+- `fidelizacao` — progresso do cliente principal (compatibilidade com o formato anterior);
+- `pagamentos: [...]` — pagamentos com `parcelas`.
+
+### `POST /api/atendimentos` 🔒🛠️
+
+Formato multi-cliente:
+
+```json
+{
+  "clientes": [
+    {
+      "cliente_id": 1,
+      "servicos": [
+        { "servico_id": 10, "funcionario_id": 2, "preco_praticado": 150,
+          "fidelizacao_selecionada": true },
+        { "servico_id": 30, "funcionario_id": 2, "preco_praticado": 50,
+          "tipo_servico": "Aplicacao", "servico_principal_index": 0 }
+      ]
+    },
+    {
+      "cliente_id": 5,
+      "servicos": [
+        { "servico_id": 11, "funcionario_id": 3, "preco_praticado": 200,
+          "fidelizacao_selecionada": false }
+      ]
+    }
+  ]
+}
+```
+
+O formato anterior `{ cliente_id, servicos: [...] }` continua aceite e é tratado como um
+único grupo. Cria cabeçalho + linhas **numa transação** e devolve `201` com o detalhe
+completo. Regras:
+
+- `cliente_id` e pelo menos um serviço por cliente; o mesmo cliente não pode aparecer duas
+  vezes (`409`).
+- Cada serviço exige `servico_id`, `preco_praticado` e, para serviços principais,
+  `funcionario_id`. O preço dos serviços tem de ser `> 0`; o das aplicações pode ser `0`.
+- Serviço inexistente → `400`; serviço ou cliente **inativo** → `409`.
+- `servico_principal_index` (índice da linha principal **dentro do mesmo cliente**) liga
+  uma aplicação ao serviço principal. O principal tem de permitir aplicações e a aplicação
+  tem de estar associada a ele em `servico_aplicacao`, senão `400`.
+  - Compatibilidade: `servico_principal_id` com o `servico_id` do catálogo é resolvido
+    para a primeira linha principal desse serviço no mesmo cliente.
+  - Se a aplicação não indicar `funcionario_id`, herda o do serviço principal.
+- `fidelizacao_selecionada` escolhe **explicitamente** o serviço que conta para o cartão
+  do cliente. No máximo um por cliente (`409`). Só serviços com
+  `elegivel_fidelizacao` e valor até 200 MT são elegíveis; aplicações nunca contam.
+  A linha marcada como gratuita não pode ser também a selecionada (`400`).
+  - Se o campo for enviado (`true`/`false`) em qualquer linha do grupo, a seleção é
+    explícita: sem `true`, **não** é criada marca.
+  - Se o campo não for enviado (payload antigo), mantém-se o comportamento anterior: o
+    primeiro serviço elegível pago gera a marca.
+- `usar_beneficio_fidelizacao: true` aplica 100% de desconto a **uma única** linha por
+  cliente (`409` se houver mais do que uma) e consome o 6.º serviço gratuito.
+  - `400` se a linha for uma aplicação, o serviço não for elegível, o valor exceder
+    200 MT ou o preço não for válido.
+  - `409` se o cliente não tiver o 6.º serviço pendente.
+  - O atendimento que usa o benefício **não gera marca** em nenhum serviço desse cliente.
+- Com o cartão completo (5/5), se o cliente tiver serviços elegíveis pagos no pedido e
+  nenhum gratuito, a resposta é `409` (o 6.º serviço não pode ser pago).
+
+### `PUT /api/atendimentos/:id` 🔒🛠️
+
+Corpo: `{ cliente_id }`. Altera apenas o cliente principal do cabeçalho; as linhas mantêm
+o seu próprio `cliente_id`.
+
+### `POST /api/atendimentos/:id/servicos` 🔒🛠️
+
+Acrescenta uma linha e recalcula os totais. Aceita `cliente_id` (por omissão, o cliente
+principal), `tipo_servico`, `modalidade_id`/`modalidade_nome`,
+`servico_principal_id` (id da linha principal ou `servico_id` do catálogo),
+`fidelizacao_selecionada` e `usar_beneficio_fidelizacao`. Rejeita com `409` se:
+- o atendimento estiver anulado;
+- o cliente já tiver um serviço gratuito neste atendimento;
+- o cartão estiver completo e o novo serviço for elegível sem ser o gratuito;
+- o serviço gratuito for acrescentado depois de o cliente já ter gerado marca.
+
+### Restantes rotas
+
 - `DELETE /api/atendimentos/:id/servicos/:itemId` 🔒🛠️ — `204` (recalcula totais)
 - `PATCH /api/atendimentos/:id/concluir` 🔒🛠️ — marca `Concluido`
 - `POST /api/atendimentos/:id/anular` 🔒🛠️(`atendimentos:anular`) — corpo: `{ motivo }`
-- `POST /api/atendimentos/:id/descontos` 🔒🛠️ — aplica desconto a uma linha. Corpo:
+- `POST /api/atendimentos/:id/descontos` 🔒🛠️ — **rota legada**, mantida por
+  compatibilidade; a interface de atendimento já não a usa. Corpo:
   `{ atendimento_servico_id, escopo, tipo, percentagem?, valor_bruto, valor_desconto, valor_final }`
   - `tipo`: `Valor` (fixo) ou `Percentagem`; `escopo`: `Servico` ou `Atendimento`
   - `400` se faltar campo, se `valor_desconto < 0`/exceder o valor bruto ou se a
@@ -387,6 +473,8 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 > Totais do cabeçalho: `valor_bruto` = Σ `preco_original`,
 > `valor_desconto` = Σ `valor_desconto`, `valor_total` = Σ `valor_final`
 > (`valor_final = preco_original − desconto`). O preço fica gravado na linha.
+> O fluxo actual não aplica descontos: o 6.º serviço gratuito é representado por
+> `valor_desconto = preco_original` na linha escolhida.
 
 ## Pagamentos — `/api`
 
@@ -492,6 +580,11 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 > remanescente não é reutilizado. O serviço gratuito consome o benefício e **não** cria
 > marca; os restantes serviços desse atendimento também não criam marca e o ciclo seguinte
 > começa em zero. A geração é idempotente por `atendimento_servico_id`.
+>
+> **Por cliente:** num atendimento com vários clientes, a fidelização é processada
+> individualmente. Cada cliente tem a sua seleção explícita (`fidelizacao_selecionada`), o
+> seu benefício e o seu ciclo; um serviço gratuito de um cliente não afeta os cartões dos
+> restantes. Aplicações nunca geram marca.
 
 ---
 

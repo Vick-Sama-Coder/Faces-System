@@ -74,6 +74,7 @@ HTTP:
 | `0008_cliente_telefone_nao_unico` | Remove a unicidade do telefone do cliente |
 | `0009_servico_faixa_etaria` | Adiciona `servico.faixa_etaria` (`Geral`/`Adulto`/`Crianca`) |
 | `0010_tidy_sandman` | Cria `requisicao_idempotencia` para a fila offline |
+| `0011_atendimento_multicliente` | Adiciona `atendimento_servico.cliente_id` (com backfill a partir do cabeçalho) e `fidelizacao_selecionada`; cria índice por cliente e índice único parcial `(atendimento_id, cliente_id)` para a seleção de fidelização |
 
 > O ficheiro `drizzle/0005_stock_controlo.sql` é uma versão manual antiga da migração de
 > stock e **não** consta do `_journal.json`; por isso não é aplicado pelo `db:migrate`.
@@ -100,10 +101,13 @@ perfil 1───n usuario n───n permissao (perfil_permissao / usuario_per
 funcionario n───1 usuario (opcional, via id_usuario)
 
 cliente 1───n atendimento 1───n atendimento_servico
-                     │                 ├── n──1 servico
-                     │                 ├── n──1 funcionario
-                     │                 └── 1───n desconto_atendimento
-                     └── 1───n pagamento 1───n pagamento_parcela
+   │                 │                 ├── n──1 servico
+   │                 │                 ├── n──1 funcionario
+   │                 │                 ├── n──1 cliente (cliente da linha)
+   │                 │                 ├── 0───n atendimento_servico (aplicação → serviço principal)
+   │                 │                 └── 1───n desconto_atendimento
+   │                 └── 1───n pagamento 1───n pagamento_parcela
+   └── 1───n atendimento_servico (cliente adicional)
 atendimento_servico 1───1 comissao
 
 caixa 1───n caixa_sessao 1───n movimento_caixa
@@ -161,13 +165,28 @@ usuario 1───n log_auditoria
 - **`cliente`** — `id`, `nome`, `apelido`, `telefone int` (único), `endereco`,
   `data_nascimento`, `idade` (`0`–`120`), `sexo` (`M`/`F`), `data_registo`,
   `saldo_pendente`, `estado`.
-- **`atendimento`** — `id`, `cliente_id` (FK), `data_hora`, `estado`
+- **`atendimento`** — `id`, `cliente_id` (FK; **cliente principal**, mantido por
+  compatibilidade), `data_hora`, `estado`
   (`Em andamento`/`Concluido`/`Anulado`/`Pago`), `valor_bruto`, `valor_desconto`,
   `valor_total`, `registado_por` (FK → `usuario`), `motivo_anulacao`.
-- **`atendimento_servico`** — `id`, `atendimento_id`/`servico_id`/`funcionario_id` (FKs),
-  `servico_principal_id` (FK → `atendimento_servico`, liga aplicações ao serviço principal),
-  `modalidade_id` (FK), `modalidade_nome`, `tipo_servico`, `preco_original`,
-  `tipo_preco`, `valor_desconto`, `valor_final`, `estado`, `registado_por`, `criado_em`.
+  Os restantes clientes do atendimento são determinados pelas linhas de
+  `atendimento_servico`.
+- **`atendimento_servico`** — `id`, `atendimento_id`/`cliente_id`/`servico_id`/
+  `funcionario_id` (FKs), `servico_principal_id` (FK → `atendimento_servico`, liga
+  aplicações ao serviço principal), `modalidade_id` (FK), `modalidade_nome`,
+  `tipo_servico` (`Servico`/`Aplicacao`), `preco_original`, `tipo_preco`,
+  `valor_desconto`, `valor_final`, `fidelizacao_selecionada` (boolean; serviço escolhido
+  explicitamente para contar para o cartão do cliente), `estado`, `registado_por`,
+  `criado_em`.
+  - `cliente_id` é o cliente a quem a linha pertence; pode ser diferente do cliente
+    principal do cabeçalho.
+  - Índice `atendimento_servico_cliente_idx` por `cliente_id`.
+  - Índice único parcial `atendimento_servico_fidelizacao_unica` em
+    `(atendimento_id, cliente_id)` quando `fidelizacao_selecionada = true`: no máximo um
+    serviço selecionado por cliente em cada atendimento.
+  - Aplicações são linhas com `tipo_servico = 'Aplicacao'` e `servico_principal_id`
+    preenchido; o serviço principal tem de ter `permite_aplicacoes = true` e a associação
+    tem de existir em `servico_aplicacao`.
 - **`desconto_atendimento`** — histórico de cada desconto: `atendimento_id`,
   `atendimento_servico_id`, `escopo` (`Servico`/`Atendimento`), `tipo`
   (`Percentagem`/`Valor`), `percentagem`, `valor_bruto`, `valor_desconto`, `valor_final`,
