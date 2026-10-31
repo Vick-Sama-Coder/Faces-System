@@ -119,6 +119,7 @@ const criar = async ({ cliente_id, servicos, registado_por }) => {
 
             const item_id = await Atendimento.insertServico(tx, {
                 atendimento_id,
+                cliente_id,
                 servico_id: servicos[i].servico_id,
                 servico_principal_id: servicos[i].servico_principal_id ?? null,
                 funcionario_id: servicos[i].funcionario_id,
@@ -220,6 +221,7 @@ const adicionarServico = async (atendimento_id, dados, registado_por) => {
 
         const item_id = await Atendimento.insertServico(tx, {
             atendimento_id,
+            cliente_id: atendimento.cliente_id,
             servico_id: dados.servico_id,
             servico_principal_id: dados.servico_principal_id ?? null,
             funcionario_id: dados.funcionario_id,

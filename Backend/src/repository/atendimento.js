@@ -190,6 +190,7 @@ const insertHeader = async (tx, { cliente_id, valor_bruto, valor_desconto, valor
 
 const insertServico = async (tx, {
     atendimento_id,
+    cliente_id,
     servico_id,
     servico_principal_id,
     funcionario_id,
@@ -205,6 +206,7 @@ const insertServico = async (tx, {
     const [linha] = await tx.insert(atendimentoServico)
         .values({
             atendimento_id,
+            cliente_id,
             servico_id,
             servico_principal_id: servico_principal_id ?? null,
             funcionario_id,
