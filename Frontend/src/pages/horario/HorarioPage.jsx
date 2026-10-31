@@ -618,7 +618,7 @@ function HorarioPage() {
                             </label>
                             <input
                                 id="horario-mes"
-                                type="date"
+                                type="mouth"
                                 value={periodo}
                                 onChange={mudarPeriodo}
                                 disabled={salvando}
