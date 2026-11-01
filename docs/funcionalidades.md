@@ -119,15 +119,17 @@ Painel interno protegido por sessão, alimentado por `GET /api/dashboard`.
 - Não existe CRUD de produtos na API/interface (as tabelas de produto existem na base de
   dados).
 
-## Caixa 🟡 · API completa, sem página própria
+## Caixa
 
-- Caixa único (`Caixa Principal`), abertura com saldo inicial, consulta do saldo esperado,
-  levantamentos, movimentos e fecho com contagem/diferença.
-- Pagamentos geram entradas; despesas pagas pelo caixa geram saídas (idempotentes por
-  `referencia_id`).
+- Caixa único (`Caixa Principal`) com página própria, sessão de abertura, movimentos por
+  método de pagamento, saldos da sessão e fecho com contagem física do dinheiro.
+- Pagamentos parcelados de atendimentos geram entradas separadas por método; despesas e
+  levantamentos reduzem o saldo do método selecionado.
+- A sessão exige abertura para registar pagamentos e despesas. Apenas o dinheiro é contado
+  e comparado no fecho; saldos de M-Pesa, e-Mola, Cartão, Transferência e Outro são
+  apresentados como valores registados, sem reconciliação física.
+- Despesas ligadas a uma sessão fechada não podem ser editadas ou removidas.
 - Operações sujeitas a `caixa:operar`, `caixa:levantar` e `caixa:fechar`.
-  > Não existe página dedicada de caixa; as operações estão disponíveis por API e são
-  > usadas pelos módulos de atendimentos/despesas.
 
 ## Fidelização ✅
 

@@ -25,13 +25,16 @@ const getCaixaAtual = async (req, res, next) => {
 
 const registarLevantamento = async (req, res, next) => {
     try {
-        const { valor, descricao } = req.body;
+        const { valor, metodo_pagamento, descricao } = req.body;
 
         if (!valor || Number(valor) <= 0) {
             return res.status(400).json({ message: "O valor do levantamento tem de ser positivo" });
         }
+        if (!metodo_pagamento) {
+            return res.status(400).json({ message: "O metodo_pagamento e obrigatorio" });
+        }
 
-        await CaixaService.levantamento({ valor, descricao, registado_por: req.user.id });
+        await CaixaService.levantamento({ valor, metodo_pagamento, descricao, registado_por: req.user.id });
         res.status(201).json({ message: "Levantamento registado" });
     } catch (error) {
         next(error);

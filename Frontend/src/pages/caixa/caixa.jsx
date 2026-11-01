@@ -22,6 +22,8 @@ import {
 import "../admin/admin.css";
 import "./caixa.css";
 
+const METODOS_PAGAMENTO = ["Dinheiro", "M-Pesa", "e-Mola", "Cartao", "Transferencia", "Outro"];
+
 function formatarMoeda(valor) {
     const numero = Number(valor ?? 0);
     return `${numero.toLocaleString("pt-MZ", {
@@ -61,14 +63,23 @@ function formatarDataCurta(valor) {
 function Caixa() {
     const { user } = useAuthStore();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const [estado, setEstado] = useState({ aberta: false, sessao: null, saldo_esperado: null });
+    const [estado, setEstado] = useState({
+        aberta: false,
+        sessao: null,
+        saldo_esperado: null,
+        saldo_por_metodo: [],
+    });
     const [movimentos, setMovimentos] = useState([]);
     const [historico, setHistorico] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const [saldoInicial, setSaldoInicial] = useState("");
-    const [levantamento, setLevantamento] = useState({ valor: "", descricao: "" });
+    const [levantamento, setLevantamento] = useState({
+        valor: "",
+        metodo_pagamento: "Dinheiro",
+        descricao: "",
+    });
     const [fecho, setFecho] = useState({ valor_contado: "", observacoes: "" });
 
     const podeOperar = user?.permissoes?.includes("caixa:operar");
@@ -103,7 +114,12 @@ function Caixa() {
                 getCaixaFechos().catch(() => ({ data: [] })),
             ]);
 
-            const atual = resAtual?.data ?? { aberta: false, sessao: null, saldo_esperado: null };
+            const atual = resAtual?.data ?? {
+                aberta: false,
+                sessao: null,
+                saldo_esperado: null,
+                saldo_por_metodo: [],
+            };
             const listaMovimentos = Array.isArray(resMovimentos?.data?.movimentos)
                 ? resMovimentos.data.movimentos
                 : [];
@@ -163,9 +179,10 @@ function Caixa() {
             setError(null);
             await registarLevantamentoCaixa({
                 valor,
+                metodo_pagamento: levantamento.metodo_pagamento,
                 descricao: levantamento.descricao.trim() || "Levantamento de caixa",
             });
-            setLevantamento({ valor: "", descricao: "" });
+            setLevantamento({ valor: "", metodo_pagamento: "Dinheiro", descricao: "" });
             await carregarDados();
         } catch (err) {
             setError(getApiError(err));
@@ -243,7 +260,7 @@ function Caixa() {
                                     <Wallet size={22} />
                                 </div>
                                 <div>
-                                    <span>Saldo inicial</span>
+                                    <span>Saldo inicial em dinheiro</span>
                                     <strong>{formatarMoeda(resumo.saldoInicialSessao)}</strong>
                                 </div>
                             </article>
@@ -269,6 +286,37 @@ function Caixa() {
                             </article>
                         </section>
 
+                        {estado?.aberta && (
+                            <section className="caixa-card">
+                                <div className="caixa-card-header">
+                                    <div className="caixa-card-title-wrap">
+                                        <Wallet size={18} />
+                                        <h2>Saldos por método de pagamento</h2>
+                                    </div>
+                                </div>
+                                <div className="caixa-table-wrap">
+                                    <table className="admin-table caixa-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Método</th>
+                                                <th>Saldo da sessão</th>
+                                                <th>Conferência no fecho</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {(estado.saldo_por_metodo ?? []).map((item) => (
+                                                <tr key={item.metodo_pagamento}>
+                                                    <td>{item.metodo_pagamento}</td>
+                                                    <td>{formatarMoeda(item.saldo)}</td>
+                                                    <td>{item.conferido_no_fecho ? "Valor contado" : "Registado, não conferido"}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </section>
+                        )}
+
                         {!estado?.aberta && (
                             <section className="caixa-card">
                                 <div className="caixa-card-header">
@@ -280,7 +328,7 @@ function Caixa() {
 
                                 <form onSubmit={handleAbrirCaixa} className="caixa-form">
                                     <label>
-                                        <span>Saldo inicial</span>
+                                        <span>Saldo inicial em dinheiro</span>
                                         <input
                                             type="number"
                                             min="0"
@@ -314,6 +362,23 @@ function Caixa() {
                                     </div>
 
                                     <form onSubmit={handleLevantamento} className="caixa-form compact">
+                                        <label>
+                                            <span>Método de pagamento</span>
+                                            <select
+                                                value={levantamento.metodo_pagamento}
+                                                onChange={(event) =>
+                                                    setLevantamento((anterior) => ({
+                                                        ...anterior,
+                                                        metodo_pagamento: event.target.value,
+                                                    }))
+                                                }
+                                                disabled={!podeLevantar || submitting}
+                                            >
+                                                {METODOS_PAGAMENTO.map((metodo) => (
+                                                    <option key={metodo} value={metodo}>{metodo}</option>
+                                                ))}
+                                            </select>
+                                        </label>
                                         <label>
                                             <span>Valor</span>
                                             <input
@@ -368,7 +433,7 @@ function Caixa() {
 
                                     <form onSubmit={handleFecharCaixa} className="caixa-form compact">
                                         <label>
-                                            <span>Valor contado</span>
+                                            <span>Dinheiro contado</span>
                                             <input
                                                 type="number"
                                                 min="0"
@@ -384,6 +449,9 @@ function Caixa() {
                                                 disabled={!podeFechar || submitting}
                                             />
                                         </label>
+                                        <p className="caixa-form-hint">
+                                            Apenas o dinheiro é contado fisicamente. Os outros métodos ficam registados por saldo, sem conferência no fecho.
+                                        </p>
 
                                         <label>
                                             <span>Observações</span>
@@ -433,9 +501,11 @@ function Caixa() {
                                         <thead>
                                             <tr>
                                                 <th>Tipo</th>
+                                                <th>Método</th>
                                                 <th>Descrição</th>
                                                 <th>Valor</th>
                                                 <th>Data</th>
+                                                <th>Estado</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -443,14 +513,16 @@ function Caixa() {
                                                 <tr key={movimento.id}>
                                                     <td>
                                                         <span
-                                                            className={`caixa-pill ${movimento.tipo_movimento === "Levantamento" ? "warning" : "success"}`}
+                                                            className={`caixa-pill ${movimento.estado !== "Ativo" ? "muted" : movimento.tipo_movimento === "Levantamento" ? "warning" : "success"}`}
                                                         >
                                                             {movimento.tipo_movimento}
                                                         </span>
                                                     </td>
+                                                    <td>{movimento.metodo_pagamento || "Dinheiro"}</td>
                                                     <td>{movimento.descricao || "-"}</td>
                                                     <td>{formatarMoeda(movimento.valor)}</td>
                                                     <td>{formataDataHora(movimento.data_hora)}</td>
+                                                    <td>{movimento.estado}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -480,6 +552,7 @@ function Caixa() {
                                                 <th>Saldo esperado</th>
                                                 <th>Valor contado</th>
                                                 <th>Diferença</th>
+                                                <th>Saldos por método no fecho</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -489,6 +562,11 @@ function Caixa() {
                                                     <td>{formatarMoeda(fechoItem.valor_esperado)}</td>
                                                     <td>{formatarMoeda(fechoItem.valor_contado)}</td>
                                                     <td>{formatarMoeda(fechoItem.diferenca)}</td>
+                                                    <td>
+                                                        {(fechoItem.saldos_por_metodo ?? [])
+                                                            .map((item) => `${item.metodo_pagamento}: ${formatarMoeda(item.saldo)}`)
+                                                            .join(" · ")}
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>

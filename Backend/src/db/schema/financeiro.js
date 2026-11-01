@@ -6,6 +6,7 @@ import {
     text,
     date,
     timestamp,
+    jsonb,
     uniqueIndex,
     check
 } from 'drizzle-orm/pg-core';
@@ -39,6 +40,7 @@ export const caixaSessao = pgTable('caixa_sessao', {
     valor_esperado: integer('valor_esperado'),
     valor_contado: integer('valor_contado'),
     diferenca: integer('diferenca'),
+    saldos_por_metodo: jsonb('saldos_por_metodo').notNull().default(sql`'[]'::jsonb`),
     observacoes: text('observacoes'),
     fechado_por: integer('fechado_por').references(() => usuario.id),
     estado: varchar('estado', { length: 20 }).notNull().default('Aberta')
@@ -54,6 +56,7 @@ export const movimentoCaixa = pgTable('movimento_caixa', {
     id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
     id_sessao: integer('id_sessao').notNull().references(() => caixaSessao.id),
     tipo_movimento: varchar('tipo_movimento', { length: 20 }).notNull(),
+    metodo_pagamento: varchar('metodo_pagamento', { length: 50 }).notNull().default('Dinheiro'),
     valor: integer('valor').notNull(),
     descricao: varchar('descricao', { length: 255 }),
     data_hora: timestamp('data_hora').notNull().defaultNow(),
@@ -63,9 +66,9 @@ export const movimentoCaixa = pgTable('movimento_caixa', {
     estado: varchar('estado', { length: 20 }).notNull().default('Ativo')
 }, (table) => [
     check('movimento_caixa_valor_check', sql`${table.valor} > 0`),
-    // Idempotencia por referencia: o mesmo pagamento/despesa gera um so movimento.
+    // Um pagamento pode gerar uma entrada por cada metodo usado nas parcelas.
     uniqueIndex('movimento_caixa_referencia_unica')
-        .on(table.origem, table.referencia_id)
+        .on(table.origem, table.referencia_id, table.metodo_pagamento)
         .where(sql`${table.referencia_id} is not null`)
 ]);
 

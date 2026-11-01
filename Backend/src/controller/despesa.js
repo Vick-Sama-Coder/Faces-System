@@ -1,6 +1,5 @@
 import Despesa from "../repository/despesa.js";
 import DespesaService from "../services/despesa.js";
-import AuditoriaService from "../services/auditoria.js";
 import { codigoPostgres } from "../utils/erro.js";
 
 const getDespesas = async (req, res, next) => {
@@ -59,24 +58,12 @@ const updateDespesa = async (req, res, next) => {
             return res.status(400).json({ message: "Nenhum campo para atualizar foi enviado" });
         }
 
-        const antes = await Despesa.findById(req.params.id);
-        if (!antes) {
+        const depois = await DespesaService.atualizar(req.params.id, {
+            descricao, categoria_id, valor_total, data_compra, metodo_pagamento, comprovativo
+        }, req.user.id);
+        if (!depois) {
             return res.status(404).json({ message: "Despesa nao encontrada" });
         }
-
-        await Despesa.update(req.params.id, {
-            descricao, categoria_id, valor_total, data_compra, metodo_pagamento, comprovativo
-        });
-
-        const depois = await Despesa.findById(req.params.id);
-        await AuditoriaService.registar({
-            id_utilizador: req.user.id,
-            entidade: "despesa",
-            id_registo: antes.id,
-            operacao: "atualizar",
-            antes,
-            depois
-        });
 
         res.status(200).json(depois);
     } catch (error) {
@@ -95,15 +82,7 @@ const deleteDespesa = async (req, res, next) => {
             return res.status(404).json({ message: "Despesa nao encontrada" });
         }
 
-        await Despesa.delete(req.params.id);
-
-        await AuditoriaService.registar({
-            id_utilizador: req.user.id,
-            entidade: "despesa",
-            id_registo: antes.id,
-            operacao: "remover",
-            antes
-        });
+        await DespesaService.remover(req.params.id, req.user.id);
 
         res.status(204).send();
     } catch (error) {

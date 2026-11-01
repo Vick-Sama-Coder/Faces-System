@@ -3,8 +3,21 @@ import Pagamento from '../repository/pagamento.js';
 import Atendimento from '../repository/atendimento.js';
 import Comissao from '../repository/comissao.js';
 import Caixa from '../repository/caixa.js';
+import { METODOS_PAGAMENTO } from './caixa.js';
 import AuditoriaService from './auditoria.js';
 import { criarErro } from '../utils/erro.js';
+
+export function agruparParcelasPorMetodo(parcelas) {
+    const valores = new Map();
+    for (const parcela of parcelas) {
+        valores.set(
+            parcela.metodo_pagamento,
+            (valores.get(parcela.metodo_pagamento) ?? 0) + Number(parcela.valor)
+        );
+    }
+
+    return [...valores].map(([metodo_pagamento, valor]) => ({ metodo_pagamento, valor }));
+}
 
 //so quando a soma das parcelas cobre o devido o atendimento passa a liquidado (RN08)
 const registrar = async (atendimento_id, { parcelas, registado_por }) => {
@@ -18,8 +31,18 @@ const registrar = async (atendimento_id, { parcelas, registado_por }) => {
     }
 
     const somaNovas = parcelas.reduce((total, p) => total + Number(p.valor), 0);
+    for (const parcela of parcelas) {
+        if (!METODOS_PAGAMENTO.includes(parcela.metodo_pagamento)) {
+            throw criarErro(400, 'Metodo de pagamento invalido');
+        }
+    }
 
     return db.transaction(async (tx) => {
+        const sessao = await Caixa.findSessaoAberta(tx);
+        if (!sessao) {
+            throw criarErro(409, 'Abra uma sessao de Caixa antes de registar pagamentos');
+        }
+
         const jaPago = await Pagamento.somaParcelas(tx, atendimento_id);
         const devido = atendimento.valor_total;
 
@@ -47,14 +70,13 @@ const registrar = async (atendimento_id, { parcelas, registado_por }) => {
             });
         }
 
-        //entrada no caixa, se houver sessao aberta (RF13/RF10); idempotente por referencia
-        const sessao = await Caixa.findSessaoAberta(tx);
-        if (sessao) {
+        for (const { metodo_pagamento, valor } of agruparParcelasPorMetodo(parcelas)) {
             await Caixa.inserirMovimento(tx, {
                 id_sessao: sessao.id,
                 tipo_movimento: "Entrada",
-                valor: somaNovas,
-                descricao: `Pagamento #${pagamento_id}`,
+                metodo_pagamento,
+                valor,
+                descricao: `Pagamento #${pagamento_id} (${metodo_pagamento})`,
                 origem: "Pagamento",
                 referencia_id: pagamento_id,
                 registado_por
@@ -72,7 +94,12 @@ const registrar = async (atendimento_id, { parcelas, registado_por }) => {
             entidade: "pagamento",
             id_registo: pagamento_id,
             operacao: "criar",
-            depois: { atendimento_id, valor_total: somaNovas, estado, parcelas: parcelas.length }
+            depois: {
+                atendimento_id,
+                valor_total: somaNovas,
+                estado,
+                metodos: agruparParcelasPorMetodo(parcelas)
+            }
         }, tx);
 
         return pagamento_id;
@@ -92,6 +119,7 @@ const anular = async (pagamento_id, { motivo, registado_por }) => {
 
     await db.transaction(async (tx) => {
         await Pagamento.updateEstado(tx, pagamento_id, { estado: "Anulado", motivo_anulacao: motivo });
+        await Caixa.anularMovimentosPorReferencia(tx, "Pagamento", pagamento_id);
 
         const atendimento = await Atendimento.findById(pagamento.atendimento_id, tx);
         const pago = await Pagamento.somaParcelas(tx, pagamento.atendimento_id);

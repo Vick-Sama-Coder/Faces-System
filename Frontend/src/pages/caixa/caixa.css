@@ -146,6 +146,7 @@
 }
 
 .caixa-form input,
+.caixa-form select,
 .caixa-form textarea {
     width: 100%;
     padding: 11px 12px;
@@ -158,10 +159,18 @@
 }
 
 .caixa-form input:focus,
+.caixa-form select:focus,
 .caixa-form textarea:focus {
     outline: none;
     border-color: var(--primary);
     box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.caixa-form-hint {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    line-height: 1.5;
 }
 
 .caixa-empty-state {
@@ -200,6 +209,11 @@
 .caixa-pill.warning {
     background: var(--warning-soft);
     color: var(--warning-text);
+}
+
+.caixa-pill.muted {
+    background: var(--surface-tint);
+    color: var(--text-muted);
 }
 
 .caixa-skeleton {

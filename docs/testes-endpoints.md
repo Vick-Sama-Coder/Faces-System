@@ -174,11 +174,11 @@ Legenda: ✅ implementado · ⚠️ implementado com desvio/lacuna · ❌ não i
 | **RF06 — Preços variáveis** | ✅ | `services/atendimento.js`, `repository/servico.js` | `tipo_preco` e `preco_praticado` por linha; alterar o catálogo não afeta transações antigas. |
 | **RF07 — Descontos** | ⚠️ | `services/atendimento.js` | Aceita desconto em **valor fixo** e em **percentagem** (`tipo = Valor`/`Percentagem`, com validação 0–100; o valor final é calculado no cliente). Qualquer perfil com `atendimentos:escrever` (inclui `Usuario`) pode conceder desconto; a política (fixo, percentagem ou ambos) continua em decisão na Fase 16. |
 | **RF08 — Pagamentos** | ⚠️ | `services/pagamento.js` | Parcelas e vários métodos OK; impede pagar **acima** do devido; comissão só na liquidação total. **Permite pagamento parcial** (`estado = Parcial`), o que na prática é crédito — RF08 diz “não serão permitidos pagamentos a crédito”. |
-| **RF09 — Anulações** | ⚠️ | `controller/atendimento.js`, `services/pagamento.js` | Preserva registo, exige motivo, audita e recalcula o estado do atendimento. **Mas não** anula o movimento de caixa, **não** invalida/remover a comissão e **não** exclui do relatório de receita os pagamentos de um atendimento anulado — a parte financeira da anulação está por fazer. |
-| **RF10 — Caixa** | ✅ | `services/caixa.js` | Caixa único, abertura, saldo inicial, entradas, saídas, levantamentos, saldo esperado, contagem e diferença. |
+| **RF09 — Anulações** | ⚠️ | `controller/atendimento.js`, `services/pagamento.js` | Anulação de pagamento preserva o registo, exige motivo, audita, recalcula o atendimento e anula o movimento de caixa associado. **Ainda não** invalida/remove a comissão nem exclui do relatório de receita os pagamentos de um atendimento anulado. |
+| **RF10 — Caixa** | ✅ | `services/caixa.js` | Caixa único com movimentos e saldos separados por método; o saldo esperado e a contagem no fecho consideram apenas Dinheiro. Pagamentos e despesas exigem sessão aberta; fechos guardam snapshot dos saldos por método. |
 | **RF11 — Fecho diário** | ⚠️ | `services/caixa.js` | Fecho explícito, diferença e histórico OK. **Não** bloqueia operações do dia seguinte quando existe sessão de um dia anterior aberta; **não** existe procedimento administrativo de correção de fecho. |
-| **RF12 — Levantamentos** | ✅ | `services/caixa.js` | Valor, descrição/motivo, utilizador, sessão, data/hora e estado (`Ativo`). |
-| **RF13 — Despesas** | ✅ | `services/despesa.js` | Registo com itens ou total, categoria, método, caixa de origem e comprovativo; gera saída no caixa; audita. |
+| **RF12 — Levantamentos** | ✅ | `services/caixa.js` | Valor, método, descrição/motivo, utilizador, sessão, data/hora e estado (`Ativo`); reduz o saldo do método seleccionado. |
+| **RF13 — Despesas** | ✅ | `services/despesa.js` | Registo com itens ou total, categoria, método, sessão de caixa e comprovativo; gera saída no método escolhido e audita. Despesas de sessões fechadas não podem ser editadas ou removidas. |
 | **RF14 — Funcionários** | ✅ | `controller/funcionario.js` | Dados, salário, comissão, conta associada e ativação/desativação sem apagar histórico. |
 | **RF15 — Horários** | ⚠️ | `controller/horario.js` | Programação semanal e substituição transacional OK. **Não** guarda histórico das alterações (a substituição apaga as linhas anteriores); turnos rotativos ficam para decisão (§16.7). |
 | **RF16 — Assiduidade** | ✅ | `controller/assiduidade.js` | Tipos de ocorrência, horas reais, correção com antes/depois na auditoria. |
@@ -894,7 +894,7 @@ processamento salarial).
 | Método | Rota | Permissão | Esperado |
 | --- | --- | --- | --- |
 | POST | `/caixa/abrir` | `caixa:operar` | `201` sessão / `409` se já aberta |
-| GET | `/caixa/atual` | `caixa:operar` | `200` estado + saldo esperado |
+| GET | `/caixa/atual` | `caixa:operar` | `200` estado + saldos por método |
 | POST | `/caixa/levantamento` | `caixa:levantar` | `201` / `409` sem sessão |
 | GET | `/caixa/movimentos` | `caixa:operar` | `200` / `404` sem sessão |
 | POST | `/caixa/fechar` | `caixa:fechar` | `200` fecho com diferença / `409` |
@@ -910,14 +910,15 @@ curl -s -b "$JAR" -X POST "$BASE/caixa/abrir" \
 # 409 { message: "Ja existe uma sessao de caixa aberta; feche-a antes de abrir outra" }
 
 curl -s -b "$JAR" "$BASE/caixa/atual"
-# 200 { aberta:true, sessao:{...}, saldo_esperado: 1000 }
+# 200 { aberta:true, sessao:{...}, saldo_esperado:1000, saldo_por_metodo:[...] }
 ```
 
 **Levantamento**
 
 ```bash
 curl -s -b "$JAR" -X POST "$BASE/caixa/levantamento" \
-  -H 'Content-Type: application/json' -d '{"valor":200,"descricao":"troco"}'
+  -H 'Content-Type: application/json' \
+  -d '{"valor":200,"metodo_pagamento":"Dinheiro","descricao":"troco"}'
 # 201 { message: "Levantamento registado" }
 
 curl -s -b "$JAR" "$BASE/caixa/atual"
@@ -929,7 +930,7 @@ curl -s -b "$JAR" "$BASE/caixa/atual"
 ```bash
 curl -s -b "$JAR" "$BASE/caixa/movimentos"
 # 200 { sessao_id:1, movimentos:[{id, tipo_movimento:"Levantamento", valor:200,
-#       origem:"Levantamento", estado:"Ativo", ...}] }
+#       metodo_pagamento:"Dinheiro", origem:"Levantamento", estado:"Ativo", ...}] }
 ```
 
 **Fecho**
@@ -946,7 +947,7 @@ curl -s -b "$JAR" -X POST "$BASE/caixa/fechar" \
 ```bash
 curl -s -b "$JAR" "$BASE/caixa/fechos?de=2026-10-01&ate=2026-10-31"
 # 200 [{id, data_abertura, data_fecho, saldo_inicial, valor_esperado,
-#       valor_contado, diferenca, ...}]
+#       valor_contado, diferenca, saldos_por_metodo:[...], ...}]
 ```
 
 **Erros:** `saldo_inicial` em falta → `400`; `valor` do levantamento ≤ 0 → `400`;
@@ -963,9 +964,9 @@ sessão → `404`.
 | --- | --- | --- | --- |
 | GET | `/despesas?de=&ate=&categoria=&estado=` | autenticado | `200` array |
 | GET | `/despesas/:id` | autenticado | `200` com `itens` / `404` |
-| POST | `/despesas` | `despesas:escrever` | `201`; cria saída se `caixa_sessao_id` |
-| PUT | `/despesas/:id` | `despesas:escrever` | `200` + auditoria antes/depois |
-| DELETE | `/despesas/:id` | `despesas:escrever` | `204` + auditoria |
+| POST | `/despesas` | `despesas:escrever` | `201`; cria saída por método na sessão aberta |
+| PUT | `/despesas/:id` | `despesas:escrever` | `200` + movimento atualizado; `409` se sessão fechada |
+| DELETE | `/despesas/:id` | `despesas:escrever` | `204` + movimento anulado; `409` se sessão fechada |
 | GET | `/categorias-despesa` | autenticado | `200` array |
 | POST | `/categorias-despesa` | `despesas:escrever` | `201` / `409` nome duplicado |
 
@@ -979,16 +980,16 @@ curl -s -b "$JAR" -X POST "$BASE/despesas" -H 'Content-Type: application/json' -
   "valor_total": 1500,
   "data_compra": "2026-10-17",
   "metodo_pagamento": "Dinheiro",
-  "caixa_sessao_id": 1,
   "comprovativo": "FAC-001"
 }'
 # 201 {id, descricao, valor_total:1500, estado:"Ativo", itens:[]}
 ```
 
-Com `caixa_sessao_id` válido, passa a existir em `/caixa/movimentos`:
+O sistema associa automaticamente a despesa à sessão aberta. O movimento aparece em
+`/caixa/movimentos` com o método escolhido:
 
 ```json
-{ "tipo_movimento": "Saida", "valor": 1500, "origem": "Despesa",
+{ "tipo_movimento": "Saida", "metodo_pagamento": "Dinheiro", "valor": 1500, "origem": "Despesa",
   "referencia_id": 1, "estado": "Ativo" }
 ```
 
@@ -1547,15 +1548,17 @@ curl -s -b "$JAR" "$BASE/comissoes?funcionario=$FUN" | jq -c '.[0] | {valor_comi
 curl -s -b "$JAR" -X POST "$BASE/caixa/abrir" -H 'Content-Type: application/json' \
   -d '{"saldo_inicial":1000}'
 
-# atendimento + pagamento em dinheiro (gera Entrada)
-# despesa paga pelo caixa (gera Saida)
+# atendimento + pagamento em dinheiro (gera Entrada Dinheiro)
+# pagamento parcelado Dinheiro + M-Pesa gera duas entradas, uma por método
+# despesa paga por método selecionado (gera Saida nesse método)
 curl -s -b "$JAR" -X POST "$BASE/despesas" -H 'Content-Type: application/json' -d '{
-  "descricao":"Compra de produtos","categoria_id":1,"valor_total":500,"caixa_sessao_id":1
+  "descricao":"Compra de produtos","categoria_id":1,"valor_total":500,
+  "metodo_pagamento":"Dinheiro"
 }'
 
 # levantamento
 curl -s -b "$JAR" -X POST "$BASE/caixa/levantamento" -H 'Content-Type: application/json' \
-  -d '{"valor":200,"descricao":"troco"}'
+  -d '{"valor":200,"metodo_pagamento":"Dinheiro","descricao":"troco"}'
 
 # conferir esperado
 curl -s -b "$JAR" "$BASE/caixa/atual" | jq -c '{saldo_esperado}'
@@ -1623,12 +1626,13 @@ Copia para o teu caderno de testes:
 [ ] Atendimento com 2 servicos soma totais e desconto
 [ ] POST /atendimentos/:id/descontos recalcula totais
 [ ] Servico inativo no atendimento -> 409
-[ ] Pagamento parcelado (Dinheiro + M-Pesa) -> Liquidado
+[ ] Pagamento parcelado (Dinheiro + M-Pesa) -> Liquidado e entradas separadas por método
 [ ] Pagar acima do devido -> 400
 [ ] Comissao gerada so na liquidacao total
 [ ] Anulacao exige motivo e gera auditoria
-[ ] Caixa: abrir, entrada, saida, levantamento, saldo, fecho e diferenca
-[ ] Despesa com caixa_sessao_id gera movimento Saida
+[ ] Caixa: abrir, entrada, saida, levantamento por método, saldos por método e fecho do dinheiro
+[ ] Pagamento/despesa sem sessão aberta devolve `409`
+[ ] Despesa e levantamento reduzem o saldo do método selecionado
 [ ] Fidelizacao: ambos os sexos, servico elegivel <=200 MT, 1 marca/dia, 5 -> 1 gratis, sem marca no ciclo seguinte
 [ ] Salario: Preparado -> Aprovado -> Pago; comissoes passam a Paga
 [ ] Relatorios devolvem arrays/objetos conforme a tabela

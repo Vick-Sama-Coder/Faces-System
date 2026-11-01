@@ -395,12 +395,15 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 - `POST /api/atendimentos/:id/pagamentos` 🔒(`pagamentos:registar`) — corpo:
   `{ parcelas: [{ metodo_pagamento, valor, referencia? }] }`. `201`
   - `400` se a soma das parcelas exceder o valor devido
+  - `409` se não houver uma sessão de Caixa aberta
 - `GET /api/atendimentos/:id/pagamento` 🔒 — estado de liquidação
 - `POST /api/pagamentos/:id/anular` 🔒(`pagamentos:anular`) — corpo: `{ motivo }`
 
 > Um pagamento está `Liquidado` quando a soma das parcelas iguala o valor devido;
-> nesse momento o atendimento passa a `Pago` e as **comissões** são geradas.
-> Anular um pagamento recalcula o estado do atendimento (não apaga nada).
+> nesse momento o atendimento passa a `Pago` e as **comissões** são geradas. Cada
+> método das parcelas cria a sua própria entrada na sessão de Caixa; parcelas do mesmo
+> método são agregadas. Anular um pagamento anula também as respetivas entradas e recalcula
+> o estado do atendimento (não apaga o registo).
 
 ## Comissões — `/api`
 
@@ -415,30 +418,39 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 
 ## Caixa — `/api/caixa`
 
-- `POST /api/caixa/abrir` 🔒(`caixa:operar`) — corpo: `{ saldo_inicial }`. `201`
+- `POST /api/caixa/abrir` 🔒(`caixa:operar`) — corpo: `{ saldo_inicial }` em Dinheiro. `201`
   - `409` se já existir uma sessão aberta (caixa único)
-- `GET /api/caixa/atual` 🔒(`caixa:operar`) — `{ aberta, sessao, saldo_esperado }`
-- `POST /api/caixa/levantamento` 🔒(`caixa:levantar`) — corpo: `{ valor, descricao? }`
+- `GET /api/caixa/atual` 🔒(`caixa:operar`) — inclui `{ aberta, sessao, saldo_esperado, saldo_por_metodo }`
+- `POST /api/caixa/levantamento` 🔒(`caixa:levantar`) — corpo:
+  `{ valor, metodo_pagamento, descricao? }`
 - `GET /api/caixa/movimentos` 🔒(`caixa:operar`) — movimentos da sessão aberta (`404` se fechada)
-- `POST /api/caixa/fechar` 🔒(`caixa:fechar`) — corpo: `{ valor_contado, observacoes? }`
-- `GET /api/caixa/fechos?de=&ate=` 🔒(`relatorios:ler`) — histórico de fechos
+- `POST /api/caixa/fechar` 🔒(`caixa:fechar`) — corpo:
+  `{ valor_contado, observacoes? }`; `valor_contado` é o dinheiro contado fisicamente
+- `GET /api/caixa/fechos?de=&ate=` 🔒(`relatorios:ler`) — histórico de fechos, incluindo
+  o snapshot de `saldos_por_metodo` guardado no fecho
 
-> `saldo_esperado = saldo_inicial + entradas − saídas − levantamentos`.
+> Cada movimento é associado ao método de pagamento. Os saldos por método começam em zero,
+> exceto Dinheiro, que começa no `saldo_inicial`. `saldo_esperado` contém apenas Dinheiro:
+> saldo inicial + entradas em Dinheiro − saídas/levantamentos em Dinheiro. Os outros métodos
+> são apresentados como saldos registados, sem conferência física no fecho.
 > `diferenca = valor_contado − valor_esperado`. Os pagamentos geram **entradas** e as
-> despesas pagas pelo caixa geram **saídas**, ambos idempotentes por `referencia_id`.
+> despesas pagas durante uma sessão aberta geram **saídas** por método. Pagamentos e despesas
+> exigem uma sessão de Caixa aberta; cada despesa fica associada a essa sessão. Despesas ligadas
+> a sessões fechadas não podem ser editadas ou removidas. Movimentos referenciados são idempotentes
+> por origem, referência e método de pagamento.
 
 ## Despesas — `/api/despesas`
 
 - `GET /api/despesas?de=&ate=&categoria=&estado=` 🔒 — lista com filtros
 - `GET /api/despesas/:id` 🔒 — detalhe + `itens`
 - `POST /api/despesas` 🔒(`despesas:escrever`) — corpo:
-  `{ descricao, valor_total?, categoria_id?, data_compra?, metodo_pagamento?, caixa_sessao_id?, comprovativo?, itens? }`
+  `{ descricao, valor_total?, categoria_id?, data_compra?, metodo_pagamento, comprovativo?, itens? }`
+  - exige `metodo_pagamento` e sessão de Caixa aberta; `409` se não houver sessão ativa
   - `itens: [{ produto_id, funcionario_id?, quantidade, preco_unitario }]`; se existirem,
     `valor_total` é calculado a partir deles
-  - `caixa_sessao_id` gera o movimento de saída no caixa
+- `PUT /api/despesas/:id` e `DELETE /api/despesas/:id` 🔒(`despesas:escrever`) — atualizam
+  o movimento associado na sessão aberta; `409` se a sessão da despesa estiver fechada
   - `400` se `valor_total <= 0`
-- `PUT /api/despesas/:id` 🔒(`despesas:escrever`) — actualização parcial
-- `DELETE /api/despesas/:id` 🔒(`despesas:escrever`) — `204`
 - `GET /api/categorias-despesa` 🔒 — lista de categorias
 - `POST /api/categorias-despesa` 🔒(`despesas:escrever`) — corpo: `{ nome, tipo? }`
 

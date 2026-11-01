@@ -123,7 +123,7 @@ const update = async (id, {
     data_compra,
     metodo_pagamento,
     comprovativo
-}) => {
+}, executor = db) => {
     const valores = {};
 
     if (descricao !== undefined && descricao !== null) valores.descricao = descricao;
@@ -134,7 +134,7 @@ const update = async (id, {
     if (comprovativo !== undefined && comprovativo !== null) valores.comprovativo = comprovativo;
 
     if (Object.keys(valores).length === 0) {
-        const [linha] = await db.select({ id: despesa.id })
+        const [linha] = await executor.select({ id: despesa.id })
             .from(despesa)
             .where(eq(despesa.id, id))
             .limit(1);
@@ -142,7 +142,7 @@ const update = async (id, {
         return linha || null;
     }
 
-    const [linha] = await db.update(despesa)
+    const [linha] = await executor.update(despesa)
         .set(valores)
         .where(eq(despesa.id, id))
         .returning({ id: despesa.id });
@@ -150,8 +150,8 @@ const update = async (id, {
     return linha || null;
 };
 
-const deleteDespesa = async (id) => {
-    const [linha] = await db.delete(despesa)
+const deleteDespesa = async (id, executor = db) => {
+    const [linha] = await executor.delete(despesa)
         .where(eq(despesa.id, id))
         .returning({ id: despesa.id });
 
