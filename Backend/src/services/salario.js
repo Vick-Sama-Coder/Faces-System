@@ -190,19 +190,34 @@ export const computarReducoesAssiduidade = async (periodo, executor = db) => {
             f.nome as funcionario_nome,
             f.salario as salario_base,
             coalesce(sum(
-                case when (
-                         a.tipo_ocorrencia is null
-                         or a.tipo_ocorrencia not in ('falta_justificada', 'falta_injustificada', 'ausencia')
-                     )
-                     and a.hora_entrada_real is not null
-                     and a.hora_saida_real is not null
-                     and a.hora_saida_real > a.hora_entrada_real
-                then (extract(epoch from a.hora_saida_real) - extract(epoch from a.hora_entrada_real))::int
-                else 0 end
+                case
+                    when (
+                        a.tipo_ocorrencia is null
+                        or a.tipo_ocorrencia not in (
+                            'falta_justificada',
+                            'falta_injustificada',
+                            'ausencia',
+                            'sem_registo'
+                        )
+                    )
+                    and a.hora_entrada_real is not null
+                    and a.hora_saida_real is not null
+                    and a.hora_saida_real > a.hora_entrada_real
+                    then (
+                        extract(epoch from a.hora_saida_real)
+                        - extract(epoch from a.hora_entrada_real)
+                    )::int
+                    else 0
+                end
             ), 0)::int as trabalhadas_segundos,
             count(*) filter (
                 where (
-                    a.tipo_ocorrencia in ('falta_justificada', 'falta_injustificada', 'ausencia')
+                    a.tipo_ocorrencia in (
+                        'falta_justificada',
+                        'falta_injustificada',
+                        'ausencia',
+                        'sem_registo'
+                    )
                     or (
                         a.hora_entrada_real is not null
                         and a.hora_saida_real is not null
@@ -227,7 +242,7 @@ export const computarReducoesAssiduidade = async (periodo, executor = db) => {
     `);
 
     return resultado.rows.map((linha) => {
-        const trabalhadasMin = Number(linha.trabalhadas_segundos) / 60000;
+        const trabalhadasMin = Number(linha.trabalhadas_segundos) / 60;
         const previstasMin = Number(linha.previstas_minutos) || 0;
         const semRegistos = previstasMin === 0;
         const efetividade = semRegistos ? null : (trabalhadasMin / previstasMin) * 100;
@@ -307,10 +322,9 @@ async function aplicarReducoesNosProcessamentos(tx, periodo, registado_por, proc
 //gravar remove a reducao anterior do mesmo tipo, para o calculo poder ser repetido
 //sem duplicar o desconto. As deducoes manuais existentes nao sao tocadas e apenas
 //processamentos em Preparado sao alterados (os aprovados/pagos ficam fechados).
-export const aplicarReducoesAssiduidade = async (periodo, registado_por) => {
-    const reducoes = await computarReducoesAssiduidade(periodo);
-
-    return db.transaction(async (tx) => {
+export const aplicarReducoesAssiduidade = async (periodo, registado_por, executor = null) => {
+    const aplicar = async (tx) => {
+        const reducoes = await computarReducoesAssiduidade(periodo, tx);
         const processamentos = await Salario.findProcessamentos({ periodo }, tx);
         const comProcessamento = new Set(processamentos.map((p) => p.funcionario_id));
         const semProcessamento = reducoes.filter(
@@ -325,7 +339,9 @@ export const aplicarReducoesAssiduidade = async (periodo, registado_por) => {
         );
 
         return { ...resultado, semProcessamento };
-    });
+    };
+
+    return executor ? aplicar(executor) : db.transaction(aplicar);
 };
 
 const SalarioService = {

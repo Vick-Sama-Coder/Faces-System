@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, ne, sql } from 'drizzle-orm';
 import db from '../db/client.js';
 import {
     comissao,
@@ -127,7 +127,10 @@ const inserirProcessamento = async (tx, {
 
 const substituirDeducoes = async (tx, processamento_id, deducoes, aprovado_por) => {
     await tx.delete(deducaoSalarial)
-        .where(eq(deducaoSalarial.processamento_id, processamento_id));
+        .where(and(
+            eq(deducaoSalarial.processamento_id, processamento_id),
+            ne(deducaoSalarial.tipo, 'reducao_assiduidade')
+        ));
 
     if (deducoes.length === 0) {
         return;

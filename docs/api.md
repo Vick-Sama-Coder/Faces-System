@@ -542,6 +542,9 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 > registo/falta marcada não entram nas horas previstas e não há desconto de almoço.
 
 > A ocorrência é registada separadamente do efeito salarial (RN15).
+> Criar ou corrigir um registo de assiduidade recalcula, na mesma transação, a
+> redução dos processamentos `Preparado` do mês. Processamentos `Aprovado` ou `Pago`
+> não são alterados.
 
 ## Salários — `/api/salarios`
 
@@ -554,8 +557,10 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
   `201` com a lista criada (vazia se já processado); mesmo quando já existem processamentos,
   a ação atualiza as reduções dos que continuam `Preparado`. `400` se o período for inválido
 - `PUT /api/salarios/processamentos/:id/deducoes` 🔒(`salarios:gerir`) — corpo:
-  `{ deducoes: [{ tipo, descricao?, valor, motivo? }] }` — substitui as deduções e
-  recalcula `total_a_pagar`. `409` se o processamento já não estiver em `Preparado`
+  `{ deducoes: [{ tipo, descricao?, valor, motivo? }] }` — substitui as deduções manuais,
+  preserva a redução automática por assiduidade e recalcula `total_a_pagar`. O tipo
+  `reducao_assiduidade` não pode ser enviado manualmente. `409` se o processamento já não
+  estiver em `Preparado`
 - `PATCH /api/salarios/processamentos/:id/aprovar` 🔒(`salarios:aprovar`) — `Preparado` →
   `Aprovado`. `409` se o estado não permitir
 - `PATCH /api/salarios/processamentos/:id/pagar` 🔒(`salarios:gerir`) — `Aprovado` → `Pago`;
@@ -572,8 +577,9 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 
 > A efetividade é `minutos trabalhados / minutos previstos × 100`. As reduções mensais
 > são 0% para efetividade ≥95%, 5% para ≥90%, 10% para ≥80% e 15% abaixo de 80%.
-> Uma falta marcada acrescenta 10 horas previstas e zero horas trabalhadas. Sem registos
-> de assiduidade no período, não se presume efetividade zero nem se aplica dedução.
+> Uma falta marcada ou ocorrência `sem_registo` acrescenta 10 horas previstas e zero horas
+> trabalhadas. Dias sem qualquer registo não entram no cálculo; sem registos de assiduidade
+> no período, não se presume efetividade zero nem se aplica dedução.
 
 ## Relatórios — `/api/relatorios`
 

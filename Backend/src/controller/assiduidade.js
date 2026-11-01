@@ -1,5 +1,7 @@
 import Assiduidade from "../repository/assiduidade.js";
 import AuditoriaService from "../services/auditoria.js";
+import db from "../db/client.js";
+import SalarioService from "../services/salario.js";
 import { horaParaMinutos } from "../utils/validacoes.js";
 import { codigoPostgres } from "../utils/erro.js";
 
@@ -48,15 +50,28 @@ const createAssiduidade = async (req, res, next) => {
             return res.status(400).json({ message: "funcionario_id e obrigatorio" });
         }
 
-        const id = await Assiduidade.create({ ...req.body, registado_por: req.user.id });
-        const registo = await Assiduidade.findById(id);
+        const registo = await db.transaction(async (tx) => {
+            const id = await Assiduidade.create(
+                { ...req.body, registado_por: req.user.id },
+                tx
+            );
+            const criado = await Assiduidade.findById(id, tx);
 
-        await AuditoriaService.registar({
-            id_utilizador: req.user.id,
-            entidade: "assiduidade",
-            id_registo: id,
-            operacao: "criar",
-            depois: registo
+            await AuditoriaService.registar({
+                id_utilizador: req.user.id,
+                entidade: "assiduidade",
+                id_registo: id,
+                operacao: "criar",
+                depois: criado
+            }, tx);
+
+            await SalarioService.aplicarReducoesAssiduidade(
+                criado.data.slice(0, 7),
+                req.user.id,
+                tx
+            );
+
+            return criado;
         });
 
         res.status(201).json(registo);
@@ -81,24 +96,36 @@ const updateAssiduidade = async (req, res, next) => {
             return res.status(400).json({ message: "Nenhum campo para atualizar foi enviado" });
         }
 
-        const antes = await Assiduidade.findById(req.params.id);
-        if (!antes) {
+        const depois = await db.transaction(async (tx) => {
+            const antes = await Assiduidade.findById(req.params.id, tx);
+            if (!antes) return null;
+
+            await Assiduidade.update(req.params.id, {
+                hora_entrada_real, hora_saida_real, tipo_ocorrencia, justificacao, estado
+            }, tx);
+
+            const atualizado = await Assiduidade.findById(req.params.id, tx);
+            await AuditoriaService.registar({
+                id_utilizador: req.user.id,
+                entidade: "assiduidade",
+                id_registo: antes.id,
+                operacao: "atualizar",
+                antes,
+                depois: atualizado
+            }, tx);
+
+            await SalarioService.aplicarReducoesAssiduidade(
+                atualizado.data.slice(0, 7),
+                req.user.id,
+                tx
+            );
+
+            return atualizado;
+        });
+
+        if (!depois) {
             return res.status(404).json({ message: "Registo de assiduidade nao encontrado" });
         }
-
-        await Assiduidade.update(req.params.id, {
-            hora_entrada_real, hora_saida_real, tipo_ocorrencia, justificacao, estado
-        });
-
-        const depois = await Assiduidade.findById(req.params.id);
-        await AuditoriaService.registar({
-            id_utilizador: req.user.id,
-            entidade: "assiduidade",
-            id_registo: antes.id,
-            operacao: "atualizar",
-            antes,
-            depois
-        });
 
         res.status(200).json(depois);
     } catch (error) {
@@ -151,47 +178,59 @@ const registarDia = async (req, res, next) => {
             return res.status(400).json({ message: "A hora de saida deve ser posterior a hora de entrada" });
         }
 
-        const existente = await Assiduidade.findByFuncionarioData(funcionarioId, data);
-        let id;
-        let criado = false;
-        let antes = null;
-
-        if (existente) {
-            antes = await Assiduidade.findById(existente.id);
-            await Assiduidade.update(existente.id, {
-                hora_entrada_real: entrada,
-                hora_saida_real: saida,
-                tipo_ocorrencia
-            });
-            id = existente.id;
-        } else {
-            if (entrada === null && saida === null && tipo_ocorrencia == null) {
+        if (entrada === null && saida === null && tipo_ocorrencia == null) {
+            const existente = await Assiduidade.findByFuncionarioData(funcionarioId, data);
+            if (!existente) {
                 return res.status(400).json({ message: "Indique pelo menos a hora de entrada ou de saida" });
             }
-
-            id = await Assiduidade.create({
-                funcionario_id: funcionarioId,
-                data,
-                hora_entrada_real: entrada,
-                hora_saida_real: saida,
-                tipo_ocorrencia,
-                registado_por: req.user.id
-            });
-            criado = true;
         }
 
-        const depois = await Assiduidade.findById(id);
+        const resultado = await db.transaction(async (tx) => {
+            const existente = await Assiduidade.findByFuncionarioData(funcionarioId, data, tx);
+            const antes = existente
+                ? await Assiduidade.findById(existente.id, tx)
+                : null;
+            let id;
+            const criado = !existente;
 
-        await AuditoriaService.registar({
-            id_utilizador: req.user.id,
-            entidade: "assiduidade",
-            id_registo: id,
-            operacao: criado ? "criar" : "atualizar",
-            antes,
-            depois
+            if (existente) {
+                await Assiduidade.update(existente.id, {
+                    hora_entrada_real: entrada,
+                    hora_saida_real: saida,
+                    tipo_ocorrencia
+                }, tx);
+                id = existente.id;
+            } else {
+                id = await Assiduidade.create({
+                    funcionario_id: funcionarioId,
+                    data,
+                    hora_entrada_real: entrada,
+                    hora_saida_real: saida,
+                    tipo_ocorrencia,
+                    registado_por: req.user.id
+                }, tx);
+            }
+
+            const depois = await Assiduidade.findById(id, tx);
+            await AuditoriaService.registar({
+                id_utilizador: req.user.id,
+                entidade: "assiduidade",
+                id_registo: id,
+                operacao: criado ? "criar" : "atualizar",
+                antes,
+                depois
+            }, tx);
+
+            await SalarioService.aplicarReducoesAssiduidade(
+                data.slice(0, 7),
+                req.user.id,
+                tx
+            );
+
+            return { criado, depois };
         });
 
-        res.status(criado ? 201 : 200).json(depois);
+        res.status(resultado.criado ? 201 : 200).json(resultado.depois);
     } catch (error) {
         //23503 = funcionario inexistente
         if (codigoPostgres(error) === "23503") {

@@ -1158,7 +1158,10 @@ curl -s -b "$JAR" -X POST "$BASE/salarios/processar" \
 
 As reduções por assiduidade são aplicadas automaticamente aos processamentos preparados
 do período. Repetir o mesmo período não duplica a folha nem as deduções; atualiza as
-reduções existentes com base nas marcações de assiduidade mais recentes.
+reduções existentes com base nas marcações de assiduidade mais recentes. Criar ou corrigir
+assiduidade também recalcula automaticamente a redução dos processamentos `Preparado` do
+mês, na mesma transação da alteração; folhas aprovadas ou pagas permanecem inalteradas.
+Ao editar deduções manuais, a redução automática por assiduidade é preservada.
 
 **Deduções**
 
