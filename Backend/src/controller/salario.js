@@ -48,6 +48,19 @@ const processar = async (req, res, next) => {
     }
 };
 
+const reducoesPorAssiduidade = async (req, res, next) => {
+    try {
+        const { periodo } = req.body || {};
+        if (!periodo) {
+            return res.status(400).json({ message: "periodo e obrigatorio (formato AAAA-MM)" });
+        }
+        const resultado = await SalarioService.aplicarReducoesAssiduidade(periodo, req.user.id);
+        res.status(200).json({ ok: true, periodo, ...resultado });
+    } catch (error) {
+        next(error);
+    }
+};
+
 const atualizarDeducoes = async (req, res, next) => {
     try {
         const { deducoes } = req.body;
@@ -83,10 +96,25 @@ const pagar = async (req, res, next) => {
     }
 };
 
+const getReducoesAssiduidade = async (req, res, next) => {
+    try {
+        const { periodo } = req.query;
+        if (!periodo) {
+            return res.status(400).json({ message: "periodo e obrigatorio (AAAA-MM)" });
+        }
+        const reducoes = await SalarioService.computarReducoesAssiduidade(periodo);
+        res.status(200).json({ reducoes });
+    } catch (error) {
+        next(error);
+    }
+};
+
 const SalarioController = {
     getProcessamentos,
     getProcessamentoById,
     processar,
+    reducoesPorAssiduidade,
+    getReducoesAssiduidade,
     atualizarDeducoes,
     aprovar,
     pagar

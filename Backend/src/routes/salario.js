@@ -13,4 +13,9 @@ router.put('/salarios/processamentos/:id/deducoes', authenticate, authorizePermi
 router.patch('/salarios/processamentos/:id/aprovar', authenticate, authorizePermission('salarios:aprovar'), SalarioController.aprovar);
 router.patch('/salarios/processamentos/:id/pagar', authenticate, authorizePermission('salarios:gerir'), SalarioController.pagar);
 
+//Reducoes de salario baseadas na assiduidade (efetividade do registo diario)
+router.post('/salarios/assiduidade/reducoes', authenticate, authorizePermission('salarios:gerir'), SalarioController.reducoesPorAssiduidade);
+//a leitura tambem serve o relatorio, por isso aceita relatorios:ler (basta uma permissao)
+router.get('/salarios/assiduidade/reducoes', authenticate, authorizePermission('salarios:gerir', 'relatorios:ler'), SalarioController.getReducoesAssiduidade);
+
 export default router;

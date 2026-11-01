@@ -2,6 +2,7 @@ import db from '../db/client.js';
 import Salario from '../repository/salario.js';
 import AuditoriaService from './auditoria.js';
 import { criarErro } from '../utils/erro.js';
+import { sql } from 'drizzle-orm';
 
 //derivar o intervalo aqui evita que cada cliente envie datas de inicio/fim inconsistentes
 function periodoMensal(periodo) {
@@ -148,11 +149,153 @@ const pagar = async (processamento_id, registado_por) => {
     return Salario.findProcessamentoById(processamento_id);
 };
 
+
+//Regra de reducao por assiduidade. Efetividade = trabalhadas / previstas * 100
+//(calculo definido em HorarioPage, onde as horas previstas por dia sao 10h).
+//As horas previstas sao somadas em minutos para nao depender de fracoes de hora.
+export const MINUTOS_PREVISTAS_DIA = 10 * 60;
+export const TIPO_DEDUCAO_ASSIDUIDADE = 'reducao_assiduidade';
+
+// (tabela do enunciado: >=95% -> 0%, 90-94.9% -> 5%, 80-89.9% -> 10%, <80% -> 15%)
+const REDUCAO_POR_ASSIDUIDADE = [
+    { minEfetividade: 95, reducao: 0 },
+    { minEfetividade: 90, reducao: 0.05 },
+    { minEfetividade: 80, reducao: 0.10 },
+    { minEfetividade: 0,  reducao: 0.15 },
+];
+
+function obterTaxaReducao(efetividade) {
+    return REDUCAO_POR_ASSIDUIDADE.find((r) => efetividade >= r.minEfetividade)?.reducao ?? 0;
+}
+
+//Calcula, para cada funcionario ativo, a efetividade a partir do registo diario de
+//assiduidade e a reducao de salario que resulta, sem gravar nada.
+//Devolve todos os funcionarios (mesmo com reducao 0) para o relatorio poder mostrar
+//a efetividade; quem aplica decide o que fazer com valor 0.
+export const computarReducoesAssiduidade = async (periodo) => {
+    const { inicio, fim } = periodoMensal(periodo);
+    const resultado = await db.execute(sql`
+        select
+            f.id as funcionario_id,
+            f.nome as funcionario_nome,
+            f.salario as salario_base,
+            coalesce(sum(
+                case when a.hora_entrada_real is not null
+                     and a.hora_saida_real is not null
+                     and a.hora_saida_real > a.hora_entrada_real
+                then (extract(epoch from a.hora_saida_real) - extract(epoch from a.hora_entrada_real))::int
+                else 0 end
+            ), 0)::int as trabalhadas_segundos,
+            count(*) filter (
+                where a.hora_entrada_real is not null
+                  and a.hora_saida_real is not null
+                  and a.hora_saida_real > a.hora_entrada_real
+            ) * ${MINUTOS_PREVISTAS_DIA} as previstas_minutos,
+            exists (
+                select 1
+                  from processamento_salarial p
+                 where p.funcionario_id = f.id
+                   and to_char(p.periodo_inicio, 'YYYY-MM') = ${periodo}
+            ) as tem_processamento
+        from funcionario f
+        left join assiduidade a
+            on a.funcionario_id = f.id
+           and a.data >= ${inicio}
+           and a.data <= ${fim}
+        where f.estado = 'Ativo'
+        group by f.id, f.nome, f.salario
+        order by f.nome
+    `);
+
+    return resultado.rows.map((linha) => {
+        const trabalhadasMin = Number(linha.trabalhadas_segundos) / 60000;
+        const previstasMin = Number(linha.previstas_minutos) || 0;
+        //sem dias completos a efetividade e 0% -> reducao maxima (regra do HorarioPage)
+        const efetividade = previstasMin > 0 ? (trabalhadasMin / previstasMin) * 100 : 0;
+        const taxa = obterTaxaReducao(efetividade);
+        const valor = Math.round(Number(linha.salario_base) * taxa);
+        return {
+            funcionario_id: Number(linha.funcionario_id),
+            funcionario_nome: linha.funcionario_nome,
+            salario_base: Number(linha.salario_base),
+            trabalhadas: trabalhadasMin,
+            previstas: previstasMin,
+            efetividade,
+            reducaoPercentual: taxa * 100,
+            valor,
+            temProcessamento: Boolean(linha.tem_processamento),
+            tipo: TIPO_DEDUCAO_ASSIDUIDADE,
+            descricao: `Reducao por assiduidade (efetividade ${efetividade.toFixed(1)}%)`
+        };
+    });
+};
+
+//Calcula e aplica as reducoes de assiduidade aos processamentos do periodo.
+//A reducao e guardada como deducaoSalarial (tipo 'reducao_assiduidade'); antes de
+//gravar remove a reducao anterior do mesmo tipo, para o calculo poder ser repetido
+//sem duplicar o desconto. As deducoes manuais existentes nao sao tocadas e apenas
+//processamentos em Preparado sao alterados (os aprovados/pagos ficam fechados).
+export const aplicarReducoesAssiduidade = async (periodo, registado_por) => {
+    const reducoes = await computarReducoesAssiduidade(periodo);
+    const reducoesPorFuncionario = new Map(reducoes.map((r) => [r.funcionario_id, r]));
+
+    return db.transaction(async (tx) => {
+        const processamentos = await Salario.findProcessamentos({ periodo }, tx);
+        const atualizacoes = [];
+        const ignorados = [];
+        const aplicadas = [];
+
+        for (const processamento of processamentos) {
+            if (processamento.estado !== 'Preparado') {
+                ignorados.push({ processamento_id: processamento.id, estado: processamento.estado });
+                continue;
+            }
+
+            const reducao = reducoesPorFuncionario.get(processamento.funcionario_id);
+            const valor = reducao?.valor ?? 0;
+
+            await Salario.removerDeducoesPorTipo(tx, processamento.id, TIPO_DEDUCAO_ASSIDUIDADE);
+
+            if (valor > 0) {
+                await Salario.inserirDeducao(tx, {
+                    processamento_id: processamento.id,
+                    tipo: TIPO_DEDUCAO_ASSIDUIDADE,
+                    descricao: reducao.descricao,
+                    valor,
+                    motivo: `Assiduidade: efetividade ${reducao.efetividade.toFixed(1)}% -> reducao ${reducao.reducaoPercentual.toFixed(1)}%`,
+                    aprovado_por: registado_por
+                });
+                aplicadas.push({
+                    funcionario_id: reducao.funcionario_id,
+                    efetividade: reducao.efetividade,
+                    reducaoPercentual: reducao.reducaoPercentual,
+                    valor
+                });
+            }
+
+            await Salario.recalcular(tx, processamento.id);
+            atualizacoes.push(await Salario.findProcessamentoById(processamento.id, tx));
+        }
+
+        await AuditoriaService.registar({
+            id_utilizador: registado_por,
+            entidade: 'processamento_salarial',
+            id_registo: null,
+            operacao: 'reducao_assiduidade',
+            antes: null,
+            depois: { periodo, reducoes: aplicadas }
+        }, tx);
+
+        return { atualizacoes, ignorados, aplicadas };
+    });
+};
+
 const SalarioService = {
     processar,
     atualizarDeducoes,
     aprovar,
-    pagar
+    pagar,
+    aplicarReducoesAssiduidade
 };
 
 export default SalarioService;
