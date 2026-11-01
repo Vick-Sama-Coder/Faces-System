@@ -295,6 +295,7 @@ const SalarioService = {
     atualizarDeducoes,
     aprovar,
     pagar,
+    computarReducoesAssiduidade,
     aplicarReducoesAssiduidade
 };
 
