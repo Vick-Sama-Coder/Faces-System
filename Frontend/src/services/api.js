@@ -379,6 +379,31 @@ export const getRelatorioMovimentos = (params) => {
     return server.get("api/relatorios/movimentos", { params });
 };
 
+//---- caixa ----
+export const abrirCaixa = (data) => {
+    return server.post("api/caixa/abrir", data);
+};
+
+export const getCaixaAtual = () => {
+    return server.get("api/caixa/atual");
+};
+
+export const registarLevantamentoCaixa = (data) => {
+    return server.post("api/caixa/levantamento", data);
+};
+
+export const getMovimentosCaixa = () => {
+    return server.get("api/caixa/movimentos");
+};
+
+export const fecharCaixa = (data) => {
+    return server.post("api/caixa/fechar", data);
+};
+
+export const getCaixaFechos = (params = {}) => {
+    return server.get("api/caixa/fechos", { params });
+};
+
 //---- categorias de despesa ----
 export const getCategoriasDespesa = () => {
     return server.get("api/categorias-despesa");
