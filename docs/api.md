@@ -611,7 +611,8 @@ filtro devolve todo o histórico.
 - `GET /api/relatorios/clientes?de=&ate=` — clientes mais frequentes
 - `GET /api/relatorios/fidelizacao?de=&ate=` — `{ marcas, beneficios_ganhos, beneficios_utilizados }`
 - `GET /api/relatorios/anulacoes?de=&ate=` — histórico de anulações (atendimentos + pagamentos)
-- `GET /api/relatorios/movimentos?de=&ate=` — movimentos do caixa
+- `GET /api/relatorios/movimentos?de=&ate=` — movimentos do caixa, incluindo
+  `metodo_pagamento` para permitir filtrar o fluxo por método
 
 ---
 

@@ -178,7 +178,7 @@ const anulacoes = async ({ de, ate } = {}) => {
 //inclui o estado para o historico mostrar tambem os movimentos anulados
 const movimentos = async ({ de, ate } = {}) => {
     const resultado = await db.execute(sql`
-        select m.id, m.id_sessao, m.tipo_movimento, m.valor, m.descricao,
+        select m.id, m.id_sessao, m.tipo_movimento, m.metodo_pagamento, m.valor, m.descricao,
                m.origem, m.referencia_id, m.data_hora, m.estado
            from movimento_caixa m
           where (${periodo(sql`m.data_hora::date`, de, ate)})
