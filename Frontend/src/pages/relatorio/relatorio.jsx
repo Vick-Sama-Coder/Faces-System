@@ -31,6 +31,8 @@ import {
     Banknote,
     CreditCard,
     Percent,
+    Calculator,
+    Loader2,
     X
 } from "lucide-react";
 import {
@@ -57,7 +59,9 @@ import {
     getRelatorioMovimentos,
     getRelatorioFinanceiro,
     getDespesas,
-    getApiError
+    getApiError,
+    aplicarReducoesAssiduidade,
+    getRelatorioReducoesAssiduidade
 } from "../../services/api.js";
 
 const PRESETS = [
@@ -188,6 +192,8 @@ function Relatorio() {
     const [funcionarioExpandido, setFuncionarioExpandido] = useState(null);
     const [filtroFuncionario, setFiltroFuncionario] = useState("");
     const [filtroMetodo, setFiltroMetodo] = useState("");
+    const [calculando, setCalculando] = useState(false);
+    const [mensagem, setMensagem] = useState(null);
 
     useEffect(() => {
         let activo = true;
@@ -200,6 +206,8 @@ function Relatorio() {
                 const params = {};
                 if (periodo.de) params.de = periodo.de;
                 if (periodo.ate) params.ate = periodo.ate;
+                // AAAA-MM usado pelo calculo salarial de assiduidade
+                if (periodo.de) params.periodo = String(periodo.de).slice(0, 7);
 
                 const [
                     resResumo,
@@ -208,6 +216,7 @@ function Relatorio() {
                     resServicos,
                     resFuncionarios,
                     resAssiduidade,
+                    resReducoes,
                     resClientes,
                     resFidelizacao,
                     resAnulacoes,
@@ -220,6 +229,8 @@ function Relatorio() {
                     getRelatorioServicos(params),
                     getRelatorioFuncionarios(params),
                     getRelatorioAssiduidade(params),
+                    // a leitura das reducoes nao pode derrubar o relatorio (ex.: sem permissao salarial)
+                    getRelatorioReducoesAssiduidade(params).catch(() => ({ data: { reducoes: [] } })),
                     getRelatorioClientes(params),
                     getRelatorioFidelizacao(params),
                     getRelatorioAnulacoes(params),
@@ -236,6 +247,7 @@ function Relatorio() {
                     servicos: Array.isArray(resServicos.data) ? resServicos.data : [],
                     funcionarios: Array.isArray(resFuncionarios.data) ? resFuncionarios.data : [],
                     assiduidade: Array.isArray(resAssiduidade.data) ? resAssiduidade.data : [],
+                    reducoes: Array.isArray(resReducoes.data?.reducoes) ? resReducoes.data.reducoes : [],
                     clientes: Array.isArray(resClientes.data) ? resClientes.data : [],
                     fidelizacao: resFidelizacao.data || {},
                     anulacoes: Array.isArray(resAnulacoes.data) ? resAnulacoes.data : [],
@@ -316,6 +328,8 @@ function Relatorio() {
     const anulacoes = dados?.anulacoes || [];
     const movimentos = useMemo(() => dados?.movimentos || [], [dados]);
     const despesas = useMemo(() => dados?.despesas || [], [dados]);
+
+    const reducoes = dados?.reducoes || [];
 
     const receita = Number(resumoFinanceiro.receitas_recebidas ?? resumo.receita) || 0;
     const receitaGerada = Number(resumoFinanceiro.receitas_geradas) || 0;
@@ -475,6 +489,8 @@ function Relatorio() {
         { id: "equipa", label: "Equipa", Icone: Users, badge: funcionarios.length },
         { id: "dividas", label: "Dividas", Icone: HandCoins, badge: dividasReceber.length + dividasPagar.length },
         { id: "clientes", label: "Clientes", Icone: UserRound, badge: clientesComAtendimentos.length },
+        { id: "assiduidade", label: "Assiduidade", Icone: CalendarDays, badge: assiduidade.filter((a) => Number(a.ocorrencias) > 0).length },
+        { id: "reducao", label: "Reducao por assiduidade", Icone: Percent, badge: reducoes.filter((r) => r.temProcessamento && Number(r.valor) > 0).length },
         { id: "anulacoes", label: "Anulacoes", Icone: Ban, badge: anulacoes.length }
     ];
 
@@ -2112,6 +2128,142 @@ function Relatorio() {
                                     <p className="relatorio-note">
                                         As marcas sao acumuladas por dia. Ao completar 5/5, o 6.º servico tem de ser gratuito e nao pode ser guardado para depois.
                                     </p>
+                                </article>
+                            </div>
+                        )}
+
+                        {tabAtiva === "assiduidade" && (
+                            <div className="relatorio-grid-2">
+                                <article className="relatorio-card">
+                                    <header className="relatorio-card-header">
+                                        <div>
+                                            <h2>Registos de assiduidade</h2>
+                                            <p>Registos de entrada/saida e ocorrencias no periodo</p>
+                                        </div>
+                                        <CalendarDays size={17} className="relatorio-card-mark" />
+                                    </header>
+
+                                    {assiduidade.length === 0 ? (
+                                        <Vazio
+                                            titulo="Sem registos de assiduidade"
+                                            texto="Os registos de presenca e ocorrencias aparecem aqui."
+                                        />
+                                    ) : (
+                                        <div className="relatorio-table-scroll">
+                                            <table className="admin-table relatorio-table relatorio-table-compact">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Funcionario</th>
+                                                        <th>Registos</th>
+                                                        <th>Ocorrencias</th>
+                                                        <th>Atrasos</th>
+                                                        <th>Faltas</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {assiduidade.map((registo) => (
+                                                        <tr key={registo.funcionario_id}>
+                                                            <td>{registo.funcionario_nome}</td>
+                                                            <td>{formatarNumero(registo.registos)}</td>
+                                                            <td>
+                                                                <span className={`relatorio-pill ${Number(registo.ocorrencias) > 0 ? "warning" : "success"}`}>
+                                                                    {formatarNumero(registo.ocorrencias)}
+                                                                </span>
+                                                            </td>
+                                                            <td>{formatarNumero(registo.atrasos)}</td>
+                                                            <td>{formatarNumero(registo.faltas)}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </article>
+                            </div>
+                        )}
+
+                        {tabAtiva === "reducao" && (
+                            <div className="relatorio-grid-2">
+                                <article className="relatorio-card">
+                                    <header className="relatorio-card-header">
+                                        <div>
+                                            <h2>Reducao por assiduidade</h2>
+                                            <p>Calcula a reducao de salario a partir da efetividade do registo diario de assiduidade.</p>
+                                        </div>
+                                        <Percent size={17} className="relatorio-card-mark" />
+                                    </header>
+
+                                    <div className="relatorio-reducao-actions">
+                                        <button
+                                            type="button"
+                                            className="admin-btn primary"
+                                            onClick={async () => {
+                                                if (!periodo.de) {
+                                                    setMensagem("Selecione um periodo antes de calcular as reducoes.");
+                                                    return;
+                                                }
+                                                if (!confirm("Calcular e aplicar as reducoes de assiduidade para o periodo selecionado?")) return;
+                                                const periodoRef = String(periodo.de).slice(0, 7);
+                                                try {
+                                                    setCalculando(true);
+                                                    setMensagem(null);
+                                                    const resposta = await aplicarReducoesAssiduidade({ periodo: periodoRef });
+                                                    const aplicadas = resposta?.data?.aplicadas?.length ?? 0;
+                                                    setRecarregar((valor) => valor + 1);
+                                                    setMensagem(`Reducoes aplicadas com sucesso (${aplicadas} processamento(s) atualizado(s)).`);
+                                                } catch (err) {
+                                                    setMensagem(getApiError(err));
+                                                } finally {
+                                                    setCalculando(false);
+                                                }
+                                            }}
+                                            disabled={calculando}
+                                        >
+                                            {calculando ? <Loader2 size={16} className="animate-spin" /> : <Calculator size={16} />}
+                                            {calculando ? "A calcular..." : "Calcular reducoes"}
+                                        </button>
+                                    </div>
+
+                                    {mensagem && (
+                                        <p className="relatorio-reducao-mensagem" role="status">{mensagem}</p>
+                                    )}
+
+                                    {reducoes.length === 0 ? (
+                                        <div className="relatorio-empty relatorio-empty-neutral">
+                                            <Clock3 size={24} />
+                                            <p>Selecione um periodo e clique em <strong>"Calcular reducoes"</strong>.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="relatorio-table-scroll">
+                                            <table className="admin-table relatorio-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Funcionario</th>
+                                                        <th>Efetividade</th>
+                                                        <th>Reducao (%)</th>
+                                                        <th>Reducao (MT)</th>
+                                                        <th>Salario base</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {reducoes.map((reducao) => (
+                                                        <tr key={reducao.funcionario_id}>
+                                                            <td>{reducao.funcionario_nome}</td>
+                                                            <td>{Number(reducao.efetividade).toFixed(1)}%</td>
+                                                            <td>{Number(reducao.reducaoPercentual).toFixed(1)}%</td>
+                                                            <td>{Number(reducao.valor) > 0 ? `-${formatarMoeda(reducao.valor)}` : formatarMoeda(0)}</td>
+                                                            <td>
+                                                                {formatarMoeda(reducao.salario_base)}
+                                                                {!reducao.temProcessamento && (
+                                                                    <small className="relatorio-reducao-nota"> sem processamento no periodo</small>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
                                 </article>
                             </div>
                         )}

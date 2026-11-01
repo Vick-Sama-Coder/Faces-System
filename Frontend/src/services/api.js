@@ -518,3 +518,13 @@ export const pagarProcessamento = (id) => {
     return server.patch(`api/salarios/processamentos/${id}/pagar`);
 };
 
+//Calcula e aplica a reducao de salario baseada na efetividade da assiduidade
+export const aplicarReducoesAssiduidade = (data) => {
+    return server.post("api/salarios/assiduidade/reducoes", data);
+};
+
+//Calcula (sem aplicar) a reducao de salario por assiduidade - usado no relatorio
+export const getRelatorioReducoesAssiduidade = (params) => {
+    return server.get("api/salarios/assiduidade/reducoes", { params });
+};
+
