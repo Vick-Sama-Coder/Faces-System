@@ -160,30 +160,19 @@ const pagar = async (processamento_id, registado_por) => {
 };
 
 
-//Regra de reducao por assiduidade. Efetividade = trabalhadas / previstas * 100
-//(calculo definido em HorarioPage, onde as horas previstas por dia sao 10h).
-//As horas previstas sao somadas em minutos para nao depender de fracoes de hora.
+//O salario base cobre 10 horas por cada dia do mes. As horas em falta sao
+//descontadas proporcionalmente ao total de horas previstas no periodo.
 export const MINUTOS_PREVISTAS_DIA = 10 * 60;
 export const TIPO_DEDUCAO_ASSIDUIDADE = 'reducao_assiduidade';
 
-// (tabela do enunciado: >=95% -> 0%, 90-94.9% -> 5%, 80-89.9% -> 10%, <80% -> 15%)
-const REDUCAO_POR_ASSIDUIDADE = [
-    { minEfetividade: 95, reducao: 0 },
-    { minEfetividade: 90, reducao: 0.05 },
-    { minEfetividade: 80, reducao: 0.10 },
-    { minEfetividade: 0,  reducao: 0.15 },
-];
-
-function obterTaxaReducao(efetividade) {
-    return REDUCAO_POR_ASSIDUIDADE.find((r) => efetividade >= r.minEfetividade)?.reducao ?? 0;
-}
-
 //Calcula, para cada funcionario ativo, a efetividade a partir do registo diario de
-//assiduidade e a reducao de salario que resulta, sem gravar nada.
+//assiduidade e o desconto proporcional pelas horas mensais em falta, sem gravar nada.
 //Devolve todos os funcionarios (mesmo com reducao 0) para o relatorio poder mostrar
 //a efetividade; quem aplica decide o que fazer com valor 0.
 export const computarReducoesAssiduidade = async (periodo, executor = db) => {
     const { inicio, fim } = periodoMensal(periodo);
+    const diasNoMes = Number(fim.slice(-2));
+    const previstasMin = diasNoMes * MINUTOS_PREVISTAS_DIA;
     const resultado = await executor.execute(sql`
         select
             f.id as funcionario_id,
@@ -210,21 +199,7 @@ export const computarReducoesAssiduidade = async (periodo, executor = db) => {
                     else 0
                 end
             ), 0)::int as trabalhadas_segundos,
-            count(*) filter (
-                where (
-                    a.tipo_ocorrencia in (
-                        'falta_justificada',
-                        'falta_injustificada',
-                        'ausencia',
-                        'sem_registo'
-                    )
-                    or (
-                        a.hora_entrada_real is not null
-                        and a.hora_saida_real is not null
-                        and a.hora_saida_real > a.hora_entrada_real
-                    )
-                )
-            ) * ${MINUTOS_PREVISTAS_DIA} as previstas_minutos,
+            count(a.id)::int as dias_com_registo,
             exists (
                 select 1
                   from processamento_salarial p
@@ -243,26 +218,26 @@ export const computarReducoesAssiduidade = async (periodo, executor = db) => {
 
     return resultado.rows.map((linha) => {
         const trabalhadasMin = Number(linha.trabalhadas_segundos) / 60;
-        const previstasMin = Number(linha.previstas_minutos) || 0;
-        const semRegistos = previstasMin === 0;
-        const efetividade = semRegistos ? null : (trabalhadasMin / previstasMin) * 100;
-        const taxa = semRegistos ? 0 : obterTaxaReducao(efetividade);
-        const valor = Math.round(Number(linha.salario_base) * taxa);
+        const horasEmFaltaMin = Math.max(0, previstasMin - trabalhadasMin);
+        const salarioBase = Number(linha.salario_base);
+        const efetividade = (trabalhadasMin / previstasMin) * 100;
+        const valor = Math.round(salarioBase * horasEmFaltaMin / previstasMin);
+        const reducaoPercentual = salarioBase > 0 ? (valor / salarioBase) * 100 : 0;
+        const semRegistos = Number(linha.dias_com_registo) === 0;
         return {
             funcionario_id: Number(linha.funcionario_id),
             funcionario_nome: linha.funcionario_nome,
-            salario_base: Number(linha.salario_base),
+            salario_base: salarioBase,
             trabalhadas: trabalhadasMin,
             previstas: previstasMin,
+            horasEmFalta: horasEmFaltaMin / 60,
             efetividade,
-            reducaoPercentual: taxa * 100,
+            reducaoPercentual,
             valor,
             semRegistos,
             temProcessamento: Boolean(linha.tem_processamento),
             tipo: TIPO_DEDUCAO_ASSIDUIDADE,
-            descricao: semRegistos
-                ? "Sem registos de assiduidade no periodo"
-                : `Reducao por assiduidade (efetividade ${efetividade.toFixed(1)}%)`
+            descricao: `Desconto proporcional por assiduidade (${(horasEmFaltaMin / 60).toFixed(1)} horas em falta)`
         };
     });
 };
@@ -290,7 +265,7 @@ async function aplicarReducoesNosProcessamentos(tx, periodo, registado_por, proc
                 tipo: TIPO_DEDUCAO_ASSIDUIDADE,
                 descricao: reducao.descricao,
                 valor: reducao.valor,
-                motivo: `Assiduidade: efetividade ${reducao.efetividade.toFixed(1)}% -> reducao ${reducao.reducaoPercentual.toFixed(1)}%`,
+                motivo: `Assiduidade: ${reducao.horasEmFalta.toFixed(1)} horas em falta (${reducao.reducaoPercentual.toFixed(1)}% do salario base)`,
                 aprovado_por: registado_por
             });
             aplicadas.push({

@@ -2190,7 +2190,7 @@ function Relatorio() {
                                     <header className="relatorio-card-header">
                                         <div>
                                             <h2>Reducao por assiduidade</h2>
-                                            <p>Calcula a reducao de salario a partir da efetividade do registo diario de assiduidade.</p>
+                                            <p>Meta salarial de 10 horas por cada dia do mês. As horas em falta são descontadas proporcionalmente ao salário base; horas extra noutros dias compensam o total mensal.</p>
                                         </div>
                                         <Percent size={17} className="relatorio-card-mark" />
                                     </header>
@@ -2277,8 +2277,9 @@ function Relatorio() {
                                                 <thead>
                                                     <tr>
                                                         <th>Funcionario</th>
-                                                        <th>Efetividade</th>
-                                                        <th>Reducao (%)</th>
+                                                        <th>Efetividade mensal</th>
+                                                        <th>Horas em falta</th>
+                                                        <th>Desconto (%)</th>
                                                         <th>Reducao (MT)</th>
                                                         <th>Salario base</th>
                                                     </tr>
@@ -2287,8 +2288,9 @@ function Relatorio() {
                                                     {reducoes.map((reducao) => (
                                                         <tr key={reducao.funcionario_id}>
                                                             <td>{reducao.funcionario_nome}</td>
-                                                            <td>{reducao.semRegistos ? "—" : `${Number(reducao.efetividade).toFixed(1)}%`}</td>
-                                                            <td>{reducao.semRegistos ? "—" : `${Number(reducao.reducaoPercentual).toFixed(1)}%`}</td>
+                                                            <td>{`${Number(reducao.efetividade).toFixed(1)}%`}</td>
+                                                            <td>{`${Number(reducao.horasEmFalta).toFixed(1)} h`}</td>
+                                                            <td>{`${Number(reducao.reducaoPercentual).toFixed(1)}%`}</td>
                                                             <td>{Number(reducao.valor) > 0 ? `-${formatarMoeda(reducao.valor)}` : formatarMoeda(0)}</td>
                                                             <td>
                                                                 {formatarMoeda(reducao.salario_base)}

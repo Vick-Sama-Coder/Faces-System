@@ -575,11 +575,14 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 > `total_a_pagar = salario_base + total_comissoes − total_deducoes`. Só funcionários
 > recebem salário/comissão (RF17).
 
-> A efetividade é `minutos trabalhados / minutos previstos × 100`. As reduções mensais
-> são 0% para efetividade ≥95%, 5% para ≥90%, 10% para ≥80% e 15% abaixo de 80%.
-> Uma falta marcada ou ocorrência `sem_registo` acrescenta 10 horas previstas e zero horas
-> trabalhadas. Dias sem qualquer registo não entram no cálculo; sem registos de assiduidade
-> no período, não se presume efetividade zero nem se aplica dedução.
+> Para o cálculo salarial, as horas previstas são `10 × todos os dias do mês` (por exemplo,
+> 310 horas num mês de 31 dias). Somam-se as horas efetivamente trabalhadas no mês, pelo que
+> horas acima de 10 num dia compensam horas em falta noutros dias. Dias sem registo e
+> ocorrências de falta/ausência contam como zero horas trabalhadas. O desconto é proporcional:
+> `salario_base × max(0, horas_previstas − horas_trabalhadas) / horas_previstas`, arredondado
+> ao Metical. Assim, sem registos aplica-se o desconto correspondente ao salário base inteiro;
+> atingir ou ultrapassar a meta mensal não gera desconto. Este cálculo salarial é distinto
+> do resumo diário apresentado na página de controlo de horários.
 
 ## Relatórios — `/api/relatorios`
 
