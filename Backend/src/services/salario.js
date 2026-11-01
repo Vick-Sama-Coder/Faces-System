@@ -241,6 +241,10 @@ export const aplicarReducoesAssiduidade = async (periodo, registado_por) => {
 
     return db.transaction(async (tx) => {
         const processamentos = await Salario.findProcessamentos({ periodo }, tx);
+        const comProcessamento = new Set(processamentos.map((p) => p.funcionario_id));
+        const semProcessamento = reducoes.filter(
+            (r) => r.valor > 0 && !comProcessamento.has(r.funcionario_id)
+        ).length;
         const atualizacoes = [];
         const ignorados = [];
         const aplicadas = [];
@@ -286,7 +290,7 @@ export const aplicarReducoesAssiduidade = async (periodo, registado_por) => {
             depois: { periodo, reducoes: aplicadas }
         }, tx);
 
-        return { atualizacoes, ignorados, aplicadas };
+        return { atualizacoes, ignorados, aplicadas, semProcessamento };
     });
 };
 

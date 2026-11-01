@@ -61,7 +61,8 @@ import {
     getDespesas,
     getApiError,
     aplicarReducoesAssiduidade,
-    getRelatorioReducoesAssiduidade
+    getRelatorioReducoesAssiduidade,
+    processarSalarios
 } from "../../services/api.js";
 
 const PRESETS = [
@@ -193,6 +194,7 @@ function Relatorio() {
     const [filtroFuncionario, setFiltroFuncionario] = useState("");
     const [filtroMetodo, setFiltroMetodo] = useState("");
     const [calculando, setCalculando] = useState(false);
+    const [processando, setProcessando] = useState(false);
     const [mensagem, setMensagem] = useState(null);
 
     useEffect(() => {
@@ -2196,6 +2198,34 @@ function Relatorio() {
                                     <div className="relatorio-reducao-actions">
                                         <button
                                             type="button"
+                                            className="admin-btn"
+                                            onClick={async () => {
+                                                if (!periodo.de) {
+                                                    setMensagem("Selecione um periodo antes de gerar os processamentos.");
+                                                    return;
+                                                }
+                                                if (!confirm("Gerar os processamentos salariais do periodo para toda a equipa ativa?")) return;
+                                                const periodoRef = String(periodo.de).slice(0, 7);
+                                                try {
+                                                    setProcessando(true);
+                                                    setMensagem(null);
+                                                    const resposta = await processarSalarios(periodoRef);
+                                                    const criados = resposta?.data?.criados?.length ?? resposta?.data?.length ?? 0;
+                                                    setRecarregar((valor) => valor + 1);
+                                                    setMensagem(`Processamentos gerados (${criados} novo(s)). Agora pode calcular as reducoes.`);
+                                                } catch (err) {
+                                                    setMensagem(getApiError(err));
+                                                } finally {
+                                                    setProcessando(false);
+                                                }
+                                            }}
+                                            disabled={processando || calculando}
+                                        >
+                                            {processando ? <Loader2 size={16} className="animate-spin" /> : <Receipt size={16} />}
+                                            {processando ? "A gerar..." : "Gerar processamentos"}
+                                        </button>
+                                        <button
+                                            type="button"
                                             className="admin-btn primary"
                                             onClick={async () => {
                                                 if (!periodo.de) {
@@ -2209,15 +2239,20 @@ function Relatorio() {
                                                     setMensagem(null);
                                                     const resposta = await aplicarReducoesAssiduidade({ periodo: periodoRef });
                                                     const aplicadas = resposta?.data?.aplicadas?.length ?? 0;
+                                                    const semProcessamento = resposta?.data?.semProcessamento ?? 0;
                                                     setRecarregar((valor) => valor + 1);
-                                                    setMensagem(`Reducoes aplicadas com sucesso (${aplicadas} processamento(s) atualizado(s)).`);
+                                                    setMensagem(
+                                                        semProcessamento > 0
+                                                            ? `Reducoes aplicadas (${aplicadas} processamento(s)). ${semProcessamento} funcionario(s) ainda sem processamento no periodo - use "Gerar processamentos" e repita.`
+                                                            : `Reducoes aplicadas com sucesso (${aplicadas} processamento(s) atualizado(s)).`
+                                                    );
                                                 } catch (err) {
                                                     setMensagem(getApiError(err));
                                                 } finally {
                                                     setCalculando(false);
                                                 }
                                             }}
-                                            disabled={calculando}
+                                            disabled={calculando || processando}
                                         >
                                             {calculando ? <Loader2 size={16} className="animate-spin" /> : <Calculator size={16} />}
                                             {calculando ? "A calcular..." : "Calcular reducoes"}
