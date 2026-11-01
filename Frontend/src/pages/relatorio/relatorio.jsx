@@ -2212,7 +2212,10 @@ function Relatorio() {
                                                     const resposta = await processarSalarios(periodoRef);
                                                     const criados = resposta?.data?.criados?.length ?? resposta?.data?.length ?? 0;
                                                     setRecarregar((valor) => valor + 1);
-                                                    setMensagem(`Processamentos gerados (${criados} novo(s)). Agora pode calcular as reducoes.`);
+                                                    setMensagem(
+                                                        `Processamentos gerados (${criados} novo(s)); reducoes por assiduidade aplicadas automaticamente `
+                                                        + `aos processamentos preparados do periodo.`
+                                                    );
                                                 } catch (err) {
                                                     setMensagem(getApiError(err));
                                                 } finally {
@@ -2229,10 +2232,10 @@ function Relatorio() {
                                             className="admin-btn primary"
                                             onClick={async () => {
                                                 if (!periodo.de) {
-                                                    setMensagem("Selecione um periodo antes de calcular as reducoes.");
+                                                    setMensagem("Selecione um periodo antes de recalcular as reducoes.");
                                                     return;
                                                 }
-                                                if (!confirm("Calcular e aplicar as reducoes de assiduidade para o periodo selecionado?")) return;
+                                                if (!confirm("Recalcular e atualizar as reducoes de assiduidade do periodo selecionado?")) return;
                                                 const periodoRef = String(periodo.de).slice(0, 7);
                                                 try {
                                                     setCalculando(true);
@@ -2255,7 +2258,7 @@ function Relatorio() {
                                             disabled={calculando || processando}
                                         >
                                             {calculando ? <Loader2 size={16} className="animate-spin" /> : <Calculator size={16} />}
-                                            {calculando ? "A calcular..." : "Calcular reducoes"}
+                                            {calculando ? "A calcular..." : "Recalcular reducoes"}
                                         </button>
                                     </div>
 
@@ -2266,7 +2269,7 @@ function Relatorio() {
                                     {reducoes.length === 0 ? (
                                         <div className="relatorio-empty relatorio-empty-neutral">
                                             <Clock3 size={24} />
-                                            <p>Selecione um periodo e clique em <strong>"Calcular reducoes"</strong>.</p>
+                                            <p>Selecione um periodo e gere a folha para aplicar as reducoes automaticamente. Pode recalcular apos corrigir a assiduidade.</p>
                                         </div>
                                     ) : (
                                         <div className="relatorio-table-scroll">
@@ -2284,8 +2287,8 @@ function Relatorio() {
                                                     {reducoes.map((reducao) => (
                                                         <tr key={reducao.funcionario_id}>
                                                             <td>{reducao.funcionario_nome}</td>
-                                                            <td>{Number(reducao.efetividade).toFixed(1)}%</td>
-                                                            <td>{Number(reducao.reducaoPercentual).toFixed(1)}%</td>
+                                                            <td>{reducao.semRegistos ? "—" : `${Number(reducao.efetividade).toFixed(1)}%`}</td>
+                                                            <td>{reducao.semRegistos ? "—" : `${Number(reducao.reducaoPercentual).toFixed(1)}%`}</td>
                                                             <td>{Number(reducao.valor) > 0 ? `-${formatarMoeda(reducao.valor)}` : formatarMoeda(0)}</td>
                                                             <td>
                                                                 {formatarMoeda(reducao.salario_base)}

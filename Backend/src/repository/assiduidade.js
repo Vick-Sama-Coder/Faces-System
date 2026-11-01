@@ -95,8 +95,8 @@ const update = async (id, {
 
     if (hora_entrada_real !== undefined) valores.hora_entrada_real = hora_entrada_real || null;
     if (hora_saida_real !== undefined) valores.hora_saida_real = hora_saida_real || null;
-    if (tipo_ocorrencia !== undefined && tipo_ocorrencia !== null) valores.tipo_ocorrencia = tipo_ocorrencia;
-    if (justificacao !== undefined && justificacao !== null) valores.justificacao = justificacao;
+    if (tipo_ocorrencia !== undefined) valores.tipo_ocorrencia = tipo_ocorrencia;
+    if (justificacao !== undefined) valores.justificacao = justificacao;
     if (estado !== undefined && estado !== null) valores.estado = estado;
 
     if (Object.keys(valores).length === 0) {

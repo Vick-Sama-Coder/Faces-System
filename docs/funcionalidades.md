@@ -83,9 +83,15 @@ Painel interno protegido por sessão, alimentado por `GET /api/dashboard`.
 - Programação semanal por funcionário, com vários turnos por dia e validação de
   sobreposição.
 - Página de **controlo mensal**: entrada/saída reais por dia, horas trabalhadas, horas
-  previstas (base `09:00–19:00`) e percentagem de efectividade.
+  previstas (base `09:00–19:00`), percentagem de efectividade, faltas marcadas,
+  atrasos após as `09:00` e ocorrências no resumo da equipa.
+- Uma falta marcada equivale a 10 horas não trabalhadas; as horas registadas são
+  preservadas para consulta. Dias sem registo não são automaticamente classificados como
+  falta.
 - Gravação através de `PUT /api/assiduidade/dia` (cria ou actualiza o par
-  `funcionario` + `data` sem duplicar) e correcção de ocorrências.
+  `funcionario` + `data` sem duplicar), marcação/remoção de faltas e correcção de
+  ocorrências. As reduções salariais seguem os escalões mensais documentados na API e
+  são aplicadas ao processamento preparado do período.
 - Acesso à programação de qualquer funcionário requer `horarios:gerir`; a página exige
   `assiduidade:gerir`.
 

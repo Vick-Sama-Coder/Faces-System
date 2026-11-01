@@ -527,15 +527,19 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
   Enviar `null` nas horas limpa o valor
 - `PUT /api/assiduidade/dia` 🔒(`assiduidade:gerir`) — cria ou atualiza o dia
   `(funcionario_id, data)` sem duplicar. Corpo:
-  `{ funcionario_id, data, hora_entrada_real, hora_saida_real }`
+  `{ funcionario_id, data, hora_entrada_real, hora_saida_real, tipo_ocorrencia? }`
   - `data` no formato `AAAA-MM-DD`; horas em `HH:MM` ou `null` (registo parcial permitido)
-  - Um dia novo exige pelo menos uma hora; se o dia já existir, `null` limpa a hora
+  - Um dia novo exige pelo menos uma hora ou uma ocorrência; se o dia já existir, `null` limpa a hora/ocorrência
   - Se ambas as horas forem enviadas, a saída tem de ser posterior à entrada
-  - Preserva ocorrência/justificação existentes; `201` ao criar e `200` ao atualizar
+  - A ocorrência pode ser `atraso`, `falta_justificada`, `falta_injustificada`,
+    `saida_antecipada`, `ausencia` ou `sem_registo`
+  - `201` ao criar e `200` ao atualizar
 
 > A página `/horarios` usa `PUT /api/assiduidade/dia` para o controlo mensal: base
-> `09:00–19:00` (10h por dia), em todos os dias. Dias sem entrada e saída não contam
-> para as horas previstas e não há desconto de almoço.
+> `09:00–19:00` (10h). Marcar uma falta conta como 10h não trabalhadas, mesmo que
+> existam horas registadas nesse dia; a marcação pode ser removida. Uma entrada depois
+> das `09:00` conta como atraso, incluindo os minutos após esse horário. Dias sem
+> registo/falta marcada não entram nas horas previstas e não há desconto de almoço.
 
 > A ocorrência é registada separadamente do efeito salarial (RN15).
 
@@ -545,8 +549,10 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
   lista; `periodo` no formato `AAAA-MM`
 - `GET /api/salarios/processamentos/:id` 🔒(`salarios:gerir`) — detalhe + `deducoes`
 - `POST /api/salarios/processar` 🔒(`salarios:gerir`) — corpo: `{ periodo: "AAAA-MM" }`.
-  Gera o processamento de todos os funcionários **ativos** para o mês. `201` com a lista
-  criada (vazia se já processado). `400` se o período for inválido
+  Gera o processamento de todos os funcionários **ativos** para o mês e aplica
+  automaticamente as reduções por assiduidade aos processamentos `Preparado` do período.
+  `201` com a lista criada (vazia se já processado); mesmo quando já existem processamentos,
+  a ação atualiza as reduções dos que continuam `Preparado`. `400` se o período for inválido
 - `PUT /api/salarios/processamentos/:id/deducoes` 🔒(`salarios:gerir`) — corpo:
   `{ deducoes: [{ tipo, descricao?, valor, motivo? }] }` — substitui as deduções e
   recalcula `total_a_pagar`. `409` se o processamento já não estiver em `Preparado`
@@ -554,9 +560,20 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
   `Aprovado`. `409` se o estado não permitir
 - `PATCH /api/salarios/processamentos/:id/pagar` 🔒(`salarios:gerir`) — `Aprovado` → `Pago`;
   marca as comissões do período como `Paga`. `409` se não estiver aprovado
+- `GET /api/salarios/assiduidade/reducoes?periodo=AAAA-MM` 🔒(`salarios:gerir` ou
+  `relatorios:ler`) — calcula efetividade e reduções sem gravar
+- `POST /api/salarios/assiduidade/reducoes` 🔒(`salarios:gerir`) — corpo
+  `{ periodo: "AAAA-MM" }`; grava a redução por assiduidade nas deduções de processamentos
+  `Preparado`. Pode ser usada novamente depois de corrigir a assiduidade; substitui a
+  redução anterior sem duplicá-la
 
 > `total_a_pagar = salario_base + total_comissoes − total_deducoes`. Só funcionários
 > recebem salário/comissão (RF17).
+
+> A efetividade é `minutos trabalhados / minutos previstos × 100`. As reduções mensais
+> são 0% para efetividade ≥95%, 5% para ≥90%, 10% para ≥80% e 15% abaixo de 80%.
+> Uma falta marcada acrescenta 10 horas previstas e zero horas trabalhadas. Sem registos
+> de assiduidade no período, não se presume efetividade zero nem se aplica dedução.
 
 ## Relatórios — `/api/relatorios`
 

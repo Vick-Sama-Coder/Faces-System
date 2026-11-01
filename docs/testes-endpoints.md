@@ -665,6 +665,17 @@ curl -s -b "$JAR" -X PUT "$BASE/assiduidade/dia" \
     "hora_saida_real": "19:00"
   }'
 # 201 na primeira vez; 200 nas seguintes (mesmo id)
+
+# Marcar/remover uma falta no dia; conta como 10h previstas e 10h não trabalhadas
+curl -s -b "$JAR" -X PUT "$BASE/assiduidade/dia" \
+  -H 'Content-Type: application/json' -d '{
+    "funcionario_id": 1,
+    "data": "2026-10-03",
+    "hora_entrada_real": "09:00",
+    "hora_saida_real": "09:01",
+    "tipo_ocorrencia": "falta_injustificada"
+  }'
+# A falta prevalece para o cálculo de efetividade; as horas registadas mantêm-se.
 ```
 
 **Erros:** data ou horas inválidas → `400`; saída não posterior à entrada → `400`;
@@ -1142,11 +1153,12 @@ curl -s -b "$JAR" -X POST "$BASE/salarios/processar" \
   -H 'Content-Type: application/json' -d '{"periodo":"2026-10"}'
 # 201 [{id, funcionario_id, funcionario_nome, periodo_inicio:"2026-10-01",
 #       periodo_fim:"2026-10-31", salario_base, total_comissoes,
-#       total_deducoes:0, total_a_pagar, estado:"Preparado", deducoes:[]}]
+#       total_deducoes, total_a_pagar, estado:"Preparado", deducoes:[...]}]
 ```
 
-Repetir o mesmo período **não duplica** (o índice único + `on conflict do nothing` faz com
-que a segunda chamada devolva uma lista vazia).
+As reduções por assiduidade são aplicadas automaticamente aos processamentos preparados
+do período. Repetir o mesmo período não duplica a folha nem as deduções; atualiza as
+reduções existentes com base nas marcações de assiduidade mais recentes.
 
 **Deduções**
 

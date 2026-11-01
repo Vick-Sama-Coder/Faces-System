@@ -25,6 +25,8 @@ import "./horario.css"
 const HORAS_PREVISTAS_DIA = 10 * 60
 const HORARIO_BASE = { entrada: "09:00", saida: "19:00" }
 const DIAS_CURTOS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
+const TIPOS_FALTA = new Set(["falta_justificada", "falta_injustificada", "ausencia"])
+const MINUTOS_INICIO_ATRASO = 9 * 60
 
 function pad2(valor) {
     return String(valor).padStart(2, "0")
@@ -106,11 +108,12 @@ function calcularHorasDia(registo) {
     const saida = formatarHora(registo?.hora_saida_real)
     const entradaMin = entrada ? horaParaMinutos(entrada) : null
     const saidaMin = saida ? horaParaMinutos(saida) : null
+    const falta = TIPOS_FALTA.has(registo?.tipo_ocorrencia)
     const completo = entradaMin !== null && saidaMin !== null
     const invalido = completo && saidaMin <= entradaMin
 
-    const trabalhadas = completo && !invalido ? saidaMin - entradaMin : 0
-    const previstas = completo && !invalido ? HORAS_PREVISTAS_DIA : 0
+    const trabalhadas = !falta && completo && !invalido ? saidaMin - entradaMin : 0
+    const previstas = falta || (completo && !invalido) ? HORAS_PREVISTAS_DIA : 0
     const naoTrabalhadas = previstas > 0
         ? Math.max(0, HORAS_PREVISTAS_DIA - trabalhadas)
         : 0
@@ -120,6 +123,7 @@ function calcularHorasDia(registo) {
         saida,
         entradaMin,
         saidaMin,
+        falta,
         completo,
         invalido,
         trabalhadas,
@@ -152,15 +156,27 @@ function resumirRegistos(registos) {
     let naoTrabalhadas = 0
     let previstas = 0
     let dias = 0
+    let faltas = 0
+    let atrasos = 0
+    let ocorrencias = 0
 
     for (const registo of registos) {
+        const entradaMin = horaParaMinutos(formatarHora(registo?.hora_entrada_real))
+        const falta = TIPOS_FALTA.has(registo?.tipo_ocorrencia)
+        const atraso = registo?.tipo_ocorrencia === "atraso"
+            || (entradaMin !== null && entradaMin > MINUTOS_INICIO_ATRASO)
+
+        if (falta) faltas += 1
+        if (atraso) atrasos += 1
+        if (registo?.tipo_ocorrencia || atraso) ocorrencias += 1
+
         const calculo = calcularHorasDia(registo)
 
         if (calculo.previstas > 0) {
             trabalhadas += calculo.trabalhadas
             naoTrabalhadas += calculo.naoTrabalhadas
             previstas += calculo.previstas
-            dias += 1
+            if (calculo.completo && !calculo.invalido && !calculo.falta) dias += 1
         }
     }
 
@@ -169,6 +185,9 @@ function resumirRegistos(registos) {
         naoTrabalhadas,
         previstas,
         dias,
+        faltas,
+        atrasos,
+        ocorrencias,
         efetividade: previstas > 0 ? (trabalhadas / previstas) * 100 : 0
     }
 }
@@ -387,7 +406,13 @@ function HorarioPage() {
 
             if (indice >= 0) {
                 const copia = [...anterior]
-                copia[indice] = { ...copia[indice], [campoApi]: valor || null }
+                copia[indice] = {
+                    ...copia[indice],
+                    [campoApi]: valor || null,
+                    tipo_ocorrencia: TIPOS_FALTA.has(copia[indice].tipo_ocorrencia)
+                        ? null
+                        : copia[indice].tipo_ocorrencia
+                }
                 return copia
             }
 
@@ -399,6 +424,7 @@ function HorarioPage() {
                     data,
                     hora_entrada_real: null,
                     hora_saida_real: null,
+                    tipo_ocorrencia: null,
                     [campoApi]: valor || null
                 }
             ]
@@ -409,6 +435,49 @@ function HorarioPage() {
             novo.add(data)
             return novo
         })
+        setEstados((anterior) => ({ ...anterior, [data]: "pendente" }))
+        setErrosDia((anterior) => {
+            const novo = { ...anterior }
+            delete novo[data]
+            return novo
+        })
+        setSucesso(null)
+        setErro(null)
+    }
+
+    function alternarFalta(data) {
+        if (!podeGerir || salvando || !funcionarioId) return
+
+        const registoAtual = registosPorData.get(data)
+        const marcada = TIPOS_FALTA.has(registoAtual?.tipo_ocorrencia)
+        const tipoOcorrencia = marcada ? null : "falta_injustificada"
+
+        setRegistosMes((anterior) => {
+            const indice = anterior.findIndex((registo) => (
+                String(registo.funcionario_id) === String(funcionarioId)
+                && normalizarData(registo.data) === data
+            ))
+
+            if (indice >= 0) {
+                const copia = [...anterior]
+                copia[indice] = { ...copia[indice], tipo_ocorrencia: tipoOcorrencia }
+                return copia
+            }
+
+            return [
+                ...anterior,
+                {
+                    id: null,
+                    funcionario_id: Number(funcionarioId),
+                    data,
+                    hora_entrada_real: null,
+                    hora_saida_real: null,
+                    tipo_ocorrencia: tipoOcorrencia
+                }
+            ]
+        })
+
+        setAlterados((anterior) => new Set(anterior).add(data))
         setEstados((anterior) => ({ ...anterior, [data]: "pendente" }))
         setErrosDia((anterior) => {
             const novo = { ...anterior }
@@ -444,6 +513,7 @@ function HorarioPage() {
                 ))
                 const entrada = formatarHora(registo?.hora_entrada_real) || null
                 const saida = formatarHora(registo?.hora_saida_real) || null
+                const tipoOcorrencia = registo?.tipo_ocorrencia ?? null
                 const erroHoras = validarHorasDoDia(entrada, saida)
 
                 if (erroHoras) {
@@ -453,7 +523,7 @@ function HorarioPage() {
                     continue
                 }
 
-                if (!registo?.id && !entrada && !saida) {
+                if (!registo?.id && !entrada && !saida && !tipoOcorrencia) {
                     novosAlterados.delete(data)
                     delete novosEstados[data]
                     delete novosErros[data]
@@ -465,7 +535,8 @@ function HorarioPage() {
                         funcionario_id: Number(funcionarioId),
                         data,
                         hora_entrada_real: entrada,
-                        hora_saida_real: saida
+                        hora_saida_real: saida,
+                        tipo_ocorrencia: tipoOcorrencia
                     })
 
                     registosGuardados.push(resposta.data)
@@ -527,11 +598,33 @@ function HorarioPage() {
             return { tipo: "erro", texto: "Erro", titulo: errosDia[linha.data] }
         }
 
+        if (linha.falta) {
+            return {
+                tipo: "aviso",
+                texto: "Falta",
+                titulo: "Falta marcada: conta como 10 horas não trabalhadas."
+            }
+        }
+
         if (linha.invalido) {
             return {
                 tipo: "erro",
                 texto: "Hora inválida",
                 titulo: "A hora de saída deve ser posterior à hora de entrada."
+            }
+        }
+
+        if (linha.registo?.tipo_ocorrencia === "atraso"
+            || (linha.entradaMin !== null && linha.entradaMin > MINUTOS_INICIO_ATRASO)) {
+            const minutosAtraso = linha.entradaMin === null
+                ? null
+                : linha.entradaMin - MINUTOS_INICIO_ATRASO
+            return {
+                tipo: "aviso",
+                texto: "Atraso",
+                titulo: minutosAtraso === null
+                    ? "Ocorrência de atraso registada."
+                    : `Entrada ${formatarDuracao(minutosAtraso)} depois das 09:00.`
             }
         }
 
@@ -804,6 +897,15 @@ function HorarioPage() {
                                                         ) : (
                                                             <span className="horario-status-empty">—</span>
                                                         )}
+                                                        <button
+                                                            type="button"
+                                                            className="horario-falta-button"
+                                                            onClick={() => alternarFalta(linha.data)}
+                                                            disabled={!podeGerir || salvando}
+                                                            aria-pressed={linha.falta}
+                                                        >
+                                                            {linha.falta ? "Remover falta" : "Marcar falta"}
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             )
@@ -822,7 +924,8 @@ function HorarioPage() {
                             </div>
 
                             <p className="horario-table-note">
-                                Dias sem entrada e saída não entram nas horas previstas. A saída tem de ser posterior à entrada e não há desconto de almoço.
+                                Dias sem marcação não entram nas horas previstas; uma falta marcada conta como 10 horas não trabalhadas.
+                                Entradas depois das 09:00 contam como atraso. A saída tem de ser posterior à entrada e não há desconto de almoço.
                             </p>
                         </>
                     )}
@@ -847,6 +950,9 @@ function HorarioPage() {
                                         <th>Horas não trabalhadas</th>
                                         <th>Horas previstas</th>
                                         <th>Efetividade</th>
+                                        <th>Faltas</th>
+                                        <th>Atrasos</th>
+                                        <th>Ocorrências</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -889,6 +995,9 @@ function HorarioPage() {
                                                             : "—"}
                                                     </strong>
                                                 </td>
+                                                <td>{resumoFuncionario.faltas}</td>
+                                                <td>{resumoFuncionario.atrasos}</td>
+                                                <td>{resumoFuncionario.ocorrencias}</td>
                                             </tr>
                                         )
                                     })}

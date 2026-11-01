@@ -9,6 +9,15 @@ const normalizarHora = (valor) => {
     return texto === "" ? null : texto;
 };
 
+const TIPOS_OCORRENCIA = new Set([
+    "atraso",
+    "falta_justificada",
+    "falta_injustificada",
+    "saida_antecipada",
+    "ausencia",
+    "sem_registo"
+]);
+
 const validarDataISO = (valor) => {
     if (typeof valor !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
         return false;
@@ -100,7 +109,13 @@ const updateAssiduidade = async (req, res, next) => {
 //registo mensal: cria ou atualiza o dia (funcionario, data) sem duplicar
 const registarDia = async (req, res, next) => {
     try {
-        const { funcionario_id, data, hora_entrada_real, hora_saida_real } = req.body || {};
+        const {
+            funcionario_id,
+            data,
+            hora_entrada_real,
+            hora_saida_real,
+            tipo_ocorrencia
+        } = req.body || {};
         const funcionarioId = Number(funcionario_id);
 
         if (!funcionario_id) {
@@ -113,6 +128,10 @@ const registarDia = async (req, res, next) => {
 
         if (!validarDataISO(data)) {
             return res.status(400).json({ message: "Data invalida (formato AAAA-MM-DD)" });
+        }
+
+        if (tipo_ocorrencia != null && !TIPOS_OCORRENCIA.has(tipo_ocorrencia)) {
+            return res.status(400).json({ message: "Tipo de ocorrencia invalido" });
         }
 
         const entrada = normalizarHora(hora_entrada_real);
@@ -141,11 +160,12 @@ const registarDia = async (req, res, next) => {
             antes = await Assiduidade.findById(existente.id);
             await Assiduidade.update(existente.id, {
                 hora_entrada_real: entrada,
-                hora_saida_real: saida
+                hora_saida_real: saida,
+                tipo_ocorrencia
             });
             id = existente.id;
         } else {
-            if (entrada === null && saida === null) {
+            if (entrada === null && saida === null && tipo_ocorrencia == null) {
                 return res.status(400).json({ message: "Indique pelo menos a hora de entrada ou de saida" });
             }
 
@@ -154,6 +174,7 @@ const registarDia = async (req, res, next) => {
                 data,
                 hora_entrada_real: entrada,
                 hora_saida_real: saida,
+                tipo_ocorrencia,
                 registado_por: req.user.id
             });
             criado = true;
