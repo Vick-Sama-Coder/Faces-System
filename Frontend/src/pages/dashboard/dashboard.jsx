@@ -24,6 +24,8 @@ import {
 import { getDashboard, getApiError } from "../../services/api.js"
 import { LIMITE_FIDELIZACAO, META_FIDELIZACAO } from "../../utils/validacoes.js"
 import { useAuthStore } from "../../store/authStore.js"
+import FinanceAreaChart from "../../components/charts/FinanceAreaChart.jsx"
+import { ChartLegend } from "../../components/charts/ChartKit.jsx"
 import "./dashboard.css"
 
 function formatarMoeda(valor) {
@@ -44,13 +46,6 @@ function variacao(atual, anterior) {
     return ((valor - base) / base) * 100
 }
 
-function rotuloMes(mes) {
-    if (!mes) return ""
-    const [ano, numero] = mes.split("-")
-    const data = new Date(Number(ano), Number(numero) - 1, 1)
-    return data.toLocaleDateString("pt-MZ", { month: "short" }).replace(".", "")
-}
-
 function Trend({ valor, invertido = false }) {
     const positivo = valor >= 0
     const bom = invertido ? !positivo : positivo
@@ -67,6 +62,7 @@ function DashBoard() {
     const [dados, setDados] = useState(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
+    const [seriesFinanceiras, setSeriesFinanceiras] = useState(["receita", "despesas"])
     const { user } = useAuthStore()
     const navigate = useNavigate()
 
@@ -96,12 +92,14 @@ function DashBoard() {
     const recentes = dados?.recentes || []
     const fidelizacao = dados?.fidelizacao || {}
 
-    const maxSerie = Math.max(
-        1,
-        ...serie.flatMap((item) => [Number(item.receita) || 0, Number(item.despesas) || 0])
-    )
-
     const serieVazia = serie.every((item) => !Number(item.receita) && !Number(item.despesas))
+
+    function alternarSerieFinanceira(chave) {
+        setSeriesFinanceiras((atuais) => {
+            if (!atuais.includes(chave)) return [...atuais, chave]
+            return atuais.length === 1 ? atuais : atuais.filter((item) => item !== chave)
+        })
+    }
 
     const maxServico = Math.max(
         1,
@@ -229,43 +227,30 @@ function DashBoard() {
                                         <h2>Evolucao financeira</h2>
                                         <p>Receita e despesas dos ultimos 6 meses</p>
                                     </div>
-                                    <span className="dash-legend">
-                                        <i className="receita" /> Receita
-                                        <i className="despesas" /> Despesas
-                                    </span>
+                                    <ChartLegend
+                                        className="dash-chart-legend"
+                                        items={[
+                                            { key: "receita", label: "Receita", color: "var(--chart-1)" },
+                                            { key: "despesas", label: "Despesas", color: "var(--danger)" }
+                                        ]}
+                                        ativos={seriesFinanceiras}
+                                        onToggle={alternarSerieFinanceira}
+                                    />
                                 </header>
 
-                                <div className={`dash-chart ${serieVazia ? "is-empty" : ""}`}>
-                                    {serieVazia ? (
-                                        <div className="dash-chart-empty">
-                                            <Wallet size={22} />
-                                            <strong>Sem movimentos financeiros</strong>
-                                            <span>Nao ha receita nem despesas registadas nos ultimos 6 meses.</span>
-                                        </div>
-                                    ) : (
-                                        serie.map((item) => {
-                                            const receita = Number(item.receita) || 0
-                                            const despesas = Number(item.despesas) || 0
-                                            return (
-                                                <div className="dash-chart-group" key={item.mes}>
-                                                    <div className="dash-chart-bars">
-                                                        <span
-                                                            className="dash-bar receita"
-                                                            style={{ height: `${Math.max((receita / maxSerie) * 100, receita > 0 ? 4 : 0)}%` }}
-                                                            title={`Receita: ${formatarMoeda(receita)}`}
-                                                        />
-                                                        <span
-                                                            className="dash-bar despesas"
-                                                            style={{ height: `${Math.max((despesas / maxSerie) * 100, despesas > 0 ? 4 : 0)}%` }}
-                                                            title={`Despesas: ${formatarMoeda(despesas)}`}
-                                                        />
-                                                    </div>
-                                                    <span className="dash-chart-label">{rotuloMes(item.mes)}</span>
-                                                </div>
-                                            )
-                                        })
-                                    )}
-                                </div>
+                                {serieVazia ? (
+                                    <div className="dash-chart-empty">
+                                        <Wallet size={22} />
+                                        <strong>Sem movimentos financeiros</strong>
+                                        <span>Nao ha receita nem despesas registadas nos ultimos 6 meses.</span>
+                                    </div>
+                                ) : (
+                                    <FinanceAreaChart
+                                        dados={serie}
+                                        seriesVisiveis={seriesFinanceiras}
+                                        altura={238}
+                                    />
+                                )}
                             </article>
 
                             <article className="dash-card dash-fidelity-card">

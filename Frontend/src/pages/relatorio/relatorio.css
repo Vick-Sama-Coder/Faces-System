@@ -407,119 +407,7 @@
 
 /* Graficos */
 
-.relatorio-chart {
-    width: 100%;
-    height: 340px;
-    min-width: 0;
-}
-
-.relatorio-chart .recharts-text {
-    font-family: inherit;
-}
-
-.relatorio-chart-legend {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    flex-wrap: wrap;
-    padding-top: 2px;
-}
-
-.relatorio-chart-legend span {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--text-muted);
-    font-size: var(--text-xs);
-    font-weight: 600;
-}
-
-.relatorio-chart-legend i {
-    width: 8px;
-    height: 8px;
-    border-radius: 3px;
-}
-
 /* Despesas por categoria */
-
-.relatorio-pie-layout {
-    display: grid;
-    grid-template-columns: 190px minmax(0, 1fr);
-    gap: 18px;
-    align-items: center;
-}
-
-.relatorio-pie-chart {
-    position: relative;
-    width: 100%;
-    height: 210px;
-    min-width: 0;
-}
-
-.relatorio-pie-center {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1px;
-    pointer-events: none;
-}
-
-.relatorio-pie-center span {
-    color: var(--text-muted);
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-}
-
-.relatorio-pie-center strong {
-    overflow: hidden;
-    max-width: 86%;
-    color: var(--text);
-    font-family: "Manrope", sans-serif;
-    font-size: 11px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.relatorio-pie-legend {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    min-width: 0;
-}
-
-.relatorio-pie-legend-item {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    min-width: 0;
-    font-size: var(--text-xs);
-}
-
-.relatorio-pie-dot {
-    width: 8px;
-    height: 8px;
-    flex-shrink: 0;
-    border-radius: 3px;
-}
-
-.relatorio-pie-name {
-    flex: 1;
-    overflow: hidden;
-    color: var(--text-muted);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.relatorio-pie-legend-item strong {
-    color: var(--text);
-    font-size: 10px;
-    white-space: nowrap;
-}
 
 /* Rankings */
 
@@ -1093,20 +981,6 @@
     .relatorio-card-span2 {
         grid-column: span 1;
     }
-
-    .relatorio-pie-layout {
-        grid-template-columns: 1fr;
-    }
-
-    .relatorio-pie-chart {
-        width: 100%;
-        max-width: 220px;
-        margin: 0 auto;
-    }
-
-    .relatorio-pie-center strong {
-        font-size: 13px;
-    }
 }
 
 @media (max-width: 678px) {
@@ -1121,10 +995,6 @@
 
     .relatorio-loyalty-grid {
         grid-template-columns: 1fr;
-    }
-
-    .relatorio-chart {
-        height: 280px;
     }
 
     .relatorio-datas {
@@ -1756,6 +1626,13 @@
     min-width: 0;
 }
 
+.relatorio-grafico-area > .chart-frame,
+.relatorio-grafico-area > .chart-with-legend,
+.relatorio-grafico-area > .relatorio-empty {
+    flex-basis: 100%;
+    width: 100%;
+}
+
 .relatorio-grafico-area h2 {
     margin: 0 0 2px 0;
     font-size: var(--text-lg);
@@ -1868,10 +1745,4 @@
     margin: 0 0 14px 0;
     color: var(--text-muted);
     font-size: var(--text-sm);
-}
-
-.relatorio-chart {
-    width: 100%;
-    height: 340px;
-    min-width: 0;
 }

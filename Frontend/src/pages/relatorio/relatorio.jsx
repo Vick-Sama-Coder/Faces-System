@@ -34,18 +34,6 @@ import {
     X
 } from "lucide-react";
 import {
-    ResponsiveContainer,
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    PieChart,
-    Pie,
-    Cell
-} from "recharts";
-import {
     getRelatorioResumo,
     getRelatorioCaixa,
     getRelatorioServicos,
@@ -59,6 +47,9 @@ import {
     getDespesas,
     getApiError
 } from "../../services/api.js";
+import CashFlowChart from "../../components/charts/CashFlowChart.jsx";
+import CategoryDonut from "../../components/charts/CategoryDonut.jsx";
+import RankingBarChart from "../../components/charts/RankingBarChart.jsx";
 
 const PRESETS = [
     { id: "mes", label: "Este mes" },
@@ -66,16 +57,6 @@ const PRESETS = [
     { id: "30d", label: "Ultimos 30 dias" },
     { id: "ano", label: "Este ano" },
     { id: "tudo", label: "Todo o periodo" }
-];
-
-const CORES_DESPESAS = [
-    "var(--chart-1)",
-    "var(--chart-2)",
-    "var(--chart-3)",
-    "var(--chart-4)",
-    "var(--chart-5)",
-    "var(--chart-6)",
-    "var(--chart-7)"
 ];
 
 function formatarMoeda(valor) {
@@ -434,6 +415,15 @@ function Relatorio() {
     const despesasMaiorCategoria = despesasPorCategoria[0] || null;
     const clientesComAtendimentos = clientes.filter((cliente) => Number(cliente.atendimentos) > 0);
     const clientesVisiveis = clientesComAtendimentos.slice(0, 12);
+    const graficoDividas = [
+        {
+            name: "A receber",
+            valor: Number(dividas.resumo?.a_receber ?? valoresReceber),
+            cor: "var(--success)"
+        },
+        { name: "A pagar a equipa", valor: Number(valoresPagar), cor: "var(--warning)" },
+        { name: "Vencido (+30 dias)", valor: Number(dividas.resumo?.vencido), cor: "var(--danger)" }
+    ].filter((item) => item.valor > 0);
     const funcionariosDestaque = funcionariosFiltrados
         .filter((funcionario) => Number(funcionario.total_servicos) > 0)
         .slice(0, 3);
@@ -931,51 +921,11 @@ function Relatorio() {
                                             texto="As entradas, saidas e levantamentos de caixa aparecem aqui."
                                         />
                                     ) : (
-                                        <>
-                                            <div className="relatorio-chart" role="img" aria-label="Grafico de fluxo de caixa">
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <BarChart data={fluxo.itens} margin={{ top: 8, right: 8, left: -14, bottom: 0 }} barGap={2}>
-                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                                                        <XAxis
-                                                            dataKey="label"
-                                                            tick={{ fontSize: 11, fill: "var(--text-muted)" }}
-                                                            axisLine={false}
-                                                            tickLine={false}
-                                                            minTickGap={18}
-                                                        />
-                                                        <YAxis
-                                                            tickFormatter={(valor) => Number(valor) >= 1000 ? `${Math.round(Number(valor) / 1000)}k` : String(valor)}
-                                                            tick={{ fontSize: 11, fill: "var(--text-muted)" }}
-                                                            axisLine={false}
-                                                            tickLine={false}
-                                                            width={42}
-                                                        />
-                                                        <Tooltip
-                                                            formatter={(valor) => formatarMoeda(valor)}
-                                                            cursor={{ fill: "var(--surface-tint)", fillOpacity: 0.55 }}
-                                                            contentStyle={{
-                                                                background: "var(--surface)",
-                                                                color: "var(--text)",
-                                                                borderRadius: 10,
-                                                                border: "1px solid var(--border)",
-                                                                boxShadow: "var(--shadow-md)",
-                                                                fontSize: 12
-                                                            }}
-                                                            itemStyle={{ color: "var(--text-muted)" }}
-                                                            labelStyle={{ color: "var(--text)", fontWeight: 700 }}
-                                                        />
-                                                        <Bar dataKey="entradas" name="Entradas" fill="var(--success)" radius={[4, 4, 0, 0]} />
-                                                        <Bar dataKey="saidas" name="Saidas" fill="var(--danger)" radius={[4, 4, 0, 0]} />
-                                                        <Bar dataKey="levantamentos" name="Levantamentos" fill="var(--warning)" radius={[4, 4, 0, 0]} />
-                                                    </BarChart>
-                                                </ResponsiveContainer>
-                                            </div>
-                                            <div className="relatorio-chart-legend">
-                                                <span><i style={{ background: "var(--success)" }} /> Entradas</span>
-                                                <span><i style={{ background: "var(--danger)" }} /> Saidas</span>
-                                                <span><i style={{ background: "var(--warning)" }} /> Levantamentos</span>
-                                            </div>
-                                        </>
+                                        <CashFlowChart
+                                            dados={fluxo.itens}
+                                            altura={320}
+                                            ariaLabel="Grafico de fluxo de caixa por periodo"
+                                        />
                                     )}
                                 </article>
 
@@ -994,54 +944,12 @@ function Relatorio() {
                                             texto="As categorias com gastos aparecem assim que existirem despesas no periodo."
                                         />
                                     ) : (
-                                        <div className="relatorio-pie-layout">
-                                            <div className="relatorio-pie-chart">
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <PieChart>
-                                                        <Pie
-                                                            data={despesasCategoria}
-                                                            dataKey="value"
-                                                            nameKey="name"
-                                                            innerRadius="62%"
-                                                            outerRadius="90%"
-                                                            paddingAngle={3}
-                                                            stroke="none"
-                                                        >
-                                                            {despesasCategoria.map((item, indice) => (
-                                                                <Cell key={item.name} fill={CORES_DESPESAS[indice % CORES_DESPESAS.length]} />
-                                                            ))}
-                                                        </Pie>
-                                                        <Tooltip
-                                                            formatter={(valor) => formatarMoeda(valor)}
-                                                            contentStyle={{
-                                                                background: "var(--surface)",
-                                                                color: "var(--text)",
-                                                                borderRadius: 10,
-                                                                border: "1px solid var(--border)",
-                                                                boxShadow: "var(--shadow-md)",
-                                                                fontSize: 12
-                                                            }}
-                                                            itemStyle={{ color: "var(--text-muted)" }}
-                                                            labelStyle={{ color: "var(--text)", fontWeight: 700 }}
-                                                        />
-                                                    </PieChart>
-                                                </ResponsiveContainer>
-                                                <div className="relatorio-pie-center">
-                                                    <span>Total</span>
-                                                    <strong>{formatarMoeda(totalDespesasCategoria)}</strong>
-                                                </div>
-                                            </div>
-
-                                            <div className="relatorio-pie-legend">
-                                                {despesasCategoria.map((item, indice) => (
-                                                    <div className="relatorio-pie-legend-item" key={item.name}>
-                                                        <span className="relatorio-pie-dot" style={{ background: CORES_DESPESAS[indice % CORES_DESPESAS.length] }} />
-                                                        <span className="relatorio-pie-name">{item.name}</span>
-                                                        <strong>{formatarMoeda(item.value)}</strong>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
+                                        <CategoryDonut
+                                            dados={despesasCategoria}
+                                            total={totalDespesasCategoria}
+                                            altura={210}
+                                            ariaLabel="Grafico de despesas por categoria"
+                                        />
                                     )}
                                 </article>
 
@@ -1175,20 +1083,16 @@ function Relatorio() {
                                             texto="Os pagamentos recebidos por metodo aparecem aqui."
                                         />
                                     ) : (
-                                        <div className="relatorio-chart">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart data={receitasMetodoFiltradas} margin={{ top: 8, right: 8, left: -14, bottom: 0 }} barGap={4}>
-                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                                                    <XAxis dataKey="metodo" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                                                    <YAxis tickFormatter={(valor) => Number(valor) >= 1000 ? `${Math.round(Number(valor) / 1000)}k` : String(valor)} tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                                                    <Tooltip />
-                                                    <Bar dataKey="total" radius={[4, 4, 0, 0]} />
-                                                    <Cell>
-                                                        {({ index }) => <rect fill={`var(--chart-${(index % 7) + 1})`} />}
-                                                    </Cell>
-                                                </BarChart>
-                                            </ResponsiveContainer>
-                                        </div>
+                                        <RankingBarChart
+                                            dados={receitasMetodoFiltradas}
+                                            nomeChave="metodo"
+                                            valorChave="total"
+                                            nomeValor="Receita"
+                                            altura={300}
+                                            limiteNome={17}
+                                            larguraCategoria={145}
+                                            ariaLabel="Grafico de receitas por metodo de pagamento"
+                                        />
                                     )}
                                 </div>
 
@@ -1516,34 +1420,23 @@ function Relatorio() {
                                     >
                                         Ver grafico <ChartNoAxesCombinedIcon size={15} />
                                     </button>
-                                    {(() => {
-                                        const graficoDividas = [
-                                            { name: "A receber", valor: Number(dividas.resumo?.a_receber ?? valoresReceber) },
-                                            { name: "A pagar a equipa", valor: Number(valoresPagar) },
-                                            { name: "Vencido (+30 dias)", valor: Number(dividas.resumo?.vencido) }
-                                        ].filter((item) => item.valor > 0);
-                                        return graficoDividas.length === 0 ? (
-                                            <Vazio
-                                                titulo="Sem dividas no periodo"
-                                                texto="Nao existem valores a receber nem a pagar no intervalo selecionado."
-                                            />
-                                        ) : (
-                                            <div className="relatorio-chart">
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <BarChart data={graficoDividas} margin={{ top: 8, right: 8, left: -14, bottom: 0 }} barGap={12}>
-                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                                                        <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                                                        <YAxis tickFormatter={(valor) => Number(valor) >= 1000 ? `${Math.round(Number(valor) / 1000)}k` : String(valor)} tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                                                        <Tooltip />
-                                                        <Bar dataKey="valor" radius={[4, 4, 0, 0]} />
-                                                        <Cell>
-                                                            {({ index }) => <rect fill={`var(--chart-${(index % 7) + 1})`} />}
-                                                        </Cell>
-                                                    </BarChart>
-                                                </ResponsiveContainer>
-                                            </div>
-                                        );
-                                    })()}                                    </div>
+                                    {graficoDividas.length === 0 ? (
+                                        <Vazio
+                                            titulo="Sem dividas no periodo"
+                                            texto="Nao existem valores a receber nem a pagar no intervalo selecionado."
+                                        />
+                                    ) : (
+                                        <RankingBarChart
+                                            dados={graficoDividas}
+                                            nomeChave="name"
+                                            valorChave="valor"
+                                            nomeValor="Valor"
+                                            altura={260}
+                                            larguraCategoria={155}
+                                            ariaLabel="Grafico de dividas a receber e a pagar"
+                                        />
+                                    )}
+                                </div>
 
                                 <div className="relatorio-grid-2">
                                     <article className="relatorio-card">
@@ -2059,20 +1952,16 @@ function Relatorio() {
                                             texto="Escolha outro intervalo para ver os clientes que mais voltaram."
                                         />
                                     ) : (
-                                        <div className="relatorio-chart">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart data={clientesVisiveis} margin={{ top: 8, right: 8, left: -14, bottom: 0 }} barGap={4}>
-                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                                                    <XAxis dataKey="cliente_nome" tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                                                    <YAxis tickFormatter={(valor) => Number(valor) >= 1000 ? `${Math.round(Number(valor) / 1000)}k` : String(valor)} tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                                                    <Tooltip />
-                                                    <Bar dataKey="total_gasto" radius={[4, 4, 0, 0]} />
-                                                    <Cell>
-                                                        {({ index }) => <rect fill={`var(--chart-${(index % 7) + 1})`} />}
-                                                    </Cell>
-                                                </BarChart>
-                                            </ResponsiveContainer>
-                                        </div>
+                                        <RankingBarChart
+                                            dados={clientesVisiveis}
+                                            nomeChave="cliente_nome"
+                                            valorChave="total_gasto"
+                                            nomeValor="Total gasto"
+                                            altura={350}
+                                            limiteNome={18}
+                                            larguraCategoria={150}
+                                            ariaLabel="Grafico de clientes que mais gastam"
+                                        />
                                     )}
                                 </div>
                                 <article className="relatorio-card">
@@ -2137,19 +2026,11 @@ function Relatorio() {
                                             texto="As entradas, saidas e levantamentos aparecem aqui."
                                         />
                                     ) : (
-                                        <div className="relatorio-chart">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart data={fluxo.itens} margin={{ top: 8, right: 8, left: -14, bottom: 0 }} barGap={4}>
-                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                                                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                                                    <YAxis tickFormatter={(valor) => Number(valor) >= 1000 ? `${Math.round(Number(valor) / 1000)}k` : String(valor)} tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                                                    <Tooltip />
-                                                    <Bar dataKey="entradas" stackId="a" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
-                                                    <Bar dataKey="saidas" stackId="a" fill="var(--chart-2)" radius={[4, 4, 0, 0]} />
-                                                    <Bar dataKey="levantamentos" stackId="a" fill="var(--chart-3)" radius={[4, 4, 0, 0]} />
-                                                </BarChart>
-                                            </ResponsiveContainer>
-                                        </div>
+                                        <CashFlowChart
+                                            dados={fluxo.itens}
+                                            altura={320}
+                                            ariaLabel="Grafico de fluxo de caixa por periodo"
+                                        />
                                     )}
                                 </div>
 
@@ -2361,99 +2242,75 @@ function Relatorio() {
                             <div className="relatorio-modal-body">
                                 {graficoModal === "receitas" && (
                                     <>
-                                        <h2 style={{ margin: "0 0 10px 0", fontSize: "var(--text-lg)" }}>Receitas por metodo de pagamento</h2>
+                                        <h2>Receitas por metodo de pagamento</h2>
+                                        <p>Composicao das receitas recebidas no periodo.</p>
                                         {receitasMetodoFiltradas.length === 0 ? (
                                             <p>Sem pagamentos no periodo.</p>
                                         ) : (
-                                            <div className="relatorio-chart" style={{ height: 420 }}>
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <BarChart data={receitasMetodoFiltradas} margin={{ top: 8, right: 8, left: -14, bottom: 0 }} barGap={4}>
-                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                                                        <XAxis dataKey="metodo" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                                                        <YAxis tickFormatter={(valor) => Number(valor) >= 1000 ? `${Math.round(Number(valor) / 1000)}k` : String(valor)} tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                                                        <Tooltip />
-                                                        <Bar dataKey="total" radius={[4, 4, 0, 0]} />
-                                                        <Cell>
-                                                            {({ index }) => <rect fill={`var(--chart-${(index % 7) + 1})`} />}
-                                                        </Cell>
-                                                    </BarChart>
-                                                </ResponsiveContainer>
-                                            </div>
+                                            <RankingBarChart
+                                                dados={receitasMetodoFiltradas}
+                                                nomeChave="metodo"
+                                                valorChave="total"
+                                                nomeValor="Receita"
+                                                altura={420}
+                                                limiteNome={22}
+                                                larguraCategoria={170}
+                                                ariaLabel="Grafico de receitas por metodo de pagamento"
+                                            />
                                         )}
                                     </>
                                 )}
                                 {graficoModal === "dividas" && (
                                     <>
-                                        <h2 style={{ margin: "0 0 10px 0", fontSize: "var(--text-lg)" }}>Dividas: a receber vs a pagar</h2>
-                                        {(() => {
-                                            const graficoDividas = [
-                                                { name: "A receber", valor: Number(dividas.resumo?.a_receber ?? valoresReceber) },
-                                                { name: "A pagar a equipa", valor: Number(valoresPagar) },
-                                                { name: "Vencido (+30 dias)", valor: Number(dividas.resumo?.vencido) }
-                                            ].filter((item) => item.valor > 0);
-                                            return graficoDividas.length === 0 ? (
-                                                <p>Sem dividas no periodo.</p>
-                                            ) : (
-                                                <div className="relatorio-chart" style={{ height: 420 }}>
-                                                    <ResponsiveContainer width="100%" height="100%">
-                                                        <BarChart data={graficoDividas} margin={{ top: 8, right: 8, left: -14, bottom: 0 }} barGap={12}>
-                                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                                                            <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                                                            <YAxis tickFormatter={(valor) => Number(valor) >= 1000 ? `${Math.round(Number(valor) / 1000)}k` : String(valor)} tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                                                            <Tooltip />
-                                                            <Bar dataKey="valor" radius={[4, 4, 0, 0]} />
-                                                            <Cell>
-                                                                {({ index }) => <rect fill={`var(--chart-${(index % 7) + 1})`} />}
-                                                            </Cell>
-                                                        </BarChart>
-                                                    </ResponsiveContainer>
-                                                </div>
-                                            );
-                                        })()}
+                                        <h2>Dividas: a receber vs a pagar</h2>
+                                        <p>Distribuicao dos valores em aberto no periodo.</p>
+                                        {graficoDividas.length === 0 ? (
+                                            <p>Sem dividas no periodo.</p>
+                                        ) : (
+                                            <RankingBarChart
+                                                dados={graficoDividas}
+                                                nomeChave="name"
+                                                valorChave="valor"
+                                                nomeValor="Valor"
+                                                altura={420}
+                                                larguraCategoria={175}
+                                                ariaLabel="Grafico de dividas a receber e a pagar"
+                                            />
+                                        )}
                                     </>
                                 )}
                                 {graficoModal === "caixa" && (
                                     <>
-                                        <h2 style={{ margin: "0 0 10px 0", fontSize: "var(--text-lg)" }}>Fluxo de caixa por periodo</h2>
+                                        <h2>Fluxo de caixa por periodo</h2>
+                                        <p>Entradas, saidas e levantamentos ao longo do tempo.</p>
                                         {fluxo.itens.length === 0 ? (
                                             <p>Sem movimentos de caixa.</p>
                                         ) : (
-                                            <div className="relatorio-chart" style={{ height: 420 }}>
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <BarChart data={fluxo.itens} margin={{ top: 8, right: 8, left: -14, bottom: 0 }} barGap={4}>
-                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                                                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                                                        <YAxis tickFormatter={(valor) => Number(valor) >= 1000 ? `${Math.round(Number(valor) / 1000)}k` : String(valor)} tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                                                        <Tooltip />
-                                                        <Bar dataKey="entradas" stackId="a" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
-                                                        <Bar dataKey="saidas" stackId="a" fill="var(--chart-2)" radius={[4, 4, 0, 0]} />
-                                                        <Bar dataKey="levantamentos" stackId="a" fill="var(--chart-3)" radius={[4, 4, 0, 0]} />
-                                                    </BarChart>
-                                                </ResponsiveContainer>
-                                            </div>
+                                            <CashFlowChart
+                                                dados={fluxo.itens}
+                                                altura={420}
+                                                ariaLabel="Grafico de fluxo de caixa por periodo"
+                                            />
                                         )}
                                     </>
                                 )}
                                 {graficoModal === "clientes" && (
                                     <>
-                                        <h2 style={{ margin: "0 0 10px 0", fontSize: "var(--text-lg)" }}>Clientes que mais gastam</h2>
+                                        <h2>Clientes que mais gastam</h2>
+                                        <p>Valor total gerado por cliente no periodo.</p>
                                         {clientesVisiveis.length === 0 ? (
                                             <p>Sem atendimentos no periodo.</p>
                                         ) : (
-                                            <div className="relatorio-chart" style={{ height: 420 }}>
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <BarChart data={clientesVisiveis} margin={{ top: 8, right: 8, left: -14, bottom: 0 }} barGap={4}>
-                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                                                        <XAxis dataKey="cliente_nome" tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                                                        <YAxis tickFormatter={(valor) => Number(valor) >= 1000 ? `${Math.round(Number(valor) / 1000)}k` : String(valor)} tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                                                        <Tooltip />
-                                                        <Bar dataKey="total_gasto" radius={[4, 4, 0, 0]} />
-                                                        <Cell>
-                                                            {({ index }) => <rect fill={`var(--chart-${(index % 7) + 1})`} />}
-                                                        </Cell>
-                                                    </BarChart>
-                                                </ResponsiveContainer>
-                                            </div>
+                                            <RankingBarChart
+                                                dados={clientesVisiveis}
+                                                nomeChave="cliente_nome"
+                                                valorChave="total_gasto"
+                                                nomeValor="Total gasto"
+                                                altura={420}
+                                                limiteNome={22}
+                                                larguraCategoria={170}
+                                                ariaLabel="Grafico de clientes que mais gastam"
+                                            />
                                         )}
                                     </>
                                 )}
