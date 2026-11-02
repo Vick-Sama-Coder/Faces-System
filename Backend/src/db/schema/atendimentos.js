@@ -34,6 +34,8 @@ export const atendimento = pgTable('atendimento', {
 export const atendimentoServico = pgTable('atendimento_servico', {
     id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
     atendimento_id: integer('atendimento_id').notNull().references(() => atendimento.id),
+    // Desnormalizado a partir do cabecalho: a base de dados exige-o NOT NULL.
+    cliente_id: integer('cliente_id').notNull().references(() => cliente.id),
     servico_id: integer('servico_id').notNull().references(() => servico.id),
     servico_principal_id: integer('servico_principal_id').references(() => atendimentoServico.id),
     funcionario_id: integer('funcionario_id').notNull().references(() => funcionario.id),

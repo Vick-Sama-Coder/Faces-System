@@ -422,7 +422,7 @@
 
 .horario-team-table {
     width: 100%;
-    min-width: 840px;
+    min-width: 1080px;
     border-collapse: collapse;
 }
 
@@ -512,6 +512,30 @@
     font-size: var(--text-xs);
     font-weight: 700;
     letter-spacing: 0.02em;
+}
+
+.horario-falta-button {
+    display: block;
+    margin-top: 6px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text-muted);
+    font: inherit;
+    font-size: var(--text-xs);
+    cursor: pointer;
+}
+
+.horario-falta-button:hover:not(:disabled),
+.horario-falta-button[aria-pressed="true"] {
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.horario-falta-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 
 .horario-spin {

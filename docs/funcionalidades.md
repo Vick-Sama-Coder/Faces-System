@@ -83,9 +83,15 @@ Painel interno protegido por sessão, alimentado por `GET /api/dashboard`.
 - Programação semanal por funcionário, com vários turnos por dia e validação de
   sobreposição.
 - Página de **controlo mensal**: entrada/saída reais por dia, horas trabalhadas, horas
-  previstas (base `09:00–19:00`) e percentagem de efectividade.
+  previstas (base `09:00–19:00`), percentagem de efectividade, faltas marcadas,
+  atrasos após as `09:00` e ocorrências no resumo da equipa.
+- Uma falta marcada equivale a 10 horas não trabalhadas; as horas registadas são
+  preservadas para consulta. Dias sem registo não são automaticamente classificados como
+  falta.
 - Gravação através de `PUT /api/assiduidade/dia` (cria ou actualiza o par
-  `funcionario` + `data` sem duplicar) e correcção de ocorrências.
+  `funcionario` + `data` sem duplicar), marcação/remoção de faltas e correcção de
+  ocorrências. As reduções salariais seguem os escalões mensais documentados na API e
+  são aplicadas ao processamento preparado do período.
 - Acesso à programação de qualquer funcionário requer `horarios:gerir`; a página exige
   `assiduidade:gerir`.
 
@@ -113,15 +119,17 @@ Painel interno protegido por sessão, alimentado por `GET /api/dashboard`.
 - Não existe CRUD de produtos na API/interface (as tabelas de produto existem na base de
   dados).
 
-## Caixa 🟡 · API completa, sem página própria
+## Caixa
 
-- Caixa único (`Caixa Principal`), abertura com saldo inicial, consulta do saldo esperado,
-  levantamentos, movimentos e fecho com contagem/diferença.
-- Pagamentos geram entradas; despesas pagas pelo caixa geram saídas (idempotentes por
-  `referencia_id`).
+- Caixa único (`Caixa Principal`) com página própria, sessão de abertura, movimentos por
+  método de pagamento, saldos da sessão e fecho com contagem física do dinheiro.
+- Pagamentos parcelados de atendimentos geram entradas separadas por método; despesas e
+  levantamentos reduzem o saldo do método selecionado.
+- A sessão exige abertura para registar pagamentos e despesas. Apenas o dinheiro é contado
+  e comparado no fecho; saldos de M-Pesa, e-Mola, Cartão, Transferência e Outro são
+  apresentados como valores registados, sem reconciliação física.
+- Despesas ligadas a uma sessão fechada não podem ser editadas ou removidas.
 - Operações sujeitas a `caixa:operar`, `caixa:levantar` e `caixa:fechar`.
-  > Não existe página dedicada de caixa; as operações estão disponíveis por API e são
-  > usadas pelos módulos de atendimentos/despesas.
 
 ## Fidelização ✅
 

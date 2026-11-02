@@ -395,12 +395,15 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 - `POST /api/atendimentos/:id/pagamentos` 🔒(`pagamentos:registar`) — corpo:
   `{ parcelas: [{ metodo_pagamento, valor, referencia? }] }`. `201`
   - `400` se a soma das parcelas exceder o valor devido
+  - `409` se não houver uma sessão de Caixa aberta
 - `GET /api/atendimentos/:id/pagamento` 🔒 — estado de liquidação
 - `POST /api/pagamentos/:id/anular` 🔒(`pagamentos:anular`) — corpo: `{ motivo }`
 
 > Um pagamento está `Liquidado` quando a soma das parcelas iguala o valor devido;
-> nesse momento o atendimento passa a `Pago` e as **comissões** são geradas.
-> Anular um pagamento recalcula o estado do atendimento (não apaga nada).
+> nesse momento o atendimento passa a `Pago` e as **comissões** são geradas. Cada
+> método das parcelas cria a sua própria entrada na sessão de Caixa; parcelas do mesmo
+> método são agregadas. Anular um pagamento anula também as respetivas entradas e recalcula
+> o estado do atendimento (não apaga o registo).
 
 ## Comissões — `/api`
 
@@ -415,30 +418,39 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 
 ## Caixa — `/api/caixa`
 
-- `POST /api/caixa/abrir` 🔒(`caixa:operar`) — corpo: `{ saldo_inicial }`. `201`
+- `POST /api/caixa/abrir` 🔒(`caixa:operar`) — corpo: `{ saldo_inicial }` em Dinheiro. `201`
   - `409` se já existir uma sessão aberta (caixa único)
-- `GET /api/caixa/atual` 🔒(`caixa:operar`) — `{ aberta, sessao, saldo_esperado }`
-- `POST /api/caixa/levantamento` 🔒(`caixa:levantar`) — corpo: `{ valor, descricao? }`
+- `GET /api/caixa/atual` 🔒(`caixa:operar`) — inclui `{ aberta, sessao, saldo_esperado, saldo_por_metodo }`
+- `POST /api/caixa/levantamento` 🔒(`caixa:levantar`) — corpo:
+  `{ valor, metodo_pagamento, descricao? }`
 - `GET /api/caixa/movimentos` 🔒(`caixa:operar`) — movimentos da sessão aberta (`404` se fechada)
-- `POST /api/caixa/fechar` 🔒(`caixa:fechar`) — corpo: `{ valor_contado, observacoes? }`
-- `GET /api/caixa/fechos?de=&ate=` 🔒(`relatorios:ler`) — histórico de fechos
+- `POST /api/caixa/fechar` 🔒(`caixa:fechar`) — corpo:
+  `{ valor_contado, observacoes? }`; `valor_contado` é o dinheiro contado fisicamente
+- `GET /api/caixa/fechos?de=&ate=` 🔒(`relatorios:ler`) — histórico de fechos, incluindo
+  o snapshot de `saldos_por_metodo` guardado no fecho
 
-> `saldo_esperado = saldo_inicial + entradas − saídas − levantamentos`.
+> Cada movimento é associado ao método de pagamento. Os saldos por método começam em zero,
+> exceto Dinheiro, que começa no `saldo_inicial`. `saldo_esperado` contém apenas Dinheiro:
+> saldo inicial + entradas em Dinheiro − saídas/levantamentos em Dinheiro. Os outros métodos
+> são apresentados como saldos registados, sem conferência física no fecho.
 > `diferenca = valor_contado − valor_esperado`. Os pagamentos geram **entradas** e as
-> despesas pagas pelo caixa geram **saídas**, ambos idempotentes por `referencia_id`.
+> despesas pagas durante uma sessão aberta geram **saídas** por método. Pagamentos e despesas
+> exigem uma sessão de Caixa aberta; cada despesa fica associada a essa sessão. Despesas ligadas
+> a sessões fechadas não podem ser editadas ou removidas. Movimentos referenciados são idempotentes
+> por origem, referência e método de pagamento.
 
 ## Despesas — `/api/despesas`
 
 - `GET /api/despesas?de=&ate=&categoria=&estado=` 🔒 — lista com filtros
 - `GET /api/despesas/:id` 🔒 — detalhe + `itens`
 - `POST /api/despesas` 🔒(`despesas:escrever`) — corpo:
-  `{ descricao, valor_total?, categoria_id?, data_compra?, metodo_pagamento?, caixa_sessao_id?, comprovativo?, itens? }`
+  `{ descricao, valor_total?, categoria_id?, data_compra?, metodo_pagamento, comprovativo?, itens? }`
+  - exige `metodo_pagamento` e sessão de Caixa aberta; `409` se não houver sessão ativa
   - `itens: [{ produto_id, funcionario_id?, quantidade, preco_unitario }]`; se existirem,
     `valor_total` é calculado a partir deles
-  - `caixa_sessao_id` gera o movimento de saída no caixa
+- `PUT /api/despesas/:id` e `DELETE /api/despesas/:id` 🔒(`despesas:escrever`) — atualizam
+  o movimento associado na sessão aberta; `409` se a sessão da despesa estiver fechada
   - `400` se `valor_total <= 0`
-- `PUT /api/despesas/:id` 🔒(`despesas:escrever`) — actualização parcial
-- `DELETE /api/despesas/:id` 🔒(`despesas:escrever`) — `204`
 - `GET /api/categorias-despesa` 🔒 — lista de categorias
 - `POST /api/categorias-despesa` 🔒(`despesas:escrever`) — corpo: `{ nome, tipo? }`
 
@@ -527,17 +539,24 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
   Enviar `null` nas horas limpa o valor
 - `PUT /api/assiduidade/dia` 🔒(`assiduidade:gerir`) — cria ou atualiza o dia
   `(funcionario_id, data)` sem duplicar. Corpo:
-  `{ funcionario_id, data, hora_entrada_real, hora_saida_real }`
+  `{ funcionario_id, data, hora_entrada_real, hora_saida_real, tipo_ocorrencia? }`
   - `data` no formato `AAAA-MM-DD`; horas em `HH:MM` ou `null` (registo parcial permitido)
-  - Um dia novo exige pelo menos uma hora; se o dia já existir, `null` limpa a hora
+  - Um dia novo exige pelo menos uma hora ou uma ocorrência; se o dia já existir, `null` limpa a hora/ocorrência
   - Se ambas as horas forem enviadas, a saída tem de ser posterior à entrada
-  - Preserva ocorrência/justificação existentes; `201` ao criar e `200` ao atualizar
+  - A ocorrência pode ser `atraso`, `falta_justificada`, `falta_injustificada`,
+    `saida_antecipada`, `ausencia` ou `sem_registo`
+  - `201` ao criar e `200` ao atualizar
 
 > A página `/horarios` usa `PUT /api/assiduidade/dia` para o controlo mensal: base
-> `09:00–19:00` (10h por dia), em todos os dias. Dias sem entrada e saída não contam
-> para as horas previstas e não há desconto de almoço.
+> `09:00–19:00` (10h). Marcar uma falta conta como 10h não trabalhadas, mesmo que
+> existam horas registadas nesse dia; a marcação pode ser removida. Uma entrada depois
+> das `09:00` conta como atraso, incluindo os minutos após esse horário. Dias sem
+> registo/falta marcada não entram nas horas previstas e não há desconto de almoço.
 
 > A ocorrência é registada separadamente do efeito salarial (RN15).
+> Criar ou corrigir um registo de assiduidade recalcula, na mesma transação, a
+> redução dos processamentos `Preparado` do mês. Processamentos `Aprovado` ou `Pago`
+> não são alterados.
 
 ## Salários — `/api/salarios`
 
@@ -545,18 +564,37 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
   lista; `periodo` no formato `AAAA-MM`
 - `GET /api/salarios/processamentos/:id` 🔒(`salarios:gerir`) — detalhe + `deducoes`
 - `POST /api/salarios/processar` 🔒(`salarios:gerir`) — corpo: `{ periodo: "AAAA-MM" }`.
-  Gera o processamento de todos os funcionários **ativos** para o mês. `201` com a lista
-  criada (vazia se já processado). `400` se o período for inválido
+  Gera o processamento de todos os funcionários **ativos** para o mês e aplica
+  automaticamente as reduções por assiduidade aos processamentos `Preparado` do período.
+  `201` com a lista criada (vazia se já processado); mesmo quando já existem processamentos,
+  a ação atualiza as reduções dos que continuam `Preparado`. `400` se o período for inválido
 - `PUT /api/salarios/processamentos/:id/deducoes` 🔒(`salarios:gerir`) — corpo:
-  `{ deducoes: [{ tipo, descricao?, valor, motivo? }] }` — substitui as deduções e
-  recalcula `total_a_pagar`. `409` se o processamento já não estiver em `Preparado`
+  `{ deducoes: [{ tipo, descricao?, valor, motivo? }] }` — substitui as deduções manuais,
+  preserva a redução automática por assiduidade e recalcula `total_a_pagar`. O tipo
+  `reducao_assiduidade` não pode ser enviado manualmente. `409` se o processamento já não
+  estiver em `Preparado`
 - `PATCH /api/salarios/processamentos/:id/aprovar` 🔒(`salarios:aprovar`) — `Preparado` →
   `Aprovado`. `409` se o estado não permitir
 - `PATCH /api/salarios/processamentos/:id/pagar` 🔒(`salarios:gerir`) — `Aprovado` → `Pago`;
   marca as comissões do período como `Paga`. `409` se não estiver aprovado
+- `GET /api/salarios/assiduidade/reducoes?periodo=AAAA-MM` 🔒(`salarios:gerir` ou
+  `relatorios:ler`) — calcula efetividade e reduções sem gravar
+- `POST /api/salarios/assiduidade/reducoes` 🔒(`salarios:gerir`) — corpo
+  `{ periodo: "AAAA-MM" }`; grava a redução por assiduidade nas deduções de processamentos
+  `Preparado`. Pode ser usada novamente depois de corrigir a assiduidade; substitui a
+  redução anterior sem duplicá-la
 
 > `total_a_pagar = salario_base + total_comissoes − total_deducoes`. Só funcionários
 > recebem salário/comissão (RF17).
+
+> Para o cálculo salarial, as horas previstas são `10 × todos os dias do mês` (por exemplo,
+> 310 horas num mês de 31 dias). Somam-se as horas efetivamente trabalhadas no mês, pelo que
+> horas acima de 10 num dia compensam horas em falta noutros dias. Dias sem registo e
+> ocorrências de falta/ausência contam como zero horas trabalhadas. O desconto é proporcional:
+> `salario_base × max(0, horas_previstas − horas_trabalhadas) / horas_previstas`, arredondado
+> ao Metical. Assim, sem registos aplica-se o desconto correspondente ao salário base inteiro;
+> atingir ou ultrapassar a meta mensal não gera desconto. Este cálculo salarial é distinto
+> do resumo diário apresentado na página de controlo de horários.
 
 ## Relatórios — `/api/relatorios`
 
@@ -573,7 +611,8 @@ filtro devolve todo o histórico.
 - `GET /api/relatorios/clientes?de=&ate=` — clientes mais frequentes
 - `GET /api/relatorios/fidelizacao?de=&ate=` — `{ marcas, beneficios_ganhos, beneficios_utilizados }`
 - `GET /api/relatorios/anulacoes?de=&ate=` — histórico de anulações (atendimentos + pagamentos)
-- `GET /api/relatorios/movimentos?de=&ate=` — movimentos do caixa
+- `GET /api/relatorios/movimentos?de=&ate=` — movimentos do caixa, incluindo
+  `metodo_pagamento` para permitir filtrar o fluxo por método
 
 ---
 

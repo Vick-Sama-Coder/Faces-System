@@ -20,6 +20,7 @@ import Permissoes from "../pages/admin/Permissoes.jsx"
 import Perfil from "../pages/perfil/Perfil.jsx"
 import HorarioPage from "../pages/horario/HorarioPage.jsx"
 import LandingPage from "../pages/landing/LandingPage.jsx"
+import Caixa from "../pages/caixa/caixa.jsx"
 import { RequireAuth, RequirePermission, RequireSession, RedirectIfAuth } from "./RequireAuth.jsx"
 
 
@@ -59,6 +60,9 @@ export default function AppRoutes(){
             }/>
             <Route path="/relatorio" element={
                 <RequirePermission permissoes={["relatorios:ler"]}><Relatorio/></RequirePermission>
+            }/>
+            <Route path="/caixa" element={
+                <RequirePermission permissoes={["caixa:operar", "caixa:levantar", "caixa:fechar", "relatorios:ler"]}><Caixa/></RequirePermission>
             }/>
             <Route path="/despesas" element={
                 <RequirePermission permissoes={["despesas:escrever"]}><Despesas/></RequirePermission>

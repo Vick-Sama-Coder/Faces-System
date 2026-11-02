@@ -379,6 +379,31 @@ export const getRelatorioMovimentos = (params) => {
     return server.get("api/relatorios/movimentos", { params });
 };
 
+//---- caixa ----
+export const abrirCaixa = (data) => {
+    return server.post("api/caixa/abrir", data);
+};
+
+export const getCaixaAtual = () => {
+    return server.get("api/caixa/atual");
+};
+
+export const registarLevantamentoCaixa = (data) => {
+    return server.post("api/caixa/levantamento", data);
+};
+
+export const getMovimentosCaixa = () => {
+    return server.get("api/caixa/movimentos");
+};
+
+export const fecharCaixa = (data) => {
+    return server.post("api/caixa/fechar", data);
+};
+
+export const getCaixaFechos = (params = {}) => {
+    return server.get("api/caixa/fechos", { params });
+};
+
 //---- categorias de despesa ----
 export const getCategoriasDespesa = () => {
     return server.get("api/categorias-despesa");
@@ -518,3 +543,12 @@ export const pagarProcessamento = (id) => {
     return server.patch(`api/salarios/processamentos/${id}/pagar`);
 };
 
+//Calcula e aplica o desconto proporcional pelas horas mensais em falta
+export const aplicarReducoesAssiduidade = (data) => {
+    return server.post("api/salarios/assiduidade/reducoes", data);
+};
+
+//Calcula (sem aplicar) o desconto proporcional por assiduidade - usado no relatorio
+export const getRelatorioReducoesAssiduidade = (params) => {
+    return server.get("api/salarios/assiduidade/reducoes", { params });
+};

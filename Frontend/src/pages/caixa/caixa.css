@@ -1,0 +1,243 @@
+.caixa-page-header {
+    margin-bottom: 0;
+}
+
+.caixa-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-size: var(--text-xs);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.caixa-status.status-open {
+    background: var(--success-soft);
+    color: var(--success-text);
+}
+
+.caixa-status.status-closed {
+    background: var(--warning-soft);
+    color: var(--warning-text);
+}
+
+.caixa-alert {
+    display: flex;
+    align-items: center;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: var(--text-sm);
+    font-weight: 600;
+}
+
+.caixa-alert-error {
+    background: var(--danger-soft);
+    color: var(--danger-text);
+    border: 1px solid var(--danger-soft-strong);
+}
+
+.caixa-grid-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.caixa-summary-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px 20px;
+    box-shadow: 0 4px 20px var(--shadow-color-soft);
+}
+
+.caixa-summary-card span {
+    display: block;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+}
+
+.caixa-summary-card strong {
+    color: var(--text);
+    font-size: var(--text-lg);
+    font-weight: 700;
+}
+
+.caixa-summary-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+}
+
+.caixa-summary-icon.accent-wallet {
+    background: var(--primary-soft);
+    color: var(--primary-text);
+}
+
+.caixa-summary-icon.accent-landmark {
+    background: var(--success-soft);
+    color: var(--success-text);
+}
+
+.caixa-summary-icon.accent-shift {
+    background: var(--warning-soft);
+    color: var(--warning-text);
+}
+
+.caixa-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.caixa-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 20px var(--shadow-color-soft);
+}
+
+.caixa-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+}
+
+.caixa-card-title-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text);
+}
+
+.caixa-card-title-wrap h2 {
+    margin: 0;
+    font-size: var(--text-lg);
+}
+
+.caixa-form {
+    display: grid;
+    gap: 16px;
+}
+
+.caixa-form.compact {
+    gap: 12px;
+}
+
+.caixa-form label {
+    display: grid;
+    gap: 8px;
+    color: var(--text);
+    font-size: var(--text-sm);
+    font-weight: 600;
+}
+
+.caixa-form input,
+.caixa-form select,
+.caixa-form textarea {
+    width: 100%;
+    padding: 11px 12px;
+    border: 1px solid var(--input-border);
+    border-radius: 10px;
+    background: var(--input-bg);
+    color: var(--text);
+    font: inherit;
+    resize: vertical;
+}
+
+.caixa-form input:focus,
+.caixa-form select:focus,
+.caixa-form textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.caixa-form-hint {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+}
+
+.caixa-empty-state {
+    padding: 18px 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+}
+
+.caixa-table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.caixa-table {
+    min-width: 100%;
+}
+
+.caixa-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: var(--text-xs);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.caixa-pill.success {
+    background: var(--success-soft);
+    color: var(--success-text);
+}
+
+.caixa-pill.warning {
+    background: var(--warning-soft);
+    color: var(--warning-text);
+}
+
+.caixa-pill.muted {
+    background: var(--surface-tint);
+    color: var(--text-muted);
+}
+
+.caixa-skeleton {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.caixa-skeleton-card {
+    height: 110px;
+    border-radius: 16px;
+    background: linear-gradient(90deg, var(--surface-tint) 25%, var(--surface) 50%, var(--surface-tint) 75%);
+    background-size: 200% 100%;
+    animation: caixa-shimmer 1.3s linear infinite;
+}
+
+@keyframes caixa-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+@media (max-width: 900px) {
+    .caixa-grid-summary,
+    .caixa-grid-2 {
+        grid-template-columns: 1fr;
+    }
+}

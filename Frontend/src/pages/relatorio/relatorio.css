@@ -394,6 +394,28 @@
     color: var(--primary-text);
 }
 
+.relatorio-reducao-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.relatorio-reducao-mensagem {
+    margin: 0;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-muted, var(--surface));
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+}
+
+.relatorio-reducao-nota {
+    display: block;
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
 .relatorio-card-chip {
     flex-shrink: 0;
     padding: 4px 9px;

@@ -12,6 +12,7 @@ const camposSessao = {
     valor_esperado: caixaSessao.valor_esperado,
     valor_contado: caixaSessao.valor_contado,
     diferenca: caixaSessao.diferenca,
+    saldos_por_metodo: caixaSessao.saldos_por_metodo,
     observacoes: caixaSessao.observacoes,
     fechado_por: caixaSessao.fechado_por,
     estado: caixaSessao.estado
@@ -21,6 +22,7 @@ const camposMovimento = {
     id: movimentoCaixa.id,
     id_sessao: movimentoCaixa.id_sessao,
     tipo_movimento: movimentoCaixa.tipo_movimento,
+    metodo_pagamento: movimentoCaixa.metodo_pagamento,
     valor: movimentoCaixa.valor,
     descricao: movimentoCaixa.descricao,
     data_hora: movimentoCaixa.data_hora,
@@ -76,19 +78,34 @@ const abrir = async ({ caixa_id, saldo_inicial, aberto_por }, executor = db) => 
     return linha;
 };
 
-//saldo esperado = saldo inicial + entradas - saidas/levantamentos (so movimentos ativos)
+//O saldo físico esperado é o saldo inicial em dinheiro mais os movimentos em dinheiro.
 const saldoEsperado = async (executor, sessao_id) => {
     const resultado = await executor.execute(sql`
         select s.saldo_inicial + coalesce((
                     select sum(case when m.tipo_movimento = 'Entrada' then m.valor else -m.valor end)
                       from movimento_caixa m
-                     where m.id_sessao = s.id and m.estado = 'Ativo'
+                     where m.id_sessao = s.id
+                       and m.estado = 'Ativo'
+                       and m.metodo_pagamento = 'Dinheiro'
                 ), 0)::int as esperado
            from caixa_sessao s
           where s.id = ${sessao_id}
     `);
 
     return resultado.rows[0] ? resultado.rows[0].esperado : null;
+};
+
+const saldosPorMetodo = async (executor, sessao_id) => {
+    const resultado = await executor.execute(sql`
+        select metodo_pagamento,
+               sum(case when tipo_movimento = 'Entrada' then valor else -valor end)::int as saldo
+          from movimento_caixa
+         where id_sessao = ${sessao_id}
+           and estado = 'Ativo'
+         group by metodo_pagamento
+    `);
+
+    return resultado.rows;
 };
 
 const movimentos = async (sessao_id, executor = db) => {
@@ -102,6 +119,7 @@ const movimentos = async (sessao_id, executor = db) => {
 const inserirMovimento = async (executor, {
     id_sessao,
     tipo_movimento,
+    metodo_pagamento,
     valor,
     descricao,
     origem,
@@ -112,6 +130,7 @@ const inserirMovimento = async (executor, {
         .values({
             id_sessao,
             tipo_movimento,
+            metodo_pagamento: metodo_pagamento ?? 'Dinheiro',
             valor,
             descricao: descricao ?? null,
             origem,
@@ -124,10 +143,35 @@ const inserirMovimento = async (executor, {
     return linha?.id || null;
 };
 
+const anularMovimentosPorReferencia = async (executor, origem, referencia_id) => {
+    await executor.update(movimentoCaixa)
+        .set({ estado: 'Anulado' })
+        .where(and(
+            eq(movimentoCaixa.origem, origem),
+            eq(movimentoCaixa.referencia_id, referencia_id),
+            eq(movimentoCaixa.estado, 'Ativo')
+        ));
+};
+
+const atualizarMovimentosPorReferencia = async (executor, origem, referencia_id, {
+    metodo_pagamento,
+    valor,
+    descricao
+}) => {
+    await executor.update(movimentoCaixa)
+        .set({ metodo_pagamento, valor, descricao })
+        .where(and(
+            eq(movimentoCaixa.origem, origem),
+            eq(movimentoCaixa.referencia_id, referencia_id),
+            eq(movimentoCaixa.estado, 'Ativo')
+        ));
+};
+
 const fechar = async (executor, sessao_id, {
     valor_esperado,
     valor_contado,
     diferenca,
+    saldos_por_metodo,
     observacoes,
     fechado_por
 }) => {
@@ -138,6 +182,7 @@ const fechar = async (executor, sessao_id, {
             valor_esperado,
             valor_contado,
             diferenca,
+            saldos_por_metodo,
             observacoes: observacoes ?? null,
             fechado_por
         })
@@ -163,8 +208,11 @@ const Caixa = {
     findById,
     abrir,
     saldoEsperado,
+    saldosPorMetodo,
     movimentos,
     inserirMovimento,
+    anularMovimentosPorReferencia,
+    atualizarMovimentosPorReferencia,
     fechar,
     findFechos
 };

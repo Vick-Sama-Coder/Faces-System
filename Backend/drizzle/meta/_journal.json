@@ -78,6 +78,20 @@
       "when": 1793190866218,
       "tag": "0010_tidy_sandman",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793549558958,
+      "tag": "0011_caixa_metodo_pagamento",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793550952702,
+      "tag": "0012_caixa_fecho_metodos",
+      "breakpoints": true
     }
   ]
 }

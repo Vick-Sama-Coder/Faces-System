@@ -36,8 +36,8 @@ const findAll = async ({ funcionario: funcionarioId, de, ate, tipo } = {}) => {
         .orderBy(sql`${assiduidade.data} desc`, asc(funcionario.nome));
 };
 
-const findById = async (id) => {
-    const [linha] = await db.select(campos)
+const findById = async (id, executor = db) => {
+    const [linha] = await executor.select(campos)
         .from(assiduidade)
         .innerJoin(funcionario, eq(funcionario.id, assiduidade.funcionario_id))
         .where(eq(assiduidade.id, id))
@@ -47,8 +47,8 @@ const findById = async (id) => {
 };
 
 //usado pelo registo mensal para atualizar o dia sem duplicar (funcionario, data)
-const findByFuncionarioData = async (funcionario_id, data) => {
-    const [linha] = await db.select({ id: assiduidade.id })
+const findByFuncionarioData = async (funcionario_id, data, executor = db) => {
+    const [linha] = await executor.select({ id: assiduidade.id })
         .from(assiduidade)
         .where(and(
             eq(assiduidade.funcionario_id, funcionario_id),
@@ -67,8 +67,8 @@ const create = async ({
     tipo_ocorrencia,
     justificacao,
     registado_por
-}) => {
-    const [linha] = await db.insert(assiduidade)
+}, executor = db) => {
+    const [linha] = await executor.insert(assiduidade)
         .values({
             funcionario_id,
             data: data ?? sql`current_date`,
@@ -90,17 +90,17 @@ const update = async (id, {
     tipo_ocorrencia,
     justificacao,
     estado
-}) => {
+}, executor = db) => {
     const valores = {};
 
     if (hora_entrada_real !== undefined) valores.hora_entrada_real = hora_entrada_real || null;
     if (hora_saida_real !== undefined) valores.hora_saida_real = hora_saida_real || null;
-    if (tipo_ocorrencia !== undefined && tipo_ocorrencia !== null) valores.tipo_ocorrencia = tipo_ocorrencia;
-    if (justificacao !== undefined && justificacao !== null) valores.justificacao = justificacao;
+    if (tipo_ocorrencia !== undefined) valores.tipo_ocorrencia = tipo_ocorrencia;
+    if (justificacao !== undefined) valores.justificacao = justificacao;
     if (estado !== undefined && estado !== null) valores.estado = estado;
 
     if (Object.keys(valores).length === 0) {
-        const [linha] = await db.select({ id: assiduidade.id })
+        const [linha] = await executor.select({ id: assiduidade.id })
             .from(assiduidade)
             .where(eq(assiduidade.id, id))
             .limit(1);
@@ -108,7 +108,7 @@ const update = async (id, {
         return linha || null;
     }
 
-    const [linha] = await db.update(assiduidade)
+    const [linha] = await executor.update(assiduidade)
         .set(valores)
         .where(eq(assiduidade.id, id))
         .returning({ id: assiduidade.id });

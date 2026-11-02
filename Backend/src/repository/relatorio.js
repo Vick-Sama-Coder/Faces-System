@@ -105,8 +105,14 @@ const assiduidade = async ({ de, ate } = {}) => {
     const resultado = await db.execute(sql`
         select f.id as funcionario_id, f.nome as funcionario_nome,
                count(a.id)::int as registos,
-               count(a.id) filter (where a.tipo_ocorrencia is not null)::int as ocorrencias,
-               count(a.id) filter (where a.tipo_ocorrencia = 'atraso')::int as atrasos,
+               count(a.id) filter (
+                   where a.tipo_ocorrencia is not null
+                      or a.hora_entrada_real > time '09:00'
+               )::int as ocorrencias,
+               count(a.id) filter (
+                   where a.tipo_ocorrencia = 'atraso'
+                      or a.hora_entrada_real > time '09:00'
+               )::int as atrasos,
                count(a.id) filter (where a.tipo_ocorrencia in ('falta_justificada', 'falta_injustificada', 'ausencia'))::int as faltas
            from funcionario f
            left join assiduidade a on a.funcionario_id = f.id
@@ -172,7 +178,7 @@ const anulacoes = async ({ de, ate } = {}) => {
 //inclui o estado para o historico mostrar tambem os movimentos anulados
 const movimentos = async ({ de, ate } = {}) => {
     const resultado = await db.execute(sql`
-        select m.id, m.id_sessao, m.tipo_movimento, m.valor, m.descricao,
+        select m.id, m.id_sessao, m.tipo_movimento, m.metodo_pagamento, m.valor, m.descricao,
                m.origem, m.referencia_id, m.data_hora, m.estado
            from movimento_caixa m
           where (${periodo(sql`m.data_hora::date`, de, ate)})

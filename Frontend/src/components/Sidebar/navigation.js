@@ -66,6 +66,12 @@ export const NAV_GROUPS = [
                 permissions: ["relatorios:ler"]
             },
             {
+                label: "Caixa",
+                to: "/caixa",
+                icon: Receipt,
+                permissions: ["caixa:operar", "caixa:levantar", "caixa:fechar", "relatorios:ler"]
+            },
+            {
                 label: "Despesas",
                 to: "/despesas",
                 icon: Receipt,

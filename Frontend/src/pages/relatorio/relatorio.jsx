@@ -31,6 +31,8 @@ import {
     Banknote,
     CreditCard,
     Percent,
+    Calculator,
+    Loader2,
     X
 } from "lucide-react";
 import {
@@ -45,7 +47,10 @@ import {
     getRelatorioMovimentos,
     getRelatorioFinanceiro,
     getDespesas,
-    getApiError
+    getApiError,
+    aplicarReducoesAssiduidade,
+    getRelatorioReducoesAssiduidade,
+    processarSalarios
 } from "../../services/api.js";
 import CashFlowChart from "../../components/charts/CashFlowChart.jsx";
 import CategoryDonut from "../../components/charts/CategoryDonut.jsx";
@@ -169,6 +174,9 @@ function Relatorio() {
     const [funcionarioExpandido, setFuncionarioExpandido] = useState(null);
     const [filtroFuncionario, setFiltroFuncionario] = useState("");
     const [filtroMetodo, setFiltroMetodo] = useState("");
+    const [calculando, setCalculando] = useState(false);
+    const [processando, setProcessando] = useState(false);
+    const [mensagem, setMensagem] = useState(null);
 
     useEffect(() => {
         let activo = true;
@@ -181,6 +189,8 @@ function Relatorio() {
                 const params = {};
                 if (periodo.de) params.de = periodo.de;
                 if (periodo.ate) params.ate = periodo.ate;
+                // AAAA-MM usado pelo calculo salarial de assiduidade
+                if (periodo.de) params.periodo = String(periodo.de).slice(0, 7);
 
                 const [
                     resResumo,
@@ -189,6 +199,7 @@ function Relatorio() {
                     resServicos,
                     resFuncionarios,
                     resAssiduidade,
+                    resReducoes,
                     resClientes,
                     resFidelizacao,
                     resAnulacoes,
@@ -201,6 +212,8 @@ function Relatorio() {
                     getRelatorioServicos(params),
                     getRelatorioFuncionarios(params),
                     getRelatorioAssiduidade(params),
+                    // a leitura das reducoes nao pode derrubar o relatorio (ex.: sem permissao salarial)
+                    getRelatorioReducoesAssiduidade(params).catch(() => ({ data: { reducoes: [] } })),
                     getRelatorioClientes(params),
                     getRelatorioFidelizacao(params),
                     getRelatorioAnulacoes(params),
@@ -217,6 +230,7 @@ function Relatorio() {
                     servicos: Array.isArray(resServicos.data) ? resServicos.data : [],
                     funcionarios: Array.isArray(resFuncionarios.data) ? resFuncionarios.data : [],
                     assiduidade: Array.isArray(resAssiduidade.data) ? resAssiduidade.data : [],
+                    reducoes: Array.isArray(resReducoes.data?.reducoes) ? resReducoes.data.reducoes : [],
                     clientes: Array.isArray(resClientes.data) ? resClientes.data : [],
                     fidelizacao: resFidelizacao.data || {},
                     anulacoes: Array.isArray(resAnulacoes.data) ? resAnulacoes.data : [],
@@ -298,6 +312,23 @@ function Relatorio() {
     const movimentos = useMemo(() => dados?.movimentos || [], [dados]);
     const despesas = useMemo(() => dados?.despesas || [], [dados]);
 
+    const reducoes = dados?.reducoes || [];
+    const movimentosFiltrados = movimentos.filter((movimento) => (
+        !filtroMetodo || (movimento.metodo_pagamento || "Dinheiro") === filtroMetodo
+    ));
+    const despesasFiltradas = despesas.filter((despesa) => (
+        !filtroMetodo || (despesa.metodo_pagamento || "Nao indicado") === filtroMetodo
+    ));
+    const assiduidadeFiltrada = assiduidade.filter((registo) => (
+        !filtroFuncionario || String(registo.funcionario_id) === String(filtroFuncionario)
+    ));
+    const reducoesFiltradas = reducoes.filter((reducao) => (
+        !filtroFuncionario || String(reducao.funcionario_id) === String(filtroFuncionario)
+    ));
+    const dividasPagarFiltradas = dividasPagar.filter((divida) => (
+        !filtroFuncionario || String(divida.funcionario_id) === String(filtroFuncionario)
+    ));
+
     const receita = Number(resumoFinanceiro.receitas_recebidas ?? resumo.receita) || 0;
     const receitaGerada = Number(resumoFinanceiro.receitas_geradas) || 0;
     const despesasTotal = Number(resumoFinanceiro.despesas ?? resumo.despesas) || 0;
@@ -320,7 +351,7 @@ function Relatorio() {
     const totalServicos = servicos.reduce((soma, servico) => soma + Number(servico.quantidade || 0), 0);
 
     const fluxo = useMemo(() => {
-        const activos = movimentos.filter((movimento) => movimento.estado === "Ativo");
+        const activos = movimentosFiltrados.filter((movimento) => movimento.estado === "Ativo");
 
         if (activos.length === 0) {
             return { itens: [], porMes: false };
@@ -361,12 +392,12 @@ function Relatorio() {
             itens: [...mapa.values()].sort((a, b) => a.chave.localeCompare(b.chave)),
             porMes
         };
-    }, [movimentos]);
+    }, [movimentosFiltrados]);
 
     const despesasCategoria = useMemo(() => {
         const mapa = new Map();
 
-        despesas.forEach((despesa) => {
+        despesasFiltradas.forEach((despesa) => {
             const nome = despesa.categoria_nome || "Sem categoria";
             mapa.set(nome, (mapa.get(nome) || 0) + Number(despesa.valor_total || 0));
         });
@@ -380,7 +411,7 @@ function Relatorio() {
         const principais = lista.slice(0, 5);
         const outros = lista.slice(5).reduce((soma, item) => soma + item.value, 0);
         return [...principais, { name: "Outros", value: outros }];
-    }, [despesas]);
+    }, [despesasFiltradas]);
 
     const totalDespesasCategoria = despesasCategoria.reduce((soma, item) => soma + item.value, 0);
     const maxServico = Math.max(1, ...servicos.map((servico) => Number(servico.total) || 0));
@@ -401,7 +432,7 @@ function Relatorio() {
         !filtroMetodo || metodo.metodo === filtroMetodo
     ));
     const despesasDetalheFiltradas = despesasDetalhe.filter((despesa) => (
-        !filtroMetodo || despesa.metodo_pagamento === filtroMetodo
+        !filtroMetodo || (despesa.metodo_pagamento || "Nao indicado") === filtroMetodo
     ));
     const despesasPorCategoria = Array.isArray(despesasFinanceiro.por_categoria)
         ? despesasFinanceiro.por_categoria
@@ -427,7 +458,7 @@ function Relatorio() {
     const funcionariosDestaque = funcionariosFiltrados
         .filter((funcionario) => Number(funcionario.total_servicos) > 0)
         .slice(0, 3);
-    const funcionarioSalarioExpandido = salariosFuncionarios.find((funcionario) => (
+    const funcionarioSalarioExpandido = salariosFiltrados.find((funcionario) => (
         String(funcionario.funcionario_id) === String(funcionarioExpandido)
     )) || null;
     const salariosPendentes = salariosFiltrados.filter((funcionario) => Number(funcionario.saldo_pendente) > 0);
@@ -441,7 +472,8 @@ function Relatorio() {
 
     const opcoesMetodos = [...new Set([
         ...receitasMetodo.map((metodo) => metodo.metodo),
-        ...despesasMetodo.map((metodo) => metodo.metodo)
+        ...despesasMetodo.map((metodo) => metodo.metodo),
+        ...movimentos.map((movimento) => movimento.metodo_pagamento)
     ].filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
     const marcas = Number(fidelizacao.marcas) || 0;
@@ -465,6 +497,8 @@ function Relatorio() {
         { id: "equipa", label: "Equipa", Icone: Users, badge: funcionarios.length },
         { id: "dividas", label: "Dividas", Icone: HandCoins, badge: dividasReceber.length + dividasPagar.length },
         { id: "clientes", label: "Clientes", Icone: UserRound, badge: clientesComAtendimentos.length },
+        { id: "assiduidade", label: "Assiduidade", Icone: CalendarDays, badge: assiduidade.filter((a) => Number(a.ocorrencias) > 0).length },
+        { id: "reducao", label: "Reducao por assiduidade", Icone: Percent, badge: reducoes.filter((r) => r.temProcessamento && Number(r.valor) > 0).length },
         { id: "anulacoes", label: "Anulacoes", Icone: Ban, badge: anulacoes.length }
     ];
 
@@ -511,7 +545,7 @@ function Relatorio() {
         adicionar();
         adicionar("RECEITAS POR METODO");
         adicionar("Metodo", "Quantidade", "Total");
-        receitasMetodo.forEach((metodo) => adicionar(metodo.metodo, metodo.quantidade, metodo.total));
+        receitasMetodoFiltradas.forEach((metodo) => adicionar(metodo.metodo, metodo.quantidade, metodo.total));
         adicionar();
         adicionar("RECEITAS POR SERVICO");
         adicionar("Servico", "Quantidade", "Valor bruto", "Descontos", "Receita liquida", "Comissoes");
@@ -530,7 +564,7 @@ function Relatorio() {
         adicionar();
         adicionar("DETALHE DE DESPESAS");
         adicionar("Data", "Categoria", "Descricao", "Metodo", "Responsavel", "Valor");
-        despesasDetalhe.forEach((despesa) => adicionar(
+        despesasDetalheFiltradas.forEach((despesa) => adicionar(
             despesa.data_compra,
             despesa.categoria,
             despesa.descricao,
@@ -560,7 +594,7 @@ function Relatorio() {
         adicionar();
         adicionar("SALARIOS E COMISSOES");
         adicionar("Funcionario", "Salario fixo", "Comissoes", "Deducoes", "Total a pagar", "Total pago", "Saldo pendente");
-        salariosFuncionarios.forEach((funcionario) => adicionar(
+        salariosFiltrados.forEach((funcionario) => adicionar(
             funcionario.funcionario_nome,
             funcionario.salario_fixo,
             funcionario.comissoes,
@@ -584,7 +618,7 @@ function Relatorio() {
         adicionar();
         adicionar("VALORES A PAGAR");
         adicionar("Beneficiario", "Periodo inicio", "Periodo fim", "Valor", "Estado");
-        dividasPagar.forEach((divida) => adicionar(
+        dividasPagarFiltradas.forEach((divida) => adicionar(
             divida.beneficiario,
             divida.periodo_inicio,
             divida.periodo_fim,
@@ -726,8 +760,8 @@ function Relatorio() {
                             </button>
                         )}
                         <p className="relatorio-filtros-nota">
-                            Os filtros aplicam-se as listas detalhadas de equipa, receitas e despesas. Os totais do
-                            periodo continuam a ser globais.
+                            Os filtros aplicam-se as listas e graficos detalhados de equipa, assiduidade, receitas,
+                            despesas e fluxo de caixa. Os indicadores gerais do periodo continuam globais.
                         </p>
                     </div>
                 </section>
@@ -1831,7 +1865,7 @@ function Relatorio() {
                                         <Clock3 size={17} className="relatorio-card-mark" />
                                     </header>
 
-                                    {assiduidade.length === 0 ? (
+                                    {assiduidadeFiltrada.length === 0 ? (
                                         <Vazio
                                             titulo="Sem registos de assiduidade"
                                             texto="Os registos de presenca e ocorrencias aparecem aqui."
@@ -1849,7 +1883,7 @@ function Relatorio() {
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {assiduidade.map((registo) => (
+                                                    {assiduidadeFiltrada.map((registo) => (
                                                         <tr key={registo.funcionario_id}>
                                                             <td>{registo.funcionario_nome}</td>
                                                             <td>{formatarNumero(registo.registos)}</td>
@@ -2001,6 +2035,180 @@ function Relatorio() {
                                     <p className="relatorio-note">
                                         As marcas sao acumuladas por dia. Ao completar 5/5, o 6.º servico tem de ser gratuito e nao pode ser guardado para depois.
                                     </p>
+                                </article>
+                            </div>
+                        )}
+
+                        {tabAtiva === "assiduidade" && (
+                            <div className="relatorio-grid-2">
+                                <article className="relatorio-card">
+                                    <header className="relatorio-card-header">
+                                        <div>
+                                            <h2>Registos de assiduidade</h2>
+                                            <p>Registos de entrada/saida e ocorrencias no periodo</p>
+                                        </div>
+                                        <CalendarDays size={17} className="relatorio-card-mark" />
+                                    </header>
+
+                                    {assiduidadeFiltrada.length === 0 ? (
+                                        <Vazio
+                                            titulo="Sem registos de assiduidade"
+                                            texto="Os registos de presenca e ocorrencias aparecem aqui."
+                                        />
+                                    ) : (
+                                        <div className="relatorio-table-scroll">
+                                            <table className="admin-table relatorio-table relatorio-table-compact">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Funcionario</th>
+                                                        <th>Registos</th>
+                                                        <th>Ocorrencias</th>
+                                                        <th>Atrasos</th>
+                                                        <th>Faltas</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {assiduidadeFiltrada.map((registo) => (
+                                                        <tr key={registo.funcionario_id}>
+                                                            <td>{registo.funcionario_nome}</td>
+                                                            <td>{formatarNumero(registo.registos)}</td>
+                                                            <td>
+                                                                <span className={`relatorio-pill ${Number(registo.ocorrencias) > 0 ? "warning" : "success"}`}>
+                                                                    {formatarNumero(registo.ocorrencias)}
+                                                                </span>
+                                                            </td>
+                                                            <td>{formatarNumero(registo.atrasos)}</td>
+                                                            <td>{formatarNumero(registo.faltas)}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </article>
+                            </div>
+                        )}
+
+                        {tabAtiva === "reducao" && (
+                            <div className="relatorio-grid-2">
+                                <article className="relatorio-card">
+                                    <header className="relatorio-card-header">
+                                        <div>
+                                            <h2>Reducao por assiduidade</h2>
+                                            <p>Meta salarial de 10 horas por cada dia do mês. As horas em falta são descontadas proporcionalmente ao salário base; horas extra noutros dias compensam o total mensal.</p>
+                                        </div>
+                                        <Percent size={17} className="relatorio-card-mark" />
+                                    </header>
+
+                                    <div className="relatorio-reducao-actions">
+                                        <button
+                                            type="button"
+                                            className="admin-btn"
+                                            onClick={async () => {
+                                                if (!periodo.de) {
+                                                    setMensagem("Selecione um periodo antes de gerar os processamentos.");
+                                                    return;
+                                                }
+                                                if (!confirm("Gerar os processamentos salariais do periodo para toda a equipa ativa?")) return;
+                                                const periodoRef = String(periodo.de).slice(0, 7);
+                                                try {
+                                                    setProcessando(true);
+                                                    setMensagem(null);
+                                                    const resposta = await processarSalarios(periodoRef);
+                                                    const criados = resposta?.data?.criados?.length ?? resposta?.data?.length ?? 0;
+                                                    setRecarregar((valor) => valor + 1);
+                                                    setMensagem(
+                                                        `Processamentos gerados (${criados} novo(s)); reducoes por assiduidade aplicadas automaticamente `
+                                                        + `aos processamentos preparados do periodo.`
+                                                    );
+                                                } catch (err) {
+                                                    setMensagem(getApiError(err));
+                                                } finally {
+                                                    setProcessando(false);
+                                                }
+                                            }}
+                                            disabled={processando || calculando}
+                                        >
+                                            {processando ? <Loader2 size={16} className="animate-spin" /> : <Receipt size={16} />}
+                                            {processando ? "A gerar..." : "Gerar processamentos"}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="admin-btn primary"
+                                            onClick={async () => {
+                                                if (!periodo.de) {
+                                                    setMensagem("Selecione um periodo antes de recalcular as reducoes.");
+                                                    return;
+                                                }
+                                                if (!confirm("Recalcular e atualizar as reducoes de assiduidade do periodo selecionado?")) return;
+                                                const periodoRef = String(periodo.de).slice(0, 7);
+                                                try {
+                                                    setCalculando(true);
+                                                    setMensagem(null);
+                                                    const resposta = await aplicarReducoesAssiduidade({ periodo: periodoRef });
+                                                    const aplicadas = resposta?.data?.aplicadas?.length ?? 0;
+                                                    const semProcessamento = resposta?.data?.semProcessamento ?? 0;
+                                                    setRecarregar((valor) => valor + 1);
+                                                    setMensagem(
+                                                        semProcessamento > 0
+                                                            ? `Reducoes aplicadas (${aplicadas} processamento(s)). ${semProcessamento} funcionario(s) ainda sem processamento no periodo - use "Gerar processamentos" e repita.`
+                                                            : `Reducoes aplicadas com sucesso (${aplicadas} processamento(s) atualizado(s)).`
+                                                    );
+                                                } catch (err) {
+                                                    setMensagem(getApiError(err));
+                                                } finally {
+                                                    setCalculando(false);
+                                                }
+                                            }}
+                                            disabled={calculando || processando}
+                                        >
+                                            {calculando ? <Loader2 size={16} className="animate-spin" /> : <Calculator size={16} />}
+                                            {calculando ? "A calcular..." : "Recalcular reducoes"}
+                                        </button>
+                                    </div>
+
+                                    {mensagem && (
+                                        <p className="relatorio-reducao-mensagem" role="status">{mensagem}</p>
+                                    )}
+
+                                    {reducoesFiltradas.length === 0 ? (
+                                        <div className="relatorio-empty relatorio-empty-neutral">
+                                            <Clock3 size={24} />
+                                            <p>Selecione um periodo e gere a folha para aplicar as reducoes automaticamente. Pode recalcular apos corrigir a assiduidade.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="relatorio-table-scroll">
+                                            <table className="admin-table relatorio-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Funcionario</th>
+                                                        <th>Efetividade mensal</th>
+                                                        <th>Horas em falta</th>
+                                                        <th>Desconto (%)</th>
+                                                        <th>Reducao (MT)</th>
+                                                        <th>Salario base</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {reducoesFiltradas.map((reducao) => (
+                                                        <tr key={reducao.funcionario_id}>
+                                                            <td>{reducao.funcionario_nome}</td>
+                                                            <td>{`${Number(reducao.efetividade).toFixed(1)}%`}</td>
+                                                            <td>{`${Number(reducao.horasEmFalta).toFixed(1)} h`}</td>
+                                                            <td>{`${Number(reducao.reducaoPercentual).toFixed(1)}%`}</td>
+                                                            <td>{Number(reducao.valor) > 0 ? `-${formatarMoeda(reducao.valor)}` : formatarMoeda(0)}</td>
+                                                            <td>
+                                                                {formatarMoeda(reducao.salario_base)}
+                                                                {!reducao.temProcessamento && (
+                                                                    <small className="relatorio-reducao-nota"> sem processamento no periodo</small>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
                                 </article>
                             </div>
                         )}

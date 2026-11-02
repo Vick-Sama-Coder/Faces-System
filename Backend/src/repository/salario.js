@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, ne, sql } from 'drizzle-orm';
 import db from '../db/client.js';
 import {
     comissao,
@@ -25,7 +25,7 @@ const campos = {
 };
 
 //filtros opcionais porque o processamento e procurado por mes, funcionario ou estado
-const findProcessamentos = async ({ periodo, funcionario: funcionarioId, estado } = {}) => {
+const findProcessamentos = async ({ periodo, funcionario: funcionarioId, estado } = {}, executor = db) => {
     const condicoes = [];
 
     if (periodo !== undefined && periodo !== null && periodo !== '') {
@@ -38,7 +38,7 @@ const findProcessamentos = async ({ periodo, funcionario: funcionarioId, estado 
         condicoes.push(eq(processamentoSalarial.estado, estado));
     }
 
-    return db.select(campos)
+    return executor.select(campos)
         .from(processamentoSalarial)
         .innerJoin(funcionario, eq(funcionario.id, processamentoSalarial.funcionario_id))
         .where(condicoes.length > 0 ? and(...condicoes) : undefined)
@@ -127,7 +127,10 @@ const inserirProcessamento = async (tx, {
 
 const substituirDeducoes = async (tx, processamento_id, deducoes, aprovado_por) => {
     await tx.delete(deducaoSalarial)
-        .where(eq(deducaoSalarial.processamento_id, processamento_id));
+        .where(and(
+            eq(deducaoSalarial.processamento_id, processamento_id),
+            ne(deducaoSalarial.tipo, 'reducao_assiduidade')
+        ));
 
     if (deducoes.length === 0) {
         return;
@@ -145,6 +148,15 @@ const substituirDeducoes = async (tx, processamento_id, deducoes, aprovado_por) 
     );
 };
 
+//remover as deducoes de um tipo antes de as recalcular (mantem o calculo repetivel)
+const removerDeducoesPorTipo = async (tx, processamento_id, tipo) => {
+    await tx.delete(deducaoSalarial)
+        .where(and(
+            eq(deducaoSalarial.processamento_id, processamento_id),
+            eq(deducaoSalarial.tipo, tipo)
+        ));
+};
+
 //recalcular a partir das linhas evita guardar totais que divergem das deducoes
 const recalcular = async (tx, processamento_id) => {
     await tx.execute(sql`
@@ -160,6 +172,29 @@ const recalcular = async (tx, processamento_id) => {
           ) t on t.processamento_id = x.id
          where p.id = x.id
     `);
+};
+
+
+//inserir uma deducao salarial a um processamento
+const inserirDeducao = async (tx, {
+    processamento_id,
+    tipo,
+    descricao,
+    valor,
+    motivo,
+    aprovado_por
+}) => {
+    const [linha] = await tx.insert(deducaoSalarial)
+        .values({
+            processamento_id,
+            tipo,
+            descricao: descricao ?? null,
+            valor,
+            motivo: motivo ?? null,
+            aprovado_por
+        })
+        .returning({ id: deducaoSalarial.id });
+    return linha?.id || null;
 };
 
 //---- mudancas de estado simples, fora de transacao (db) ----
@@ -209,6 +244,8 @@ const Salario = {
     inserirProcessamento,
     substituirDeducoes,
     recalcular,
+    inserirDeducao,
+    removerDeducoesPorTipo,
     aprovar,
     pagar,
     marcarComissoesPagas
