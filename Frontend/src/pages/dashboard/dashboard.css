@@ -1,61 +1,3 @@
-.dashboard-main {
-    height: 100vh;
-    display: grid;
-    grid-template: 60px 1fr / 70px 1fr;
-    position: relative;
-    background: var(--bg-page);
-}
-
-.dash-header {
-    grid-area: 1 / 2 / 2 / -1;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 20px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-}
-
-.dash-h1 {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding-left: 4px;
-}
-
-.user,
-.menu > .lucide {
-    cursor: pointer;
-}
-
-.user {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 10px;
-}
-
-.menu {
-    display: none;
-}
-
-.p-profile {
-    padding: 0 5px;
-}
-
-.dash-content {
-    grid-area: 2 / 2 / -1 / -1;
-    min-width: 0;
-    overflow-y: auto;
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
 /* Welcome */
 
 .dash-welcome {
@@ -770,20 +712,7 @@
     }
 }
 
-@media (max-width: 678px) {
-    .dashboard-main {
-        display: flex;
-        flex-direction: column;
-        height: auto;
-        min-height: 100vh;
-    }
-
-    .dash-content {
-        padding: 16px;
-        gap: 16px;
-        overflow: visible;
-    }
-
+@media (max-width: 767px) {
     .dash-welcome {
         padding: 18px;
         align-items: flex-start;
@@ -842,17 +771,5 @@
     .menu {
         display: block;
         cursor: pointer;
-    }
-}
-
-@media (min-width: 679px) and (max-width: 1023px) {
-    .dashboard-main {
-        grid-template-columns: 70px 1fr;
-    }
-}
-
-@media (min-width: 1024px) {
-    .dashboard-main {
-        grid-template: 60px 1fr / 215px 1fr;
     }
 }

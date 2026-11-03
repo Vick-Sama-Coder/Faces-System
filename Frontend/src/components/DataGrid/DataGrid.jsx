@@ -1,8 +1,9 @@
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { AgGridReact } from "ag-grid-react"
 import { AllCommunityModule, ModuleRegistry, themeQuartz } from "ag-grid-community"
 import { Inbox, Loader2 } from "lucide-react"
 import { useThemeStore } from "../../store/themeStore.js"
+import { useMediaQuery } from "../../hooks/useMediaQuery.js"
 import "./DataGrid.css"
 
 ModuleRegistry.registerModules([AllCommunityModule])
@@ -108,9 +109,12 @@ function DataGrid({
     emptyIcon: EmptyIcon = Inbox,
     emptyAction,
     pageSize = 10,
-    className = ""
+    className = "",
+    mobileCard
 }) {
     const resolvedTheme = useThemeStore((state) => state.resolvedTheme)
+    const isMobile = useMediaQuery("(max-width: 767px)")
+    const [visibleCount, setVisibleCount] = useState(pageSize)
     const facesGridTheme = useMemo(
         () => themeQuartz.withParams({
             ...getGridThemeParams(),
@@ -140,6 +144,32 @@ function DataGrid({
                     <p>{emptyMessage}</p>
                     {emptyAction && <div className="faces-grid-empty-action">{emptyAction}</div>}
                 </div>
+            </div>
+        )
+    }
+
+    if (isMobile && mobileCard) {
+        const visibleRows = rowData.slice(0, visibleCount)
+
+        return (
+            <div className={`faces-grid-cards ${className}`.trim()}>
+                <ul className="faces-grid-cards-list">
+                    {visibleRows.map((row, index) => (
+                        <li className="faces-grid-card" key={String(row?.id ?? index)}>
+                            {mobileCard(row)}
+                        </li>
+                    ))}
+                </ul>
+
+                {rowData.length > visibleCount && (
+                    <button
+                        type="button"
+                        className="faces-grid-more"
+                        onClick={() => setVisibleCount((count) => count + pageSize)}
+                    >
+                        Mostrar mais {rowData.length - visibleCount}
+                    </button>
+                )}
             </div>
         )
     }

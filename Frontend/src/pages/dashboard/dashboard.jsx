@@ -1,5 +1,3 @@
-import Sidebar from "../../components/Sidebar/Sidebar.jsx"
-import Headers from "../../components/headers/header.jsx"
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router"
 import {
@@ -58,7 +56,6 @@ function Trend({ valor, invertido = false }) {
 }
 
 function DashBoard() {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [dados, setDados] = useState(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
@@ -117,24 +114,7 @@ function DashBoard() {
     const podeEquipa = temPermissao("funcionarios:ler") || temPermissao("funcionarios:escrever")
 
     return (
-        <article className="dashboard-main">
-            <Headers
-                heady="dash-header"
-                title="Dashboard"
-                h1Class="dash-h1"
-                menuClass="menu"
-                userClass="user"
-                bellClass="bell"
-                pClass="p-profile"
-                onMenuClick={() => setIsSidebarOpen(true)}
-                sidebarOpen={isSidebarOpen}
-            />
-            <Sidebar
-                isOpen={isSidebarOpen}
-                setIsOpen={setIsSidebarOpen}
-            />
-
-            <main className="dash-content">
+        <div className="app-page dash-page">
                 <header className="dash-welcome">
                     <div>
                         <p className="dash-eyebrow"><Sparkles size={14} /> Visao geral do salao</p>
@@ -443,8 +423,7 @@ function DashBoard() {
                         </section>
                     </>
                 )}
-            </main>
-        </article>
+        </div>
     )
 }
 

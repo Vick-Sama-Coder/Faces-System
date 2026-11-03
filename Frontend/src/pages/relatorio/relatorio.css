@@ -440,8 +440,7 @@
     max-height: 360px;
     overflow-y: auto;
     padding-right: 3px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--scrollbar-thumb) transparent;
+    scrollbar-width: none;
 }
 
 .relatorio-rank-row {
@@ -771,8 +770,7 @@
     width: 100%;
     max-height: 460px;
     overflow: auto;
-    scrollbar-width: thin;
-    scrollbar-color: var(--scrollbar-thumb) transparent;
+    scrollbar-width: none;
 }
 
 .relatorio-table-scroll-tall {
@@ -1005,7 +1003,7 @@
     }
 }
 
-@media (max-width: 678px) {
+@media (max-width: 767px) {
     .relatorio-kpis {
         grid-template-columns: 1fr;
     }
@@ -1542,7 +1540,7 @@
     }
 }
 
-@media (max-width: 678px) {
+@media (max-width: 767px) {
     .relatorio-financeiro-resumo,
     .relatorio-caixa-resumo-5,
     .relatorio-payroll-summary {
@@ -1580,7 +1578,8 @@
 @media print {
     .sidebar,
     .sidebar-backdrop,
-    .admin-header,
+    .app-header,
+    .bottom-nav,
     .admin-page-header,
     .admin-page-actions,
     .relatorio-periodo,
@@ -1608,10 +1607,15 @@
         font-size: 12px;
     }
 
-    .admin-main,
-    .admin-content {
+    .app-shell,
+    .app-shell-main,
+    .app-content,
+    .app-page {
+        display: block !important;
+        height: auto !important;
         margin: 0 !important;
         padding: 0 !important;
+        overflow: visible !important;
         background: #fff !important;
     }
 
@@ -1767,4 +1771,50 @@
     margin: 0 0 14px 0;
     color: var(--text-muted);
     font-size: var(--text-sm);
+}
+
+/* Tabelas de relatorio: scroll horizontal com a primeira coluna fixa. */
+@media (max-width: 1023px) {
+    .relatorio-table-scroll {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .relatorio-table th:first-child,
+    .relatorio-table td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        background: var(--surface);
+        box-shadow: 8px 0 12px -10px var(--shadow-color-soft);
+    }
+
+    .relatorio-table th:first-child {
+        z-index: 3;
+        background: var(--surface-tint);
+    }
+
+    .relatorio-table tbody tr:hover td:first-child {
+        background: var(--table-row-hover);
+    }
+}
+
+@media (max-width: 767px) {
+    .relatorio-modal-backdrop {
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    .relatorio-modal {
+        width: 100%;
+        max-width: none;
+        max-height: 92dvh;
+        border-radius: 20px 20px 0 0;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    .relatorio-modal-body {
+        max-height: none;
+        min-height: 0;
+        padding-top: 56px;
+    }
 }

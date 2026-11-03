@@ -342,7 +342,7 @@ button.chart-legend-item:hover i {
     }
 }
 
-@media (max-width: 678px) {
+@media (max-width: 767px) {
     .chart-frame {
         height: min(var(--chart-height, 320px), 280px);
     }

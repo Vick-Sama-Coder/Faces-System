@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import Sidebar from "../../components/Sidebar/Sidebar.jsx"
-import Headers from "../../components/headers/header.jsx";
 import "../admin/admin.css";
 import "./relatorio.css";
 import {
@@ -160,7 +158,6 @@ function Vazio({ titulo, texto }) {
 }
 
 function Relatorio() {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [filtros, setFiltros] = useState(() => periodoDoPreset("mes"));
     const [periodo, setPeriodo] = useState(() => periodoDoPreset("mes"));
     const [presetAtivo, setPresetAtivo] = useState("mes");
@@ -639,20 +636,7 @@ function Relatorio() {
     }
 
     return (
-        <div className="admin-main">
-            <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-            <Headers
-                heady="admin-header"
-                title="Relatorios"
-                h1Class="admin-header-title"
-                menuClass="menu"
-                userClass="user"
-                bellClass="bell"
-                onMenuClick={() => setIsSidebarOpen(true)}
-                sidebarOpen={isSidebarOpen}
-            />
-
-            <main className="admin-content">
+        <div className="app-page">
                 <div className="relatorio-print-only">
                     <h1>Relatorio financeiro</h1>
                     <p>{rotuloPeriodo}</p>
@@ -2536,7 +2520,6 @@ function Relatorio() {
                         <span>{rotuloPeriodo}</span>
                     </footer>
                 )}
-            </main>
         </div>
     );
 }

@@ -1,0 +1,125 @@
+/* ===========================
+   SHELL DA APLICACAO
+=========================== */
+
+.app-shell {
+    --app-sidebar-width: 215px;
+
+    display: grid;
+    grid-template-columns: var(--app-sidebar-width) minmax(0, 1fr);
+    width: 100%;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--bg-page);
+}
+
+.app-shell-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+}
+
+.app-content {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 24px;
+}
+
+/* As paginas assumem este contentor comum. */
+.app-page {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    width: 100%;
+    min-width: 0;
+}
+
+.app-page > * {
+    flex-shrink: 0;
+}
+
+/* ===========================
+   TABLET
+=========================== */
+
+@media (min-width: 768px) and (max-width: 1023px) {
+    .app-shell {
+        --app-sidebar-width: 70px;
+    }
+
+    .app-content {
+        padding: 20px;
+    }
+}
+
+/* ===========================
+   MOBILE
+=========================== */
+
+@media (max-width: 767px) {
+    .app-shell {
+        display: block;
+        height: auto;
+        min-height: 100dvh;
+        overflow: visible;
+    }
+
+    .app-shell-main {
+        min-height: 100dvh;
+    }
+
+    .app-content {
+        overflow: visible;
+        padding: 16px;
+        padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .app-page {
+        gap: 18px;
+    }
+}
+
+@media (max-width: 380px) {
+    .app-content {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+}
+
+.app-skip-link {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 200;
+
+    padding: 10px 14px;
+    border: 1px solid var(--primary-border);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--primary-text);
+
+    font-size: var(--text-sm);
+    font-weight: 700;
+    text-decoration: none;
+
+    transform: translateY(-200%);
+    transition: transform 0.18s ease;
+}
+
+.app-skip-link:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .app-skip-link {
+        transition: none;
+    }
+}

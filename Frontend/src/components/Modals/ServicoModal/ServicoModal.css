@@ -305,13 +305,18 @@
 }
 
 /* Responsive */
-@media screen and (max-width: 576px) {
+@media screen and (max-width: 767px) {
     .modal-backdrop {
-        padding: 16px;
+        align-items: flex-end;
+        padding: 0;
     }
 
     .servico-modal {
-        max-height: 95vh;
+        width: 100%;
+        max-width: none;
+        max-height: 92dvh;
+        border-radius: 20px 20px 0 0;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
     }
 
     .header-modal {

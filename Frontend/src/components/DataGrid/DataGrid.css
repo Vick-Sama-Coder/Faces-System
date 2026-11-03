@@ -390,19 +390,21 @@
     color: var(--primary-text);
 }
 
-@media (max-width: 678px) {
+@media (max-width: 767px) {
     .faces-grid-shell {
         height: 520px;
         min-height: 460px;
     }
 
     .faces-grid-skeleton {
-        padding: 14px;
+        padding: 16px;
+        border-radius: 14px;
     }
 
     .faces-grid-skeleton-head,
     .faces-grid-skeleton-row {
         grid-template-columns: 1.6fr 1fr 0.8fr;
+        gap: 10px;
     }
 
     .faces-grid-skeleton-head span:nth-child(n + 4),
@@ -418,5 +420,114 @@
     .mgmt-row-btn {
         animation: none;
         transition: none;
+    }
+}
+
+/* ===========================
+   MODO CARTAO (MOBILE)
+=========================== */
+
+.faces-grid-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+}
+
+.faces-grid-cards-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.faces-grid-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface);
+    box-shadow: 0 6px 20px var(--shadow-color-soft);
+}
+
+.faces-grid-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+}
+
+.faces-grid-card-head > :first-child {
+    min-width: 0;
+}
+
+.faces-grid-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    line-height: 1.4;
+}
+
+.faces-grid-card-meta > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.faces-grid-card-foot {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+
+.faces-grid-card-foot > :first-child {
+    min-width: 0;
+}
+
+.faces-grid-more {
+    align-self: stretch;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--primary-text);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.faces-grid-more:hover {
+    border-color: var(--primary-border);
+    background: var(--primary-soft-subtle);
+}
+
+.faces-grid-more:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+@media (max-width: 420px) {
+    .faces-grid-card {
+        padding: 14px;
+    }
+
+    .faces-grid-card-foot {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .faces-grid-card-foot .mgmt-row-actions {
+        justify-content: flex-end;
     }
 }

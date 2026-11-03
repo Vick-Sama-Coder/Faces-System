@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useState } from "react"
-import Sidebar from "../../components/Sidebar/Sidebar.jsx"
-import Headers from "../../components/headers/header.jsx"
 import "../admin/admin.css"
 import { Tag, Plus, Edit, Trash2, X, Save, FolderTree, Scissors } from "lucide-react"
 import {
@@ -13,7 +11,6 @@ import {
 } from "../../services/api.js"
 
 function Categorias() {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [categorias, setCategorias] = useState([])
     const [servicos, setServicos] = useState([])
     const [loading, setLoading] = useState(true)
@@ -167,20 +164,7 @@ function Categorias() {
                 </div>
             )}
 
-            <div className="admin-main">
-                <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-                <Headers
-                    heady="admin-header"
-                    title="Categorias"
-                    h1Class="admin-header-title"
-                    menuClass="menu"
-                    userClass="user"
-                    bellClass="bell"
-                    onMenuClick={() => setIsSidebarOpen(true)}
-                    sidebarOpen={isSidebarOpen}
-                />
-
-                <main className="admin-content">
+            <div className="app-page">
                     <header className="admin-page-header">
                         <div className="admin-page-header-inner">
                             <div>
@@ -237,7 +221,7 @@ function Categorias() {
                         </span>
                     </div>
 
-                    <div className="admin-table-wrap">
+                    <div className="admin-table-wrap admin-table-wrap-cards">
                         {loading ? (
                             <p className="admin-empty">A carregar categorias...</p>
                         ) : categoriasFiltradas.length === 0 ? (
@@ -247,7 +231,7 @@ function Categorias() {
                                     : "Nenhuma categoria corresponde a pesquisa."}
                             </p>
                         ) : (
-                            <table className="admin-table">
+                            <table className="admin-table admin-table-cards">
                                 <thead>
                                     <tr>
                                         <th>Categoria</th>
@@ -260,13 +244,13 @@ function Categorias() {
                                         const quantidade = servicosPorCategoria.get(Number(categoria.id)) || 0
                                         return (
                                             <tr key={categoria.id}>
-                                                <td>
+                                                <td className="admin-card-heading" data-label="Categoria">
                                                     <div className="admin-cell-main">
                                                         <strong>{categoria.nome}</strong>
                                                         <span>{quantidade > 0 ? "Categoria em uso" : "Sem servicos associados"}</span>
                                                     </div>
                                                 </td>
-                                                <td>
+                                                <td data-label="Servicos">
                                                     <span className={`admin-badge ${quantidade > 0 ? "primary" : "neutral"}`}>
                                                         {quantidade} {quantidade === 1 ? "servico" : "servicos"}
                                                     </span>
@@ -296,7 +280,6 @@ function Categorias() {
                             </table>
                         )}
                     </div>
-                </main>
             </div>
         </>
     )

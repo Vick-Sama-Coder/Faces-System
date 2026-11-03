@@ -513,7 +513,7 @@
     }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 767px) {
     .despesas-side {
         grid-template-columns: 1fr;
     }
@@ -525,7 +525,7 @@
     }
 }
 
-@media (max-width: 678px) {
+@media (max-width: 767px) {
     .despesas-kpis {
         grid-template-columns: 1fr;
     }

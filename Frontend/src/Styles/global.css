@@ -2,14 +2,25 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    
-    
+
+    /* Scrollbars invisiveis em toda a aplicacao. O scroll continua
+       disponivel por roda, trackpad, teclado e toque. */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
+
+*::-webkit-scrollbar{
+    display: none;
+    width: 0;
+    height: 0;
+}
+
 html{
     font-size: 1rem;
-    height: 100vh;
+    height: 100%;
     background-color: var(--bg-page);
 }
+
 body{
     font-size: var(--text-sm);
     font-family: 'Inter',sans-serif;
@@ -17,48 +28,39 @@ body{
     background-color: var(--bg-page);
     accent-color: var(--primary);
     overflow-x: hidden;
-    overflow-y: visible;
-    height: 100%;
+    min-height: 100dvh;
     position: relative;
 }
+
+#root{
+    min-height: 100dvh;
+}
+
 ::selection{
     color: var(--text);
     background: var(--primary-soft-strong);
 }
 
-/* As paginas da app ocupam exatamente o ecra no desktop/tablet.
-   A sidebar e o conteudo principal passam a rolar de forma independente. */
-@media (min-width: 679px) {
-    .dashboard-main,
-    .clientes-main,
-    .servicos-main,
-    .newbookmark-main,
-    .admin-main {
-        height: 100vh;
-        min-height: 0;
-        overflow: hidden;
-    }
-
-    .dash-content,
-    .clientes-content,
-    .servicos-content,
-    .newbookmark-content,
-    .admin-content {
-        min-height: 0;
-        overflow-y: auto;
-        overscroll-behavior: contain;
-    }
+button,
+a,
+input,
+select,
+textarea{
+    -webkit-tap-highlight-color: transparent;
 }
 
-/* Os blocos das paginas devem manter a altura natural dentro do scroll.
-   Sem isto, paineis com overflow (ex.: tabelas de horarios) encolhem e
-   ficam cortados quando o conteudo e maior do que o ecra. */
-.dash-content > *,
-.clientes-content > *,
-.servicos-content > *,
-.newbookmark-content > *,
-.admin-content > * {
-    flex-shrink: 0;
+img,
+svg{
+    max-width: 100%;
+}
+
+/* No mobile, os campos usam 16px para o iOS nao fazer zoom ao focar. */
+@media (max-width: 767px){
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    select,
+    textarea{
+        font-size: 16px !important;
+    }
 }
 body > .heady{
     position: sticky;
@@ -114,4 +116,27 @@ select:-webkit-autofill{
 .submit-btn:disabled{
     opacity: 0.6;
     cursor: not-allowed;
+}
+
+/* ===========================
+   BASE DOS MODAIS
+=========================== */
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: var(--overlay);
+    backdrop-filter: blur(5px);
+}
+
+@media (max-width: 767px) {
+    .modal-backdrop {
+        align-items: flex-end;
+        padding: 0;
+    }
 }

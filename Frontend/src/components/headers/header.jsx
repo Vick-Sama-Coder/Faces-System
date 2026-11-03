@@ -1,10 +1,10 @@
-import { MenuIcon, UserCircle, Bell, LogOut } from "lucide-react"
+import { UserCircle, LogOut } from "lucide-react"
 import { Link, useNavigate } from "react-router-dom"
 import ThemeToggle from "../ThemeToggle/ThemeToggle.jsx"
 import { useAuthStore } from "../../store/authStore.js"
 import './header.css'
 
-function Headers({heady, title, h1Class, menuClass, userClass, bellClass, pClass, onMenuClick, sidebarOpen = false}){
+function Headers({ title = "Faces System" }) {
     const { user, logout } = useAuthStore()
     const navigate = useNavigate()
 
@@ -16,26 +16,14 @@ function Headers({heady, title, h1Class, menuClass, userClass, bellClass, pClass
         : partesNome[0]?.[0] || ""
     ).toUpperCase()
 
-    async function handleLogout(){
+    async function handleLogout() {
         await logout()
         navigate("/", { replace: true })
     }
 
-    return(
-        <header className={`app-header ${heady || ""}`}>
-            <div className={`app-header-title ${h1Class || ""}`} id="asided">
-                <button
-                    type="button"
-                    className={`app-header-menu ${menuClass || ""}`}
-                    onClick={onMenuClick}
-                    aria-label="Abrir menu de navegação"
-                    aria-controls="app-sidebar"
-                    aria-expanded={sidebarOpen}
-                    title="Abrir menu"
-                >
-                    <MenuIcon size={20} strokeWidth={2.2} />
-                </button>
-
+    return (
+        <header className="app-header">
+            <div className="app-header-title">
                 <span className="app-header-accent" aria-hidden="true" />
 
                 <div className="app-header-title-text">
@@ -44,18 +32,12 @@ function Headers({heady, title, h1Class, menuClass, userClass, bellClass, pClass
                 </div>
             </div>
 
-            <div className={`app-header-user ${userClass || ""}`}>
+            <div className="app-header-user">
                 <ThemeToggle />
-
-                <span className={`app-header-bell ${bellClass || ""}`} aria-hidden="true">
-                    <Bell size={18} />
-                </span>
-
-                <span className="app-header-divider" aria-hidden="true" />
 
                 <Link
                     to="/perfil"
-                    className={`app-header-profile app-header-profile-link ${pClass || ""}`}
+                    className="app-header-profile app-header-profile-link"
                     aria-label={`Abrir o perfil de ${nome}`}
                     title="O Meu Perfil"
                 >
@@ -81,4 +63,5 @@ function Headers({heady, title, h1Class, menuClass, userClass, bellClass, pClass
         </header>
     )
 }
+
 export default Headers

@@ -310,3 +310,17 @@
         justify-content: flex-end;
     }
 }
+
+@media (max-width: 767px) {
+    .fidelizacao-modal {
+        width: 100%;
+        max-width: none;
+        max-height: 92dvh;
+        border-radius: 20px 20px 0 0;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    .fidelizacao-modal-header {
+        padding: 16px 18px;
+    }
+}

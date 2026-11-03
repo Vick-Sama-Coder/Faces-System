@@ -1,40 +1,3 @@
-.newbookmark-main {
-    height: 100vh;
-    display: grid;
-    grid-template: 60px 1fr / 70px 1fr;
-    position: relative;
-    background-color: var(--bg-page);
-}
-
-.newmark-header {
-    position: sticky;
-    grid-area: 1 / 2 / 2 / -1;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 20px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    z-index: 10;
-}
-
-.newbookmark-content {
-    grid-area: 2 / 2 / -1 / -1;
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-    min-width: 0;
-    padding: 24px;
-    overflow-y: auto;
-}
-
-.newmark-h1 {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding-left: 5px;
-}
-
 /* Page Header */
 .page-header {
     background: var(--surface);
@@ -226,17 +189,7 @@
 }
 
 /* Responsive */
-@media screen and (max-width: 678px) {
-    .newbookmark-main {
-        display: flex;
-        flex-direction: column;
-    }
-
-    .newbookmark-content {
-        padding: 16px;
-        gap: 20px;
-    }
-
+@media screen and (max-width: 767px) {
     .page-header-inner {
         flex-direction: column;
         align-items: stretch;
@@ -269,11 +222,6 @@
     }
 }
 
-@media screen and (min-width: 1024px) {
-    .newbookmark-main {
-        grid-template: 60px 1fr / 220px 1fr;
-    }
-}
 
 /* ---- Lista de atendimentos ---- */
 
@@ -557,9 +505,25 @@
     font-size: var(--text-sm);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 767px) {
     .appointment-modal-backdrop {
-        padding: 16px;
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    .appointment-detail {
+        width: 100%;
+        max-width: none;
+        max-height: 92dvh;
+        border-radius: 20px 20px 0 0;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    .appointment-detail-header {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: var(--surface);
     }
 
     .appointment-services li {
@@ -977,7 +941,7 @@
     cursor: not-allowed;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 767px) {
     .appointment-info-grid,
     .appointment-payment-grid {
         grid-template-columns: 1fr;

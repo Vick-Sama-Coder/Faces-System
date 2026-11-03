@@ -240,7 +240,7 @@
     }
 }
 
-@media (max-width: 678px) {
+@media (max-width: 767px) {
     .profile-content {
         gap: 18px;
     }

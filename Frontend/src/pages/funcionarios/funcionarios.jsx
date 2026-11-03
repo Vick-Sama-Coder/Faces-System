@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useState } from "react"
-import Sidebar from "../../components/Sidebar/Sidebar.jsx"
-import Headers from "../../components/headers/header.jsx"
 import "../admin/admin.css"
 import { UserPlus, Edit, Trash2, Power, Save, X, Users, Wallet } from "lucide-react"
 import {
@@ -26,7 +24,6 @@ const FORM_VAZIO = {
 function Funcionarios() {
     const { user } = useAuthStore()
     const podeEscrever = user?.permissoes?.includes("funcionarios:escrever")
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [funcionarios, setFuncionarios] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
@@ -303,20 +300,7 @@ function Funcionarios() {
                 </div>
             )}
 
-            <div className="admin-main">
-                <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-                <Headers
-                    heady="admin-header"
-                    title="Funcionarios"
-                    h1Class="admin-header-title"
-                    menuClass="menu"
-                    userClass="user"
-                    bellClass="bell"
-                    onMenuClick={() => setIsSidebarOpen(true)}
-                    sidebarOpen={isSidebarOpen}
-                />
-
-                <main className="admin-content">
+            <div className="app-page">
                     <header className="admin-page-header">
                         <div className="admin-page-header-inner">
                             <div>
@@ -375,7 +359,7 @@ function Funcionarios() {
                         </span>
                     </div>
 
-                    <div className="admin-table-wrap">
+                    <div className="admin-table-wrap admin-table-wrap-cards">
                         {loading ? (
                             <p className="admin-empty">A carregar funcionarios...</p>
                         ) : funcionariosFiltrados.length === 0 ? (
@@ -385,7 +369,7 @@ function Funcionarios() {
                                     : "Nenhum funcionario corresponde a pesquisa."}
                             </p>
                         ) : (
-                            <table className="admin-table">
+                            <table className="admin-table admin-table-cards">
                                 <thead>
                                     <tr>
                                         <th>Funcionario</th>
@@ -400,17 +384,17 @@ function Funcionarios() {
                                 <tbody>
                                     {funcionariosFiltrados.map((funcionario) => (
                                         <tr key={funcionario.id}>
-                                            <td>
+                                            <td className="admin-card-heading" data-label="Funcionario">
                                                 <div className="admin-cell-main">
                                                     <strong>{funcionario.nome}</strong>
                                                     <span>{funcionario.estado === "Ativo" ? "Activo no salao" : "Inactivo"}</span>
                                                 </div>
                                             </td>
-                                            <td>{funcionario.cargo || "-"}</td>
-                                            <td>{funcionario.telefone || "-"}</td>
-                                            <td>{Number(funcionario.salario || 0).toLocaleString("pt-MZ")} MT</td>
-                                            <td>{Number(funcionario.comissao_percentual || 0).toLocaleString("pt-MZ")}%</td>
-                                            <td>
+                                            <td data-label="Cargo">{funcionario.cargo || "-"}</td>
+                                            <td data-label="Contacto">{funcionario.telefone || "-"}</td>
+                                            <td data-label="Salario">{Number(funcionario.salario || 0).toLocaleString("pt-MZ")} MT</td>
+                                            <td data-label="Comissao">{Number(funcionario.comissao_percentual || 0).toLocaleString("pt-MZ")}%</td>
+                                            <td data-label="Estado">
                                                 <span className={`admin-badge ${funcionario.estado === "Ativo" ? "success" : "neutral"}`}>
                                                     {funcionario.estado || "Ativo"}
                                                 </span>
@@ -449,7 +433,6 @@ function Funcionarios() {
                             </table>
                         )}
                     </div>
-                </main>
             </div>
         </>
     )

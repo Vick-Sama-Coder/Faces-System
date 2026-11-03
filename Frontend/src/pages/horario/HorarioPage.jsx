@@ -9,8 +9,7 @@ import {
     TrendingUp,
     UserRound
 } from "lucide-react"
-import Sidebar from "../../components/Sidebar/Sidebar.jsx"
-import Headers from "../../components/headers/header.jsx"
+import "../admin/admin.css"
 import {
     getApiError,
     getAssiduidade,
@@ -206,7 +205,6 @@ function HorarioPage() {
     const { user } = useAuthStore()
     const podeGerir = user?.permissoes?.includes("assiduidade:gerir")
 
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [funcionarios, setFuncionarios] = useState([])
     const [funcionarioId, setFuncionarioId] = useState("")
     const [periodo, setPeriodo] = useState(periodoAtual())
@@ -657,20 +655,7 @@ function HorarioPage() {
     const totalPorGuardar = alterados.size
 
     return (
-        <div className="admin-main">
-            <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-            <Headers
-                heady="admin-header"
-                title="Horários"
-                h1Class="admin-header-title"
-                menuClass="menu"
-                userClass="user"
-                bellClass="bell"
-                onMenuClick={() => setIsSidebarOpen(true)}
-                sidebarOpen={isSidebarOpen}
-            />
-
-            <main className="admin-content">
+        <div className="app-page">
                 <header className="admin-page-header">
                     <div className="admin-page-header-inner">
                         <div>
@@ -1006,7 +991,6 @@ function HorarioPage() {
                         </div>
                     </section>
                 )}
-            </main>
         </div>
     )
 }

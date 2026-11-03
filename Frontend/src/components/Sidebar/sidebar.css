@@ -3,7 +3,6 @@
 =========================== */
 
 .sidebar {
-    grid-area: 1 / 1 / -1 / 2;
     position: relative;
     z-index: 10;
 
@@ -241,24 +240,25 @@
    MOBILE
 =========================== */
 
-@media screen and (max-width: 677px) {
+@media screen and (max-width: 767px) {
     .sidebar {
         position: fixed;
         top: 0;
         bottom: 0;
         left: 0;
 
-        width: min(82%, 300px);
+        width: min(86%, 320px);
         min-width: 0;
-        max-width: 300px;
+        max-width: 320px;
         height: 100vh;
         height: 100dvh;
-        padding: 16px 16px 20px;
+        padding: 16px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+        padding-top: calc(16px + env(safe-area-inset-top, 0px));
 
         transform: translateX(-100%);
         transition: transform 0.3s ease;
 
-        z-index: 30;
+        z-index: 60;
     }
 
     .sidebar.sidebar--open {
@@ -280,7 +280,7 @@
         backdrop-filter: blur(4px);
 
         cursor: pointer;
-        z-index: 20;
+        z-index: 55;
     }
 
     .sidebar__top {
@@ -334,7 +334,7 @@
    TABLET (menu recolhido)
 =========================== */
 
-@media screen and (min-width: 678px) and (max-width: 1023px) {
+@media screen and (min-width: 768px) and (max-width: 1023px) {
     .sidebar {
         width: 70px;
         min-width: 70px;

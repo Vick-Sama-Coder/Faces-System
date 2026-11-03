@@ -183,7 +183,7 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 12px;
-    overflow: hidden;
+    overflow-x: auto;
 }
 
 .caixa-table {
@@ -239,5 +239,34 @@
     .caixa-grid-summary,
     .caixa-grid-2 {
         grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 767px) {
+    .caixa-skeleton {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .caixa-skeleton-card {
+        height: 92px;
+    }
+
+    .caixa-summary-card {
+        padding: 15px 16px;
+    }
+
+    .caixa-card {
+        padding: 16px;
+        border-radius: 14px;
+    }
+
+    .caixa-card-header {
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .caixa-card-title-wrap h2 {
+        font-size: var(--text-md);
     }
 }

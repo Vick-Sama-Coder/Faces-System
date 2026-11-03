@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useState } from "react"
-import Sidebar from "../../components/Sidebar/Sidebar.jsx"
-import Headers from "../../components/headers/header.jsx"
 import "./admin.css"
 import { UserPlus, Edit, KeyRound, ShieldCheck, Power, X, Save, Users } from "lucide-react"
 import {
@@ -214,7 +212,6 @@ function PermissoesUsuarioModal({ usuario, onClose, onSaved }) {
 
 function GestaoUtilizadores() {
     const { user: utilizadorAtual } = useAuthStore()
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [utilizadores, setUtilizadores] = useState([])
     const [perfis, setPerfis] = useState([])
     const [loading, setLoading] = useState(true)
@@ -500,23 +497,7 @@ function GestaoUtilizadores() {
                 />
             )}
 
-            <div className="admin-main">
-                <Sidebar
-                    isOpen={isSidebarOpen}
-                    setIsOpen={setIsSidebarOpen}
-                />
-                <Headers
-                    heady="admin-header"
-                    title="Gestao de Utilizadores"
-                    h1Class="admin-header-title"
-                    menuClass="menu"
-                    userClass="user"
-                    bellClass="bell"
-                    onMenuClick={() => setIsSidebarOpen(true)}
-                    sidebarOpen={isSidebarOpen}
-                />
-
-                <main className="admin-content">
+            <div className="app-page">
                     <header className="admin-page-header">
                         <div className="admin-page-header-inner">
                             <div>
@@ -569,7 +550,7 @@ function GestaoUtilizadores() {
                         </span>
                     </div>
 
-                    <div className="admin-table-wrap">
+                    <div className="admin-table-wrap admin-table-wrap-cards">
                         {loading ? (
                             <p className="admin-empty">A carregar utilizadores...</p>
                         ) : utilizadoresFiltrados.length === 0 ? (
@@ -579,7 +560,7 @@ function GestaoUtilizadores() {
                                     : "Nenhum utilizador corresponde a pesquisa."}
                             </p>
                         ) : (
-                            <table className="admin-table">
+                            <table className="admin-table admin-table-cards">
                                 <thead>
                                     <tr>
                                         <th>Utilizador</th>
@@ -592,23 +573,23 @@ function GestaoUtilizadores() {
                                 <tbody>
                                     {utilizadoresFiltrados.map((usuario) => (
                                         <tr key={usuario.id}>
-                                            <td>
+                                            <td className="admin-card-heading" data-label="Utilizador">
                                                 <div className="admin-cell-main">
                                                     <strong>{usuario.nome}</strong>
                                                     <span>{usuario.telefone}</span>
                                                 </div>
                                             </td>
-                                            <td>
+                                            <td data-label="Perfil">
                                                 <span className="admin-badge primary">
                                                     {usuario.perfil || `Perfil #${usuario.id_perfil}`}
                                                 </span>
                                             </td>
-                                            <td>
+                                            <td data-label="Estado">
                                                 <span className={`admin-badge ${usuario.estado === "Ativo" ? "success" : "neutral"}`}>
                                                     {usuario.estado || "Ativo"}
                                                 </span>
                                             </td>
-                                            <td>{formatarData(usuario.ultimo_acesso)}</td>
+                                            <td data-label="Ultimo acesso">{formatarData(usuario.ultimo_acesso)}</td>
                                             <td className="admin-actions-cell">
                                                 <button
                                                     type="button"
@@ -655,7 +636,6 @@ function GestaoUtilizadores() {
                         O perfil define as permissoes base. Use o icone de escudo para conceder ou
                         revogar permissoes apenas para um utilizador.
                     </div>
-                </main>
             </div>
         </>
     )

@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import Sidebar from "../../components/Sidebar/Sidebar.jsx"
-import Headers from "../../components/headers/header.jsx";
 import DespesaModal from "../../components/Modals/DespesaModal/DespesaModal.jsx";
 import "../admin/admin.css";
 import "./despesas.css";
@@ -58,7 +56,6 @@ function Despesas() {
     const { user } = useAuthStore();
     const podeEscrever = user?.permissoes?.includes("despesas:escrever");
 
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingDespesa, setEditingDespesa] = useState(null);
 
@@ -346,20 +343,7 @@ function Despesas() {
                 />
             )}
 
-            <div className="admin-main">
-                <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-                <Headers
-                    heady="admin-header"
-                    title="Despesas"
-                    h1Class="admin-header-title"
-                    menuClass="menu"
-                    userClass="user"
-                    bellClass="bell"
-                    onMenuClick={() => setIsSidebarOpen(true)}
-                    sidebarOpen={isSidebarOpen}
-                />
-
-                <main className="admin-content">
+            <div className="app-page">
                     <header className="admin-page-header">
                         <div className="admin-page-header-inner">
                             <div>
@@ -512,7 +496,7 @@ function Despesas() {
                                 <span className="admin-badge primary">{despesasFiltradas.length} registos</span>
                             </header>
 
-                            <div className="admin-table-wrap despesas-table-wrap">
+                            <div className="admin-table-wrap admin-table-wrap-cards despesas-table-wrap">
                                 {loading ? (
                                     <p className="admin-empty">A carregar despesas...</p>
                                 ) : despesasFiltradas.length === 0 ? (
@@ -536,7 +520,7 @@ function Despesas() {
                                         )}
                                     </div>
                                 ) : (
-                                    <table className="admin-table despesas-table">
+                                    <table className="admin-table admin-table-cards despesas-table">
                                         <thead>
                                             <tr>
                                                 <th>Despesa</th>
@@ -550,7 +534,7 @@ function Despesas() {
                                         <tbody>
                                             {despesasFiltradas.map((despesa) => (
                                                 <tr key={despesa.id}>
-                                                    <td>
+                                                    <td className="admin-card-heading" data-label="Despesa">
                                                         <div className="despesas-cell-main">
                                                             <div className="despesas-cell-title">
                                                                 <strong>{despesa.descricao}</strong>
@@ -565,20 +549,20 @@ function Despesas() {
                                                             </span>
                                                         </div>
                                                     </td>
-                                                    <td>
+                                                    <td data-label="Categoria">
                                                         <span className="despesas-category-cell">
                                                             <Tag size={14} />
                                                             {despesa.categoria_nome || "Sem categoria"}
                                                         </span>
                                                     </td>
-                                                    <td>
+                                                    <td data-label="Data">
                                                         <span className="despesas-date-cell">
                                                             <CalendarDays size={14} />
                                                             {formatarData(despesa.data_compra)}
                                                         </span>
                                                     </td>
-                                                    <td>{despesa.metodo_pagamento || "-"}</td>
-                                                    <td>
+                                                    <td data-label="Pagamento">{despesa.metodo_pagamento || "-"}</td>
+                                                    <td data-label="Valor">
                                                         <strong className="despesas-value">{formatarMoeda(despesa.valor_total)}</strong>
                                                     </td>
                                                     {podeEscrever && (
@@ -772,8 +756,7 @@ function Despesas() {
                             </article>
                         </aside>
                     </div>
-                </main>
-            </div>
+                </div>
         </>
     );
 }

@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useState } from "react"
-import Sidebar from "../../components/Sidebar/Sidebar.jsx"
-import Headers from "../../components/headers/header.jsx"
 import "../admin/admin.css"
 import "./logs.css"
 import { ScrollText, Search, X, Eye, Filter, RotateCcw, UserRound, ShieldCheck } from "lucide-react"
@@ -63,7 +61,6 @@ const OPCOES_VAZIAS = {
 }
 
 function Logs() {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [logs, setLogs] = useState([])
     const [opcoes, setOpcoes] = useState(OPCOES_VAZIAS)
     const [loading, setLoading] = useState(true)
@@ -195,20 +192,7 @@ function Logs() {
                 </div>
             )}
 
-            <div className="admin-main">
-                <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-                <Headers
-                    heady="admin-header"
-                    title="Logs"
-                    h1Class="admin-header-title"
-                    menuClass="menu"
-                    userClass="user"
-                    bellClass="bell"
-                    onMenuClick={() => setIsSidebarOpen(true)}
-                    sidebarOpen={isSidebarOpen}
-                />
-
-                <main className="admin-content">
+            <div className="app-page">
                     <header className="admin-page-header">
                         <div className="admin-page-header-inner">
                             <div>
@@ -332,13 +316,13 @@ function Logs() {
                         </span>
                     </div>
 
-                    <div className="admin-table-wrap">
+                    <div className="admin-table-wrap admin-table-wrap-cards">
                         {loading ? (
                             <p className="admin-empty">A carregar logs...</p>
                         ) : logs.length === 0 ? (
                             <p className="admin-empty">Nenhum registo de auditoria encontrado.</p>
                         ) : (
-                            <table className="admin-table logs-table">
+                            <table className="admin-table admin-table-cards logs-table">
                                 <thead>
                                     <tr>
                                         <th>Data</th>
@@ -351,8 +335,8 @@ function Logs() {
                                 <tbody>
                                     {logs.map((log) => (
                                         <tr key={log.id}>
-                                            <td>{formatarData(log.data_hora)}</td>
-                                            <td>
+                                            <td data-label="Data">{formatarData(log.data_hora)}</td>
+                                            <td data-label="Utilizador">
                                                 <div className="logs-user-cell">
                                                     <span className="logs-user">
                                                         <UserRound size={14} />
@@ -361,12 +345,12 @@ function Logs() {
                                                     <small>{log.utilizador_perfil || "Sem perfil"}</small>
                                                 </div>
                                             </td>
-                                            <td>
+                                            <td data-label="Operacao">
                                                 <span className={`admin-badge ${log.tipo_operacao === "anular" ? "danger" : log.tipo_operacao === "criar" ? "success" : "primary"}`}>
                                                     {log.tipo_operacao || "-"}
                                                 </span>
                                             </td>
-                                            <td className="logs-motivo-cell">{log.motivo || "-"}</td>
+                                            <td className="logs-motivo-cell" data-label="Motivo">{log.motivo || "-"}</td>
                                             <td className="admin-actions-cell">
                                                 <button
                                                     type="button"
@@ -383,7 +367,6 @@ function Logs() {
                             </table>
                         )}
                     </div>
-                </main>
             </div>
         </>
     )

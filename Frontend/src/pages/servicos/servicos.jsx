@@ -1,5 +1,3 @@
-import Sidebar from "../../components/Sidebar/Sidebar.jsx"
-import Headers from "../../components/headers/header.jsx"
 import ServicoModal from "../../components/Modals/ServicoModal/ServicoModal.jsx"
 import FidelizacaoModal from "../../components/Modals/FidelizacaoModal/FidelizacaoModal.jsx"
 import ConfirmDialog from "../../components/ConfirmDialog/ConfirmDialog.jsx"
@@ -131,7 +129,6 @@ function AcoesCell({ data, onEditar, onAlternar }) {
 function Servicos() {
     const { user } = useAuthStore()
     const podeEscrever = user?.permissoes?.includes("servicos:escrever")
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [servicos, setServicos] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
@@ -400,22 +397,7 @@ function Servicos() {
                 />
             )}
 
-            <div className="servicos-main">
-                <Sidebar
-                    isOpen={isSidebarOpen}
-                    setIsOpen={setIsSidebarOpen}
-                />
-                <Headers
-                    heady="servicos-header"
-                    title="Serviços"
-                    h1Class="servicos-h1"
-                    menuClass="menu"
-                    userClass="user"
-                    bellClass="bell"
-                    onMenuClick={() => setIsSidebarOpen(true)}
-                    sidebarOpen={isSidebarOpen}
-                />
-                <section className="servicos-content mgmt-page">
+            <div className="app-page mgmt-page">
                     <header className="mgmt-hero">
                         <div className="mgmt-hero-copy">
                             <span className="mgmt-eyebrow">
@@ -622,8 +604,32 @@ function Servicos() {
                                 Criar serviço
                             </button>
                         ) : null}
+                        mobileCard={(servico) => (
+                            <>
+                                <div className="faces-grid-card-head">
+                                    <ServicoCell data={servico} />
+                                    <EstadoCell value={servico.estado} />
+                                </div>
+
+                                <div className="faces-grid-card-meta">
+                                    <CategoriaCell value={servico.categoria_nome} />
+                                    <FaixaEtariaCell value={servico.faixa_etaria} />
+                                    <FidelizacaoCell data={servico} />
+                                </div>
+
+                                <div className="faces-grid-card-foot">
+                                    <PrecoCell value={servico.valor} />
+                                    {podeEscrever && (
+                                        <AcoesCell
+                                            data={servico}
+                                            onEditar={handleEditarServico}
+                                            onAlternar={handleAlternarEstado}
+                                        />
+                                    )}
+                                </div>
+                            </>
+                        )}
                     />
-                </section>
             </div>
         </>
     )

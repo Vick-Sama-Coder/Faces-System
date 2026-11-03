@@ -1,5 +1,3 @@
-import Sidebar from "../../components/Sidebar/Sidebar.jsx"
-import Headers from "../../components/headers/header.jsx"
 import ClientModal from "../../components/Modals/ClientModal/ClientModal.jsx"
 import CartaoClienteModal from "../../components/Modals/CartaoClienteModal/CartaoClienteModal.jsx"
 import ConfirmDialog from "../../components/ConfirmDialog/ConfirmDialog.jsx"
@@ -139,7 +137,6 @@ function Clientes() {
     const podeEscrever = user?.permissoes?.includes("clientes:escrever")
     const isAdmin = user?.perfil === "Administrador"
     const podeGerirCartao = podeEscrever && isAdmin
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [clientes, setClientes] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
@@ -386,22 +383,7 @@ function Clientes() {
                 />
             )}
 
-            <div className="clientes-main">
-                <Sidebar
-                    isOpen={isSidebarOpen}
-                    setIsOpen={setIsSidebarOpen}
-                />
-                <Headers
-                    heady="clientes-header"
-                    title="Clientes"
-                    h1Class="clientes-h1"
-                    menuClass="menu"
-                    userClass="user"
-                    bellClass="bell"
-                    onMenuClick={() => setIsSidebarOpen(true)}
-                    sidebarOpen={isSidebarOpen}
-                />
-                <section className="clientes-content mgmt-page">
+            <div className="app-page mgmt-page">
                     <header className="mgmt-hero">
                         <div className="mgmt-hero-copy">
                             <span className="mgmt-eyebrow">
@@ -556,8 +538,36 @@ function Clientes() {
                                 Adicionar cliente
                             </button>
                         ) : null}
+                        mobileCard={(cliente) => (
+                            <>
+                                <div className="faces-grid-card-head">
+                                    <ClienteCell data={cliente} />
+                                    <EstadoCell value={cliente.estado} />
+                                </div>
+
+                                <div className="faces-grid-card-meta">
+                                    <span>
+                                        <Phone size={13} />
+                                        {cliente.telefone || "Sem telefone"}
+                                    </span>
+                                    <span>Registo · {formatarData(cliente.data_registo)}</span>
+                                </div>
+
+                                <div className="faces-grid-card-foot">
+                                    <SaldoCell value={cliente.saldo_pendente} />
+                                    {podeEscrever && (
+                                        <AcoesCell
+                                            data={cliente}
+                                            onEditar={handleEditarCliente}
+                                            onAlternar={handleAlternarEstado}
+                                            onCartao={handleCartaoCliente}
+                                            podeCartao={podeGerirCartao}
+                                        />
+                                    )}
+                                </div>
+                            </>
+                        )}
                     />
-                </section>
             </div>
         </>
     )

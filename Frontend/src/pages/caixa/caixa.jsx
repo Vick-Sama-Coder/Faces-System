@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import Sidebar from "../../components/Sidebar/Sidebar.jsx";
-import Headers from "../../components/headers/header.jsx";
 import { useAuthStore } from "../../store/authStore.js";
 import {
     abrirCaixa,
@@ -60,9 +58,36 @@ function formatarDataCurta(valor) {
     });
 }
 
+async function buscarDadosCaixa() {
+    const [resAtual, resMovimentos, resHistorico] = await Promise.all([
+        getCaixaAtual(),
+        getMovimentosCaixa().catch((err) => {
+            if (err?.response?.status === 404 || err?.response?.status === 409) {
+                return { data: { sessao_id: null, movimentos: [] } };
+            }
+            throw err;
+        }),
+        getCaixaFechos().catch(() => ({ data: [] })),
+    ]);
+
+    const atual = resAtual?.data ?? {
+        aberta: false,
+        sessao: null,
+        saldo_esperado: null,
+        saldo_por_metodo: [],
+    };
+    const listaMovimentos = Array.isArray(resMovimentos?.data?.movimentos)
+        ? resMovimentos.data.movimentos
+        : [];
+    const fechamentos = Array.isArray(resHistorico?.data)
+        ? resHistorico.data.slice(0, 5)
+        : [];
+
+    return { atual, listaMovimentos, fechamentos };
+}
+
 function Caixa() {
     const { user } = useAuthStore();
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [estado, setEstado] = useState({
         aberta: false,
         sessao: null,
@@ -103,30 +128,7 @@ function Caixa() {
         setError(null);
 
         try {
-            const [resAtual, resMovimentos, resHistorico] = await Promise.all([
-                getCaixaAtual(),
-                getMovimentosCaixa().catch((err) => {
-                    if (err?.response?.status === 404 || err?.response?.status === 409) {
-                        return { data: { sessao_id: null, movimentos: [] } };
-                    }
-                    throw err;
-                }),
-                getCaixaFechos().catch(() => ({ data: [] })),
-            ]);
-
-            const atual = resAtual?.data ?? {
-                aberta: false,
-                sessao: null,
-                saldo_esperado: null,
-                saldo_por_metodo: [],
-            };
-            const listaMovimentos = Array.isArray(resMovimentos?.data?.movimentos)
-                ? resMovimentos.data.movimentos
-                : [];
-            const fechamentos = Array.isArray(resHistorico?.data)
-                ? resHistorico.data.slice(0, 5)
-                : [];
-
+            const { atual, listaMovimentos, fechamentos } = await buscarDadosCaixa();
             setEstado(atual);
             setMovimentos(listaMovimentos);
             setHistorico(fechamentos);
@@ -138,7 +140,28 @@ function Caixa() {
     }
 
     useEffect(() => {
-        carregarDados();
+        let ativo = true;
+
+        async function carregarInicial() {
+            try {
+                const { atual, listaMovimentos, fechamentos } = await buscarDadosCaixa();
+                if (!ativo) return;
+
+                setEstado(atual);
+                setMovimentos(listaMovimentos);
+                setHistorico(fechamentos);
+            } catch (err) {
+                if (ativo) setError(getApiError(err));
+            } finally {
+                if (ativo) setLoading(false);
+            }
+        }
+
+        carregarInicial();
+
+        return () => {
+            ativo = false;
+        };
     }, []);
 
     async function handleAbrirCaixa(event) {
@@ -218,16 +241,7 @@ function Caixa() {
     }
 
     return (
-        <div className="admin-main">
-            <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-            <Headers
-                title="Caixa"
-                subtitle="Gestão da sessão ativa e movimentos do dia"
-                onMenuClick={() => setIsSidebarOpen(true)}
-                sidebarOpen={isSidebarOpen}
-            />
-
-            <main className="admin-content">
+        <div className="app-page">
                 <header className="admin-page-header caixa-page-header">
                     <div className="admin-page-header-inner">
                         <div>
@@ -294,8 +308,8 @@ function Caixa() {
                                         <h2>Saldos por método de pagamento</h2>
                                     </div>
                                 </div>
-                                <div className="caixa-table-wrap">
-                                    <table className="admin-table caixa-table">
+                                <div className="caixa-table-wrap admin-table-wrap-cards">
+                                    <table className="admin-table admin-table-cards caixa-table">
                                         <thead>
                                             <tr>
                                                 <th>Método</th>
@@ -306,9 +320,9 @@ function Caixa() {
                                         <tbody>
                                             {(estado.saldo_por_metodo ?? []).map((item) => (
                                                 <tr key={item.metodo_pagamento}>
-                                                    <td>{item.metodo_pagamento}</td>
-                                                    <td>{formatarMoeda(item.saldo)}</td>
-                                                    <td>{item.conferido_no_fecho ? "Valor contado" : "Registado, não conferido"}</td>
+                                                    <td data-label="Método">{item.metodo_pagamento}</td>
+                                                    <td data-label="Saldo da sessão">{formatarMoeda(item.saldo)}</td>
+                                                    <td data-label="Conferência no fecho">{item.conferido_no_fecho ? "Valor contado" : "Registado, não conferido"}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -496,8 +510,8 @@ function Caixa() {
                                         : "Não existe nenhuma sessão de caixa aberta neste momento."}
                                 </div>
                             ) : (
-                                <div className="caixa-table-wrap">
-                                    <table className="admin-table caixa-table">
+                                <div className="caixa-table-wrap admin-table-wrap-cards">
+                                    <table className="admin-table admin-table-cards caixa-table">
                                         <thead>
                                             <tr>
                                                 <th>Tipo</th>
@@ -511,18 +525,18 @@ function Caixa() {
                                         <tbody>
                                             {movimentos.map((movimento) => (
                                                 <tr key={movimento.id}>
-                                                    <td>
+                                                    <td data-label="Tipo">
                                                         <span
                                                             className={`caixa-pill ${movimento.estado !== "Ativo" ? "muted" : movimento.tipo_movimento === "Levantamento" ? "warning" : "success"}`}
                                                         >
                                                             {movimento.tipo_movimento}
                                                         </span>
                                                     </td>
-                                                    <td>{movimento.metodo_pagamento || "Dinheiro"}</td>
-                                                    <td>{movimento.descricao || "-"}</td>
-                                                    <td>{formatarMoeda(movimento.valor)}</td>
-                                                    <td>{formataDataHora(movimento.data_hora)}</td>
-                                                    <td>{movimento.estado}</td>
+                                                    <td data-label="Método">{movimento.metodo_pagamento || "Dinheiro"}</td>
+                                                    <td data-label="Descrição">{movimento.descricao || "-"}</td>
+                                                    <td data-label="Valor">{formatarMoeda(movimento.valor)}</td>
+                                                    <td data-label="Data">{formataDataHora(movimento.data_hora)}</td>
+                                                    <td data-label="Estado">{movimento.estado}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -544,8 +558,8 @@ function Caixa() {
                                     Ainda não há fechamentos registados.
                                 </div>
                             ) : (
-                                <div className="caixa-table-wrap">
-                                    <table className="admin-table caixa-table">
+                                <div className="caixa-table-wrap admin-table-wrap-cards">
+                                    <table className="admin-table admin-table-cards caixa-table">
                                         <thead>
                                             <tr>
                                                 <th>Data</th>
@@ -558,11 +572,11 @@ function Caixa() {
                                         <tbody>
                                             {historico.map((fechoItem) => (
                                                 <tr key={fechoItem.id}>
-                                                    <td>{formatarDataCurta(fechoItem.data_fecho)}</td>
-                                                    <td>{formatarMoeda(fechoItem.valor_esperado)}</td>
-                                                    <td>{formatarMoeda(fechoItem.valor_contado)}</td>
-                                                    <td>{formatarMoeda(fechoItem.diferenca)}</td>
-                                                    <td>
+                                                    <td data-label="Data">{formatarDataCurta(fechoItem.data_fecho)}</td>
+                                                    <td data-label="Saldo esperado">{formatarMoeda(fechoItem.valor_esperado)}</td>
+                                                    <td data-label="Valor contado">{formatarMoeda(fechoItem.valor_contado)}</td>
+                                                    <td data-label="Diferença">{formatarMoeda(fechoItem.diferenca)}</td>
+                                                    <td data-label="Saldos por método">
                                                         {(fechoItem.saldos_por_metodo ?? [])
                                                             .map((item) => `${item.metodo_pagamento}: ${formatarMoeda(item.saldo)}`)
                                                             .join(" · ")}
@@ -576,7 +590,6 @@ function Caixa() {
                         </section>
                     </>
                 )}
-            </main>
         </div>
     );
 }

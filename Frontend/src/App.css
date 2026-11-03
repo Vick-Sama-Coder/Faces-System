@@ -23,11 +23,11 @@
     }
 }
 
-@media (max-width: 620px) {
+@media (max-width: 767px) {
     .app-notification-stack {
         left: 16px;
         right: 16px;
-        bottom: 16px;
+        bottom: calc(80px + env(safe-area-inset-bottom, 0px));
         gap: 10px;
     }
 }

@@ -1,6 +1,6 @@
 import { Routes, Route } from "react-router";
 
-
+import AppLayout from "../components/Layout/AppLayout.jsx";
 
 import FirstAccess from "../pages/auth/FirstAccess/FirstAccess.jsx";
 import LoginPage from "../pages/auth/Login/LoginPage.jsx";
@@ -30,60 +30,61 @@ export default function AppRoutes(){
             {/* --- pagina publica do salao: catalogo, sobre nos e contactos --- */}
             <Route path='/' element={<LandingPage/>}/>
 
-            {/* --- painel interno: rota protegida por sessao --- */}
-            <Route path='/dashboard' element={<RequireAuth><DashBoard/></RequireAuth>}/>
+            {/* --- painel interno: shell partilhado por todas as paginas --- */}
+            <Route element={<RequireAuth><AppLayout/></RequireAuth>}>
+                <Route path='/dashboard' element={<DashBoard/>}/>
 
-            {/* --- conta do utilizador autenticado --- */}
-            <Route path="/perfil" element={<RequireAuth><Perfil/></RequireAuth>}/>
+                {/* --- conta do utilizador autenticado --- */}
+                <Route path="/perfil" element={<Perfil/>}/>
+
+                {/* --- rotas de operacao: exigem a permissao correspondente --- */}
+                <Route path="/clientes" element={
+                    <RequirePermission permissoes={["clientes:ler", "clientes:escrever"]}><Clientes/></RequirePermission>
+                }/>
+                <Route path="/novoAtendimento" element={
+                    <RequirePermission permissoes={["atendimentos:escrever"]}><NovoAtendimento/></RequirePermission>
+                }/>
+                <Route path="/servicos" element={
+                    <RequirePermission permissoes={["servicos:ler", "servicos:escrever"]}><Servico/></RequirePermission>
+                }/>
+                <Route path="/categorias" element={
+                    <RequirePermission permissoes={["servicos:escrever"]}><Categorias/></RequirePermission>
+                }/>
+                <Route path="/relatorio" element={
+                    <RequirePermission permissoes={["relatorios:ler"]}><Relatorio/></RequirePermission>
+                }/>
+                <Route path="/caixa" element={
+                    <RequirePermission permissoes={["caixa:operar", "caixa:levantar", "caixa:fechar", "relatorios:ler"]}><Caixa/></RequirePermission>
+                }/>
+                <Route path="/despesas" element={
+                    <RequirePermission permissoes={["despesas:escrever"]}><Despesas/></RequirePermission>
+                }/>
+
+                {/* --- administracao: permissao de gestao de contas --- */}
+                <Route path="/funcionarios" element={
+                    <RequirePermission permissoes={["funcionarios:ler", "funcionarios:escrever"]}><Funcionarios/></RequirePermission>
+                }/>
+                <Route path="/gestao-utilizadores" element={
+                    <RequirePermission permissoes={["contas:gerir"]}><GestaoUtilizadores/></RequirePermission>
+                }/>
+                <Route path="/permissoes" element={
+                    <RequirePermission permissoes={["contas:gerir"]}><Permissoes/></RequirePermission>
+                }/>
+                <Route path="/logs" element={
+                    <RequirePermission permissoes={["auditoria:ler"]}><Logs/></RequirePermission>
+                }/>
+                <Route path="/horarios" element={
+                    <RequirePermission permissoes={["assiduidade:gerir"]}><HorarioPage/></RequirePermission>
+                }/>
+            </Route>
 
             {/* --- primeiro acesso: sessao iniciada, mas senha padrao por trocar --- */}
             <Route path="/primeiro-acesso" element={<RequireSession><FirstAccess/></RequireSession>}/>
 
             {/* --- rotas publicas de auth --- */}
-
             <Route path="/login" element={<RedirectIfAuth><LoginPage/></RedirectIfAuth>}/>
             <Route path="/register" element={<RedirectIfAuth><RegisterPage/></RedirectIfAuth>} />
 
-
-            {/* --- rotas de operacao: exigem a permissao correspondente --- */}
-            <Route path="/clientes" element={
-                <RequirePermission permissoes={["clientes:ler", "clientes:escrever"]}><Clientes/></RequirePermission>
-            }/>
-            <Route path="/novoAtendimento" element={
-                <RequirePermission permissoes={["atendimentos:escrever"]}><NovoAtendimento/></RequirePermission>
-            }/>
-            <Route path="/servicos" element={
-                <RequirePermission permissoes={["servicos:ler", "servicos:escrever"]}><Servico/></RequirePermission>
-            }/>
-            <Route path="/categorias" element={
-                <RequirePermission permissoes={["servicos:escrever"]}><Categorias/></RequirePermission>
-            }/>
-            <Route path="/relatorio" element={
-                <RequirePermission permissoes={["relatorios:ler"]}><Relatorio/></RequirePermission>
-            }/>
-            <Route path="/caixa" element={
-                <RequirePermission permissoes={["caixa:operar", "caixa:levantar", "caixa:fechar", "relatorios:ler"]}><Caixa/></RequirePermission>
-            }/>
-            <Route path="/despesas" element={
-                <RequirePermission permissoes={["despesas:escrever"]}><Despesas/></RequirePermission>
-            }/>
-
-            {/* --- administracao: permissao de gestao de contas --- */}
-            <Route path="/funcionarios" element={
-                <RequirePermission permissoes={["funcionarios:ler", "funcionarios:escrever"]}><Funcionarios/></RequirePermission>
-            }/>
-            <Route path="/gestao-utilizadores" element={
-                <RequirePermission permissoes={["contas:gerir"]}><GestaoUtilizadores/></RequirePermission>
-            }/>
-            <Route path="/permissoes" element={
-                <RequirePermission permissoes={["contas:gerir"]}><Permissoes/></RequirePermission>
-            }/>
-            <Route path="/logs" element={
-                <RequirePermission permissoes={["auditoria:ler"]}><Logs/></RequirePermission>
-            }/>
-            <Route path="/horarios" element={
-                <RequirePermission permissoes={["assiduidade:gerir"]}><HorarioPage/></RequirePermission>
-            }/>
             <Route path="*" element={<h1>Not Found</h1>}/>
         </Routes>
     )

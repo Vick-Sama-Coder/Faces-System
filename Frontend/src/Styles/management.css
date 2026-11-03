@@ -708,7 +708,7 @@
     }
 }
 
-@media (max-width: 678px) {
+@media (max-width: 767px) {
     .mgmt-page {
         gap: 20px;
     }
@@ -731,12 +731,12 @@
     }
 
     .mgmt-metrics {
-        grid-template-columns: 1fr;
-        gap: 12px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
     }
 
     .mgmt-metric {
-        padding: 15px;
+        padding: 14px;
     }
 
     .mgmt-toolbar {
@@ -771,6 +771,16 @@
 
     .mgmt-filter-tab {
         flex: 0 0 auto;
+    }
+}
+
+@media (max-width: 380px) {
+    .mgmt-metrics {
+        grid-template-columns: 1fr;
+    }
+
+    .mgmt-hero-actions {
+        flex-direction: column;
     }
 }
 

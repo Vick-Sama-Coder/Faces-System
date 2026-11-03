@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react"
 import { KeyRound, Save, ShieldCheck, UserRound } from "lucide-react"
-import Sidebar from "../../components/Sidebar/Sidebar.jsx"
-import Headers from "../../components/headers/header.jsx"
 import "../admin/admin.css"
 import "./perfil.css"
 import {
@@ -49,7 +47,6 @@ function iniciaisDe(nome) {
 
 function Perfil() {
     const { user, updateUser } = useAuthStore()
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
     const [perfil, setPerfil] = useState(user)
     const [loading, setLoading] = useState(true)
@@ -300,23 +297,7 @@ function Perfil() {
     }
 
     return (
-        <div className="admin-main">
-            <Sidebar
-                isOpen={isSidebarOpen}
-                setIsOpen={setIsSidebarOpen}
-            />
-            <Headers
-                heady="admin-header"
-                title="O Meu Perfil"
-                h1Class="admin-header-title"
-                menuClass="menu"
-                userClass="user"
-                bellClass="bell"
-                onMenuClick={() => setIsSidebarOpen(true)}
-                sidebarOpen={isSidebarOpen}
-            />
-
-            <main className="admin-content profile-content">
+        <div className="app-page profile-content">
                 <header className="admin-page-header">
                     <div className="admin-page-header-inner">
                         <div>
@@ -607,7 +588,6 @@ function Perfil() {
                         </form>
                     </section>
                 </div>
-            </main>
         </div>
     )
 }

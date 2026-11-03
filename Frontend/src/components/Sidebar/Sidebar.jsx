@@ -9,7 +9,7 @@ import { useMediaQuery } from "../../hooks/useMediaQuery.js"
 import { getVisibleGroups } from "./navigation.js"
 import "./sidebar.css"
 
-const MOBILE_QUERY = "(max-width: 677px)"
+const MOBILE_QUERY = "(max-width: 767px)"
 const FOCUSABLE_SELECTOR =
     'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
 

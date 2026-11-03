@@ -362,7 +362,7 @@
     line-height: 1.4;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 767px) {
     .cartao-cliente-backdrop {
         align-items: flex-end;
         padding: 0;
@@ -370,8 +370,9 @@
 
     .cartao-cliente-modal {
         max-width: none;
-        max-height: 94vh;
-        border-radius: 18px 18px 0 0;
+        max-height: 92dvh;
+        border-radius: 20px 20px 0 0;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
     }
 
     .cartao-cliente-header,

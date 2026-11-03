@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useState } from "react"
-import Sidebar from "../../components/Sidebar/Sidebar.jsx"
-import Headers from "../../components/headers/header.jsx"
 import "./admin.css"
 import { ShieldCheck, Save, CheckCheck, Eraser, Users } from "lucide-react"
 import { getPerfis, getPerfil, getPermissoes, updatePermissoesPerfil, getApiError } from "../../services/api.js"
@@ -15,7 +13,6 @@ function agruparPorModulo(permissoes) {
 }
 
 function Permissoes() {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [perfis, setPerfis] = useState([])
     const [catalogo, setCatalogo] = useState([])
     const [perfilId, setPerfilId] = useState("")
@@ -135,23 +132,7 @@ function Permissoes() {
     }
 
     return (
-        <div className="admin-main">
-            <Sidebar
-                isOpen={isSidebarOpen}
-                setIsOpen={setIsSidebarOpen}
-            />
-            <Headers
-                heady="admin-header"
-                title="Permissoes"
-                h1Class="admin-header-title"
-                menuClass="menu"
-                userClass="user"
-                bellClass="bell"
-                onMenuClick={() => setIsSidebarOpen(true)}
-                sidebarOpen={isSidebarOpen}
-            />
-
-            <main className="admin-content">
+        <div className="app-page">
                 <header className="admin-page-header">
                     <div className="admin-page-header-inner">
                         <div>
@@ -289,7 +270,6 @@ function Permissoes() {
                     Para excepcoes individuais, use a Gestao de Utilizadores e o icone de escudo
                     de cada conta.
                 </div>
-            </main>
         </div>
     )
 }

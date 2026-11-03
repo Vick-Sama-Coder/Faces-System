@@ -345,17 +345,11 @@
 /* Scrollbar */
 
 .main-content {
-    scrollbar-width: thin;
-    scrollbar-color: var(--scrollbar-thumb) transparent;
+    scrollbar-width: none;
 }
 
 .main-content::-webkit-scrollbar {
-    width: 6px;
-}
-
-.main-content::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb);
-    border-radius: 10px;
+    display: none;
 }
 
 /* Animation */
@@ -398,7 +392,7 @@
 
 /* Mobile */
 
-@media (max-width: 600px) {
+@media (max-width: 767px) {
     .modal-backdrop {
         align-items: flex-end;
         padding: 0;
@@ -410,7 +404,8 @@
         max-height: 94dvh;
         min-height: 0;
 
-        border-radius: 18px 18px 0 0;
+        border-radius: 20px 20px 0 0;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
     }
 
     .header-modal {
@@ -887,7 +882,7 @@
     }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 767px) {
     .nm-payment-grid,
     .nm-summary-grid {
         grid-template-columns: 1fr;

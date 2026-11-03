@@ -1,5 +1,3 @@
-import Sidebar from "../../components/Sidebar/Sidebar.jsx"
-import Headers from "../../components/headers/header.jsx"
 import NewMarkModal from "../../components/Modals/NewMark/New-Mark-Modal.jsx"
 import FidelizacaoCard from "../../components/FidelizacaoCard/FidelizacaoCard.jsx"
 import ConfirmDialog from "../../components/ConfirmDialog/ConfirmDialog.jsx"
@@ -209,7 +207,6 @@ function NovoAtendimento() {
     const podeEditar = user?.permissoes?.includes("atendimentos:escrever")
     const podeAnular = user?.permissoes?.includes("atendimentos:anular")
 
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [atendimentos, setAtendimentos] = useState([])
     const [loading, setLoading] = useState(true)
@@ -921,22 +918,7 @@ function NovoAtendimento() {
                 </div>
             )}
 
-            <div className="newbookmark-main">
-                <Sidebar
-                    isOpen={isSidebarOpen}
-                    setIsOpen={setIsSidebarOpen}
-                />
-                <Headers
-                    heady="newmark-header"
-                    title="Atendimentos"
-                    h1Class="newmark-h1"
-                    menuClass="menu"
-                    userClass="user"
-                    bellClass="bell"
-                    onMenuClick={() => setIsSidebarOpen(true)}
-                    sidebarOpen={isSidebarOpen}
-                />
-                <section className="newbookmark-content mgmt-page">
+            <div className="app-page mgmt-page">
                     <header className="mgmt-hero">
                         <div className="mgmt-hero-copy">
                             <span className="mgmt-eyebrow">
@@ -1118,8 +1100,32 @@ function NovoAtendimento() {
                                 Novo atendimento
                             </button>
                         )}
+                        mobileCard={(atendimento) => (
+                            <>
+                                <div className="faces-grid-card-head">
+                                    <ClienteAtendimentoCell data={atendimento} />
+                                    <EstadoAtendimentoCell value={atendimento.estado} />
+                                </div>
+
+                                <div className="faces-grid-card-meta">
+                                    <DataAtendimentoCell value={atendimento.data_hora} />
+                                    <TotalAtendimentoCell value={atendimento.valor_total} />
+                                </div>
+
+                                <div className="faces-grid-card-foot">
+                                    <PagamentoAtendimentoCell data={atendimento} />
+                                    <AcoesAtendimentoCell
+                                        data={atendimento}
+                                        podeEditar={podeEditar}
+                                        podeAnular={podeAnular}
+                                        onVer={handleVerDetalhe}
+                                        onEditar={handleEditar}
+                                        onAnular={handleAnular}
+                                    />
+                                </div>
+                            </>
+                        )}
                     />
-                </section>
             </div>
         </>
     )

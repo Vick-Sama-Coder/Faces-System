@@ -260,7 +260,7 @@
 
 /* Mobile */
 
-@media (max-width: 600px) {
+@media (max-width: 767px) {
     .modal-backdrop {
         align-items: flex-end;
         padding: 0;
@@ -270,7 +270,9 @@
         width: 100%;
         max-width: none;
         min-height: 0;
-        border-radius: 18px 18px 0 0;
+        max-height: 92dvh;
+        border-radius: 20px 20px 0 0;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
     }
 
     .header-modal {
