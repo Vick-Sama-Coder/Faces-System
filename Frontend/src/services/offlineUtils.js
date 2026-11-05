@@ -181,8 +181,8 @@ export function entidadeOtimista(config, tempId) {
             servicos,
             valor_total: valorTotal,
             valor_pago: 0,
-            estado: 'Em andamento',
-            data_hora: new Date().toISOString(),
+            estado: 'Concluido',
+            data_hora: corpo.data_hora || new Date().toISOString(),
             metodos_pagamento: null
         };
     }

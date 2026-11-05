@@ -269,17 +269,18 @@ function aplicarNaEntrada(entrada, mutacao, resposta) {
 
         function atualizarAtendimento(item) {
             if (!mesmoId(item?.id, mutacao.targetId)) return item;
-            const total = Number(item.valor_total || 0);
             const atual = Number(item.valor_pago || 0);
             // Nunca deixar o cache regredir: uma resposta idempotente antiga
             // nao pode apagar um pagamento que ja esteja refletido localmente.
             const pago = valorPagoAbsoluto !== null
                 ? Math.max(atual, valorPagoAbsoluto)
                 : atual + valorPago;
+            // O estado do atendimento ja nao depende da liquidacao do pagamento.
             const estado = (valorPagoAbsoluto !== null && valorPagoAbsoluto >= atual
-                ? atendimentoServidor.estado
+                ? atendimentoServidor?.estado
                 : null)
-                || (pago >= total ? 'Pago' : (item.estado || 'Em andamento'));
+                || item.estado
+                || 'Concluido';
             return {
                 ...item,
                 valor_pago: pago,

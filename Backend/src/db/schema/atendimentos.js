@@ -20,13 +20,15 @@ export const atendimento = pgTable('atendimento', {
     id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
     cliente_id: integer('cliente_id').notNull().references(() => cliente.id),
     data_hora: timestamp('data_hora').notNull().defaultNow(),
-    estado: varchar('estado', { length: 20 }).notNull().default('Em andamento'),
+    estado: varchar('estado', { length: 20 }).notNull().default('Concluido'),
     valor_bruto: integer('valor_bruto').notNull().default(0),
     valor_desconto: integer('valor_desconto').notNull().default(0),
     valor_total: integer('valor_total').notNull().default(0),
     registado_por: integer('registado_por').references(() => usuario.id),
     motivo_anulacao: varchar('motivo_anulacao', { length: 255 })
-});
+}, (table) => [
+    check('atendimento_estado_check', sql`${table.estado} in ('Concluido', 'Anulado')`)
+]);
 
 // Servicos e aplicacoes realizados num atendimento. O preco fica gravado na
 // transacao, para que alteracoes futuras ao catalogo nao reescrevam o historico.

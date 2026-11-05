@@ -174,15 +174,23 @@ const temMarcaFidelizacao = async (executor, atendimento_id) => {
 
 //---- operacoes usadas dentro de transacoes (recebem o tx) ----
 
-const insertHeader = async (tx, { cliente_id, valor_bruto, valor_desconto, valor_total, registado_por }) => {
+const insertHeader = async (tx, { cliente_id, data_hora, valor_bruto, valor_desconto, valor_total, registado_por }) => {
+    const valores = {
+        cliente_id,
+        valor_bruto,
+        valor_desconto,
+        valor_total,
+        registado_por
+    };
+
+    // A data so e enviada pelo controller quando o utilizador e Administrador.
+    // Sem ela, a base aplica o default now().
+    if (data_hora) {
+        valores.data_hora = data_hora;
+    }
+
     const [linha] = await tx.insert(atendimento)
-        .values({
-            cliente_id,
-            valor_bruto,
-            valor_desconto,
-            valor_total,
-            registado_por
-        })
+        .values(valores)
         .returning({ id: atendimento.id });
 
     return linha.id;
@@ -293,8 +301,18 @@ const insertDesconto = async (tx, {
 
 //---- atualizacoes simples (db) ----
 
-const updateHeader = async (id, { cliente_id }) => {
-    if (cliente_id === undefined || cliente_id === null) {
+const updateHeader = async (id, { cliente_id, data_hora }) => {
+    const valores = {};
+
+    if (cliente_id !== undefined && cliente_id !== null) {
+        valores.cliente_id = cliente_id;
+    }
+    if (data_hora !== undefined && data_hora !== null) {
+        valores.data_hora = data_hora;
+    }
+
+    // Sem campos para alterar, devolve apenas a existencia do atendimento.
+    if (Object.keys(valores).length === 0) {
         const [linha] = await db.select({ id: atendimento.id })
             .from(atendimento)
             .where(eq(atendimento.id, id))
@@ -304,7 +322,7 @@ const updateHeader = async (id, { cliente_id }) => {
     }
 
     const [linha] = await db.update(atendimento)
-        .set({ cliente_id })
+        .set(valores)
         .where(eq(atendimento.id, id))
         .returning({ id: atendimento.id });
 

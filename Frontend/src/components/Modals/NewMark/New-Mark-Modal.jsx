@@ -41,6 +41,21 @@ import './New-Mark-Modal.css'
 
 const FORMAS_PAGAMENTO = ["Dinheiro", "M-Pesa", "e-Mola", "POS", "IZI", "Outro"];
 
+function paraInputDataHora(valor = new Date()) {
+    const data = valor instanceof Date ? valor : new Date(valor);
+    if (Number.isNaN(data.getTime())) return "";
+
+    const local = new Date(data.getTime() - data.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 16);
+}
+
+function formatarDataHora(valor) {
+    if (!valor) return "—";
+    const data = new Date(valor);
+    if (Number.isNaN(data.getTime())) return "—";
+    return data.toLocaleString("pt-MZ", { dateStyle: "short", timeStyle: "short" });
+}
+
 const itemVazio = () => ({
     categoria_id: "",
     servico_id: "",
@@ -64,6 +79,7 @@ function itemPodeSerGratuito(item, servico) {
 function NewMarkModal({ onclose, onSuccess }) {
     const { user } = useAuthStore();
     const podePagar = user?.permissoes?.includes("pagamentos:registar");
+    const ehAdministrador = user?.perfil === "Administrador";
 
     const [clientes, setClientes] = useState([]);
     const [servicos, setServicos] = useState([]);
@@ -71,6 +87,7 @@ function NewMarkModal({ onclose, onSuccess }) {
 
     const [clienteId, setClienteId] = useState("");
     const [pesquisaCliente, setPesquisaCliente] = useState("");
+    const [dataHora, setDataHora] = useState(() => paraInputDataHora());
     const [itens, setItens] = useState([itemVazio()]);
     const [fidelizacaoCarregada, setFidelizacaoCarregada] = useState({ clienteId: null, dados: null });
     const [pagamento, setPagamento] = useState({
@@ -530,6 +547,16 @@ function NewMarkModal({ onclose, onSuccess }) {
                 servicos: servicosParaEnviar
             };
 
+            // A data so e enviada pelo Administrador; o backend ignora-a para
+            // os restantes perfis. O ISO preserva o instante escolhido mesmo
+            // que o servidor esteja noutro fuso horario.
+            if (ehAdministrador && dataHora) {
+                const dataSelecionada = new Date(dataHora);
+                if (!Number.isNaN(dataSelecionada.getTime())) {
+                    payload.data_hora = dataSelecionada.toISOString();
+                }
+            }
+
             const resposta = await createAtendimento(payload);
             const novoAtendimento = resposta.data;
             const usouBeneficio = payload.servicos.some((item) => item.usar_beneficio_fidelizacao);
@@ -700,6 +727,27 @@ function NewMarkModal({ onclose, onSuccess }) {
                                 Cadastrar novo cliente
                             </button>
                         </div>
+
+                        {ehAdministrador && (
+                            <div className="nm-section">
+                                <div className="nm-section-title">
+                                    <CalendarPlus size={18} />
+                                    <span>Data do atendimento</span>
+                                </div>
+                                <div className="nm-field">
+                                    <label htmlFor="nm-data-hora">Data e hora</label>
+                                    <input
+                                        id="nm-data-hora"
+                                        type="datetime-local"
+                                        className="nm-select"
+                                        value={dataHora}
+                                        onChange={(event) => setDataHora(event.target.value)}
+                                        required
+                                    />
+                                    <span className="nm-hint">Opção exclusiva do Administrador.</span>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="nm-section nm-section-wide">
                             <div className="nm-section-title">
@@ -1062,10 +1110,10 @@ function NewMarkModal({ onclose, onSuccess }) {
                                 <div className={`nm-payment-balance ${saldo > 0 ? "pending" : "settled"}`}>
                                     <Wallet size={16} />
                                     {valorPago <= 0
-                                        ? "Pagamento depois: o atendimento fica pendente."
+                                        ? "Pagamento depois: o saldo fica em falta."
                                         : saldo > 0
                                             ? `${valorPago.toLocaleString("pt-MZ")} MT pagos · faltam ${saldo.toLocaleString("pt-MZ")} MT.`
-                                            : "Pagamento total: o atendimento fica liquidado."}
+                                            : "Pagamento total: saldo liquidado."}
                                 </div>
 
                                 {errors.pagamento && (
@@ -1234,6 +1282,12 @@ function NewMarkModal({ onclose, onSuccess }) {
                                         <span>Telefone</span>
                                         <strong>{clienteSelecionado?.telefone || "-"}</strong>
                                     </div>
+                                    {ehAdministrador && (
+                                        <div className="nm-summary-row">
+                                            <span>Data do atendimento</span>
+                                            <strong>{formatarDataHora(dataHora)}</strong>
+                                        </div>
+                                    )}
                                     <div className="nm-summary-row">
                                         <span>Servicos</span>
                                         <strong>{itensComServico.length}</strong>
@@ -1311,12 +1365,12 @@ function NewMarkModal({ onclose, onSuccess }) {
                                 <div className={`nm-payment-balance ${saldo > 0 ? "pending" : "settled"}`}>
                                     <Wallet size={16} />
                                     {!podePagar
-                                        ? "Sem permissao para registar pagamento; o atendimento fica pendente."
+                                        ? "Sem permissao para registar pagamento; o saldo fica em falta."
                                         : valorPago <= 0
-                                            ? `Pagamento pendente: faltam ${totalComDescontos.toLocaleString("pt-MZ")} MT.`
+                                            ? `Saldo em falta: ${totalComDescontos.toLocaleString("pt-MZ")} MT.`
                                             : saldo > 0
                                                 ? `${valorPago.toLocaleString("pt-MZ")} MT pagos · faltam ${saldo.toLocaleString("pt-MZ")} MT.`
-                                                : "Pagamento total: o atendimento fica liquidado."}
+                                                : "Pagamento total: saldo liquidado."}
                                 </div>
 
                                 {temServicoElegivel && (

@@ -92,6 +92,13 @@
       "when": 1793550952702,
       "tag": "0012_caixa_fecho_metodos",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793893692962,
+      "tag": "0013_atendimento_estado_concluido",
+      "breakpoints": true
     }
   ]
 }

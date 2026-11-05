@@ -3,7 +3,24 @@ import Pagamento from "../repository/pagamento.js";
 import AtendimentoService from "../services/atendimento.js";
 import FidelizacaoService from "../services/fidelizacao.js";
 import AuditoriaService from "../services/auditoria.js";
-import { codigoPostgres } from "../utils/erro.js";
+import { criarErro, codigoPostgres } from "../utils/erro.js";
+
+// A data do atendimento e uma opcao exclusiva do Administrador.
+function podeAlterarDataHora(req) {
+    return req.user?.perfil === "Administrador";
+}
+
+function normalizarDataHora(valor) {
+    if (valor === undefined || valor === null || valor === "") return undefined;
+
+    const data = new Date(valor);
+
+    if (Number.isNaN(data.getTime())) {
+        throw criarErro(400, "Data e hora do atendimento invalidas");
+    }
+
+    return data;
+}
 
 const getAtendimentos = async (req, res, next) => {
     try {
@@ -41,7 +58,7 @@ const getAtendimentoById = async (req, res, next) => {
 
 const createAtendimento = async (req, res, next) => {
     try {
-        const { cliente_id, servicos } = req.body;
+        const { cliente_id, servicos, data_hora } = req.body;
 
         if (!cliente_id || !Array.isArray(servicos) || servicos.length === 0) {
             return res.status(400).json({ message: "cliente_id e uma lista de servicos sao obrigatorios" });
@@ -53,7 +70,8 @@ const createAtendimento = async (req, res, next) => {
             return res.status(400).json({ message: "Cada servico exige servico_id, funcionario_id e preco_praticado" });
         }
 
-        const id = await AtendimentoService.criar({ cliente_id, servicos, registado_por: req.user.id });
+        const dataHora = podeAlterarDataHora(req) ? normalizarDataHora(data_hora) : undefined;
+        const id = await AtendimentoService.criar({ cliente_id, servicos, data_hora: dataHora, registado_por: req.user.id });
 
         const atendimento = await Atendimento.findById(id);
         atendimento.servicos = await Atendimento.findServicos(id);
@@ -71,13 +89,26 @@ const createAtendimento = async (req, res, next) => {
 
 const updateAtendimento = async (req, res, next) => {
     try {
-        const { cliente_id } = req.body;
+        const { cliente_id, data_hora } = req.body;
+        const admin = podeAlterarDataHora(req);
 
-        if (cliente_id === undefined) {
+        if (cliente_id === undefined && !(admin && data_hora !== undefined)) {
             return res.status(400).json({ message: "Nenhum campo para atualizar foi enviado" });
         }
 
-        const atendimento = await Atendimento.updateHeader(req.params.id, { cliente_id });
+        const campos = {};
+        if (cliente_id !== undefined) {
+            campos.cliente_id = cliente_id;
+        }
+        if (admin && data_hora !== undefined) {
+            const data = normalizarDataHora(data_hora);
+            if (!data) {
+                return res.status(400).json({ message: "Data e hora do atendimento invalidas" });
+            }
+            campos.data_hora = data;
+        }
+
+        const atendimento = await Atendimento.updateHeader(req.params.id, campos);
         if (!atendimento) {
             return res.status(404).json({ message: "Atendimento nao encontrado" });
         }
@@ -130,11 +161,16 @@ const removeServico = async (req, res, next) => {
 
 const concluirAtendimento = async (req, res, next) => {
     try {
-        const atendimento = await Atendimento.updateEstado(req.params.id, { estado: "Concluido" });
+        const atual = await Atendimento.findById(req.params.id);
 
-        if (!atendimento) {
+        if (!atual) {
             return res.status(404).json({ message: "Atendimento nao encontrado" });
         }
+        if (atual.estado === "Anulado") {
+            return res.status(409).json({ message: "Um atendimento anulado nao pode ser concluido" });
+        }
+
+        const atendimento = await Atendimento.updateEstado(req.params.id, { estado: "Concluido" });
 
         res.status(200).json(atendimento);
     } catch (error) {

@@ -176,7 +176,7 @@ function DashBoard() {
                                 <div>
                                     <span>Atendimentos do mes</span>
                                     <strong>{Number(indicadores.atendimentos_mes || 0).toLocaleString("pt-MZ")}</strong>
-                                    <span className="dash-kpi-note">{indicadores.atendimentos_hoje || 0} hoje · {indicadores.em_andamento || 0} em andamento</span>
+                                    <span className="dash-kpi-note">{indicadores.atendimentos_hoje || 0} hoje</span>
                                 </div>
                             </article>
                         </section>

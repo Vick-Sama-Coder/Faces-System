@@ -87,7 +87,7 @@ async function validarServicoAtivo(servico_id) {
     return servico;
 }
 
-const criar = async ({ cliente_id, servicos, registado_por }) => {
+const criar = async ({ cliente_id, servicos, data_hora, registado_por }) => {
     validarUmBeneficioPorAtendimento(servicos);
 
     const validados = [];
@@ -104,6 +104,7 @@ const criar = async ({ cliente_id, servicos, registado_por }) => {
         const totais = somar(servicos);
         const atendimento_id = await Atendimento.insertHeader(tx, {
             cliente_id,
+            data_hora,
             valor_bruto: totais.bruto,
             valor_desconto: totais.desconto,
             valor_total: totais.total,

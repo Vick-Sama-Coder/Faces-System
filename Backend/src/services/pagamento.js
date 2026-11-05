@@ -83,9 +83,9 @@ const registrar = async (atendimento_id, { parcelas, registado_por }) => {
             });
         }
 
-        //liquidacao total -> atendimento fica "Pago" e gera as comissoes (RN08/RN10)
+        // A liquidacao total gera as comissoes (RN08/RN10). O estado do
+        // atendimento mantem-se Concluido: o pagamento ja nao o altera.
         if (estado === "Liquidado") {
-            await Atendimento.updateEstado(atendimento_id, { estado: "Pago" }, tx);
             await Comissao.gerarParaAtendimento(tx, atendimento_id);
         }
 
@@ -121,14 +121,8 @@ const anular = async (pagamento_id, { motivo, registado_por }) => {
         await Pagamento.updateEstado(tx, pagamento_id, { estado: "Anulado", motivo_anulacao: motivo });
         await Caixa.anularMovimentosPorReferencia(tx, "Pagamento", pagamento_id);
 
-        const atendimento = await Atendimento.findById(pagamento.atendimento_id, tx);
-        const pago = await Pagamento.somaParcelas(tx, pagamento.atendimento_id);
-
-        const estadoAtendimento = atendimento.valor_total > 0 && pago >= atendimento.valor_total
-            ? "Pago"
-            : (pago > 0 ? "Concluido" : "Em andamento");
-
-        await Atendimento.updateEstado(pagamento.atendimento_id, { estado: estadoAtendimento }, tx);
+        // O estado financeiro vive no pagamento; o atendimento continua
+        // Concluido e o saldo em falta e recalculado pelas parcelas ativas.
 
         await AuditoriaService.registar({
             id_utilizador: registado_por,

@@ -274,7 +274,7 @@ const resumoFinanceiro = async ({ de, ate } = {}) => {
                              where p.estado <> 'Anulado'
                              group by p.atendimento_id
                         ) pg on pg.atendimento_id = a.id
-                       where a.estado in ('Concluido', 'Pago')
+                       where a.estado = 'Concluido'
                          and a.valor_total > coalesce(pg.pago, 0)), 0)::int as valores_a_receber
     `);
 
@@ -648,7 +648,7 @@ const dividasFinanceiro = async ({ de, ate, salarioDe, salarioAte } = {}) => {
                    where p.estado <> 'Anulado'
                    group by p.atendimento_id
               ) pg on pg.atendimento_id = a.id
-             where a.estado in ('Concluido', 'Pago')
+             where a.estado = 'Concluido'
                and a.valor_total > coalesce(pg.pago, 0)
              order by dias_atraso desc, a.data_hora asc
              limit 100

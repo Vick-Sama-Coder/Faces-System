@@ -54,8 +54,6 @@ const indicadores = async () => {
               where data_hora >= date_trunc('month', current_date)
                 and data_hora < date_trunc('month', current_date) + interval '1 month'
                 and estado <> 'Anulado')::int as atendimentos_mes,
-            (select count(*) from atendimento where estado = 'Em andamento')::int as em_andamento,
-            (select count(*) from atendimento where estado = 'Pago')::int as pagos,
             (select count(*) from cliente where estado = 'Ativo')::int as clientes_ativos,
             (select count(*) from funcionario where estado = 'Ativo')::int as funcionarios_ativos,
             (select count(*) from servico where estado = 'Ativo')::int as servicos_ativos,

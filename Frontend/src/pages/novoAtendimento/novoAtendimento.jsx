@@ -41,7 +41,7 @@ import {
 } from "../../services/api.js"
 import { useAuthStore } from "../../store/authStore.js"
 
-const ESTADOS = ["Todos", "Em andamento", "Concluido", "Pago", "Anulado"]
+const ESTADOS = ["Todos", "Concluido", "Anulado"]
 const PERIODOS = ["Todos", "Hoje", "7 dias", "30 dias"]
 const FORMAS_PAGAMENTO = ["Dinheiro", "M-Pesa", "e-Mola", "Cartao", "Transferencia", "Outro"]
 
@@ -73,13 +73,18 @@ function formatarHora(valor) {
     return format(data, "HH:mm")
 }
 
+function paraInputDataHora(valor) {
+    const data = dataAtendimento(valor)
+    if (!data) return ""
+    return format(data, "yyyy-MM-dd'T'HH:mm")
+}
+
 function rotuloEstado(estado) {
     return estado === "Concluido" ? "Concluído" : estado
 }
 
 function classeEstado(estado) {
     switch (estado) {
-        case "Pago": return "pago"
         case "Concluido": return "concluido"
         case "Anulado": return "anulado"
         default: return "pendente"
@@ -88,7 +93,6 @@ function classeEstado(estado) {
 
 function tomEstado(estado) {
     switch (estado) {
-        case "Pago": return "success"
         case "Concluido": return "primary"
         case "Anulado": return "danger"
         default: return "warning"
@@ -141,7 +145,7 @@ function EstadoAtendimentoCell({ value }) {
     return (
         <span className={`mgmt-badge ${tomEstado(value)}`}>
             <span className="mgmt-badge-dot" />
-            {rotuloEstado(value) || "Em andamento"}
+            {rotuloEstado(value) || "Concluído"}
         </span>
     )
 }
@@ -206,6 +210,7 @@ function NovoAtendimento() {
     const podePagar = user?.permissoes?.includes("pagamentos:registar")
     const podeEditar = user?.permissoes?.includes("atendimentos:escrever")
     const podeAnular = user?.permissoes?.includes("atendimentos:anular")
+    const ehAdministrador = user?.perfil === "Administrador"
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [atendimentos, setAtendimentos] = useState([])
@@ -226,6 +231,7 @@ function NovoAtendimento() {
     const [carregandoClientesEdicao, setCarregandoClientesEdicao] = useState(false)
     const [salvandoEdicao, setSalvandoEdicao] = useState(false)
     const [erroEdicao, setErroEdicao] = useState(null)
+    const [dataHoraEdicao, setDataHoraEdicao] = useState("")
     const [pagamentoForm, setPagamentoForm] = useState({
         metodo: "Dinheiro",
         valor: ""
@@ -339,8 +345,8 @@ function NovoAtendimento() {
         return contagem
     }, [atendimentos])
 
-    const emAndamento = contagemEstados["Em andamento"] || 0
-    const pagos = contagemEstados.Pago || 0
+    const concluidos = contagemEstados.Concluido || 0
+    const anulados = contagemEstados.Anulado || 0
     const totalRecebido = atendimentos.reduce((acc, item) => acc + (Number(item.valor_pago) || 0), 0)
     const totalPendente = atendimentos.reduce((acc, item) => acc + saldoDoAtendimento(item), 0)
     const atendimentosHoje = atendimentos.filter((item) => {
@@ -370,6 +376,7 @@ function NovoAtendimento() {
     const handleEditar = useCallback((atendimento) => {
         setAtendimentoEmEdicao(atendimento)
         setClienteEdicaoId(String(atendimento.cliente_id ?? ""))
+        setDataHoraEdicao(paraInputDataHora(atendimento.data_hora))
         setClientesEdicao([])
         setCarregandoClientesEdicao(true)
         setErroEdicao(null)
@@ -433,6 +440,7 @@ function NovoAtendimento() {
         if (salvandoEdicao) return
         setAtendimentoEmEdicao(null)
         setErroEdicao(null)
+        setDataHoraEdicao("")
     }
 
     async function guardarEdicao(event) {
@@ -443,9 +451,28 @@ function NovoAtendimento() {
             setErroEdicao("Selecione o cliente do atendimento.")
             return
         }
+        if (ehAdministrador && !dataHoraEdicao) {
+            setErroEdicao("Indique a data e hora do atendimento.")
+            return
+        }
 
-        if (String(clienteEdicaoId) === String(atendimentoEmEdicao.cliente_id)) {
-            setErroEdicao("Selecione um cliente diferente do atual.")
+        const dataSelecionada = ehAdministrador ? new Date(dataHoraEdicao) : null
+        if (ehAdministrador && Number.isNaN(dataSelecionada.getTime())) {
+            setErroEdicao("Data e hora do atendimento inválidas.")
+            return
+        }
+
+        const clienteAlterado = String(clienteEdicaoId) !== String(atendimentoEmEdicao.cliente_id)
+        const dataAlterada = ehAdministrador
+            && Boolean(dataHoraEdicao)
+            && dataHoraEdicao !== paraInputDataHora(atendimentoEmEdicao.data_hora)
+
+        if (!clienteAlterado && !dataAlterada) {
+            setErroEdicao(
+                ehAdministrador
+                    ? "Altere o cliente ou a data do atendimento."
+                    : "Selecione um cliente diferente do atual."
+            )
             return
         }
 
@@ -453,10 +480,12 @@ function NovoAtendimento() {
         setErroEdicao(null)
 
         try {
-            await updateAtendimento(atendimentoEmEdicao.id, {
-                cliente_id: Number(clienteEdicaoId)
-            })
+            const payload = { cliente_id: Number(clienteEdicaoId) }
+            if (dataAlterada) payload.data_hora = dataSelecionada.toISOString()
+
+            await updateAtendimento(atendimentoEmEdicao.id, payload)
             setAtendimentoEmEdicao(null)
+            setDataHoraEdicao("")
             await carregarAtendimentos()
         } catch (err) {
             setErroEdicao(getApiError(err))
@@ -681,10 +710,34 @@ function NovoAtendimento() {
                                             </select>
                                         )}
                                         <p id="edicao-cliente-hint" className="appointment-payment-hint">
-                                            A edição altera apenas o cliente associado. Serviços, valores e pagamentos permanecem inalterados.
+                                            {ehAdministrador
+                                                ? "Pode alterar o cliente e a data do atendimento. Serviços, valores e pagamentos permanecem inalterados."
+                                                : "A edição altera apenas o cliente associado. Serviços, valores e pagamentos permanecem inalterados."}
                                         </p>
                                     </div>
                                 </div>
+
+                                {ehAdministrador && (
+                                    <div className="appointment-detail-section">
+                                        <h3><Clock3 size={16} /> Data do atendimento</h3>
+                                        <div className="appointment-edit-field">
+                                            <label htmlFor="data-hora-edicao">Data e hora</label>
+                                            <input
+                                                id="data-hora-edicao"
+                                                type="datetime-local"
+                                                value={dataHoraEdicao}
+                                                onChange={(event) => {
+                                                    setDataHoraEdicao(event.target.value)
+                                                    if (erroEdicao) setErroEdicao(null)
+                                                }}
+                                                disabled={salvandoEdicao}
+                                            />
+                                            <p className="appointment-payment-hint">
+                                                Opção exclusiva do Administrador.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <footer className="appointment-detail-footer">
@@ -703,7 +756,11 @@ function NovoAtendimento() {
                                         salvandoEdicao
                                         || carregandoClientesEdicao
                                         || !clienteEdicaoId
-                                        || String(clienteEdicaoId) === String(atendimentoEmEdicao.cliente_id)
+                                        || (ehAdministrador && !dataHoraEdicao)
+                                        || (
+                                            String(clienteEdicaoId) === String(atendimentoEmEdicao.cliente_id)
+                                            && (!ehAdministrador || dataHoraEdicao === paraInputDataHora(atendimentoEmEdicao.data_hora))
+                                        )
                                     }
                                 >
                                     {salvandoEdicao ? "A guardar..." : "Guardar alterações"}
@@ -879,7 +936,7 @@ function NovoAtendimento() {
                                                 </div>
                                                 <p className="appointment-payment-hint">
                                                     Saldo em falta: <strong>{formatarMoeda(saldoDoAtendimento(detalhe))}</strong>.
-                                                    Ao liquidar o total, o atendimento passa automaticamente a Pago.
+                                                    O pagamento atualiza o saldo, mas o atendimento mantém-se concluído.
                                                 </p>
                                             </form>
                                         </section>
@@ -944,20 +1001,20 @@ function NovoAtendimento() {
                     </header>
 
                     <section className="mgmt-metrics" aria-label="Resumo de atendimentos">
-                        <article className="mgmt-metric warning">
-                            <span className="mgmt-metric-icon"><CalendarPlus size={21} /></span>
-                            <span className="mgmt-metric-copy">
-                                <span className="mgmt-metric-label">Em andamento</span>
-                                <strong className="mgmt-metric-value">{emAndamento}</strong>
-                                <span className="mgmt-metric-hint">A aguardar conclusão</span>
-                            </span>
-                        </article>
                         <article className="mgmt-metric success">
                             <span className="mgmt-metric-icon"><CheckCircle2 size={21} /></span>
                             <span className="mgmt-metric-copy">
-                                <span className="mgmt-metric-label">Pagos</span>
-                                <strong className="mgmt-metric-value">{pagos}</strong>
-                                <span className="mgmt-metric-hint">Atendimentos liquidados</span>
+                                <span className="mgmt-metric-label">Concluídos</span>
+                                <strong className="mgmt-metric-value">{concluidos}</strong>
+                                <span className="mgmt-metric-hint">Serviços realizados</span>
+                            </span>
+                        </article>
+                        <article className="mgmt-metric warning">
+                            <span className="mgmt-metric-icon"><Ban size={21} /></span>
+                            <span className="mgmt-metric-copy">
+                                <span className="mgmt-metric-label">Anulados</span>
+                                <strong className="mgmt-metric-value">{anulados}</strong>
+                                <span className="mgmt-metric-hint">Fora do movimento</span>
                             </span>
                         </article>
                         <article className="mgmt-metric primary">
