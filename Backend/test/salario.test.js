@@ -106,6 +106,9 @@ test("conta faltas e sem_registo como zero horas efetivamente trabalhadas", asyn
     assert.match(consulta, /'ausencia'/);
     assert.match(consulta, /'sem_registo'/);
     assert.match(consulta, /count\(a\.id\)::int as dias_com_registo/);
+    assert.match(consulta, /from assiduidade_ausencia aa/);
+    assert.match(consulta, /aa\.assiduidade_id = a\.id/);
+    assert.match(consulta, /greatest\(0,/);
 });
 
 test("rejeita período inválido antes de consultar a base de dados", async () => {

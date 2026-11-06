@@ -8,6 +8,7 @@ import {
     timestamp,
     numeric,
     uniqueIndex,
+    index,
     check
 } from 'drizzle-orm/pg-core';
 import { usuario } from './acesso.js';
@@ -55,6 +56,20 @@ export const assiduidade = pgTable('assiduidade', {
     criado_em: timestamp('criado_em').notNull().defaultNow()
 }, (table) => [
     uniqueIndex('assiduidade_funcionario_dia_unico').on(table.funcionario_id, table.data)
+]);
+
+// Ausencias parciais dentro de um dia de trabalho (varias por dia).
+export const assiduidadeAusencia = pgTable('assiduidade_ausencia', {
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    assiduidade_id: integer('assiduidade_id').notNull().references(() => assiduidade.id, { onDelete: 'cascade' }),
+    hora_inicio: time('hora_inicio').notNull(),
+    hora_fim: time('hora_fim').notNull(),
+    motivo: varchar('motivo', { length: 255 }),
+    registado_por: integer('registado_por').references(() => usuario.id),
+    criado_em: timestamp('criado_em').notNull().defaultNow()
+}, (table) => [
+    index('assiduidade_ausencia_assiduidade_idx').on(table.assiduidade_id),
+    check('assiduidade_ausencia_intervalo_check', sql`${table.hora_fim} > ${table.hora_inicio}`)
 ]);
 
 // Processamento salarial mensal (base + comissoes - deducoes).

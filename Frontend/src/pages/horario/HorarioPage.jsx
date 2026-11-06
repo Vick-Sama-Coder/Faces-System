@@ -5,9 +5,11 @@ import {
     CheckCircle2,
     Clock3,
     Loader2,
+    Plus,
     Save,
     TrendingUp,
-    UserRound
+    UserRound,
+    X
 } from "lucide-react"
 import "../admin/admin.css"
 import {
@@ -102,6 +104,30 @@ function formatarDuracao(minutos) {
     return `${horas}h ${pad2(restantes)}m`
 }
 
+function ausenciasDoRegisto(registo) {
+    if (!Array.isArray(registo?.ausencias)) return []
+
+    return registo.ausencias
+        .map((ausencia) => ({
+            ...ausencia,
+            hora_inicio: formatarHora(ausencia?.hora_inicio),
+            hora_fim: formatarHora(ausencia?.hora_fim),
+            motivo: ausencia?.motivo || null
+        }))
+        .filter((ausencia) => ausencia.hora_inicio && ausencia.hora_fim)
+}
+
+function minutosDeAusencias(ausencias) {
+    return ausencias.reduce((total, ausencia) => {
+        const inicio = horaParaMinutos(ausencia.hora_inicio)
+        const fim = horaParaMinutos(ausencia.hora_fim)
+
+        return inicio !== null && fim !== null && fim > inicio
+            ? total + (fim - inicio)
+            : total
+    }, 0)
+}
+
 function calcularHorasDia(registo) {
     const entrada = formatarHora(registo?.hora_entrada_real)
     const saida = formatarHora(registo?.hora_saida_real)
@@ -110,8 +136,13 @@ function calcularHorasDia(registo) {
     const falta = TIPOS_FALTA.has(registo?.tipo_ocorrencia)
     const completo = entradaMin !== null && saidaMin !== null
     const invalido = completo && saidaMin <= entradaMin
+    const ausencias = falta ? [] : ausenciasDoRegisto(registo)
+    const ausenciasMin = minutosDeAusencias(ausencias)
 
-    const trabalhadas = !falta && completo && !invalido ? saidaMin - entradaMin : 0
+    const minutosBase = completo && !invalido ? saidaMin - entradaMin : 0
+    const trabalhadas = !falta && completo && !invalido
+        ? Math.max(0, minutosBase - ausenciasMin)
+        : 0
     const previstas = falta || (completo && !invalido) ? HORAS_PREVISTAS_DIA : 0
     const naoTrabalhadas = previstas > 0
         ? Math.max(0, HORAS_PREVISTAS_DIA - trabalhadas)
@@ -125,6 +156,8 @@ function calcularHorasDia(registo) {
         falta,
         completo,
         invalido,
+        ausencias,
+        ausenciasMin,
         trabalhadas,
         naoTrabalhadas,
         previstas
@@ -150,6 +183,49 @@ function validarHorasDoDia(entrada, saida) {
     return null
 }
 
+function validarAusenciasDoDia(entrada, saida, tipoOcorrencia, ausencias) {
+    if (!ausencias || ausencias.length === 0) return null
+
+    if (TIPOS_FALTA.has(tipoOcorrencia)) {
+        return "Uma falta de dia inteiro não pode ter ausências parciais."
+    }
+
+    const entradaMin = entrada ? horaParaMinutos(entrada) : null
+    const saidaMin = saida ? horaParaMinutos(saida) : null
+
+    if (entradaMin === null || saidaMin === null) {
+        return "Registe a entrada e a saída antes de marcar ausências."
+    }
+    if (saidaMin <= entradaMin) {
+        return "A hora de saída deve ser posterior à hora de entrada."
+    }
+
+    const ordenadas = [...ausencias].sort(
+        (a, b) => (horaParaMinutos(a.hora_inicio) ?? 0) - (horaParaMinutos(b.hora_inicio) ?? 0)
+    )
+
+    for (let indice = 0; indice < ordenadas.length; indice += 1) {
+        const inicio = horaParaMinutos(ordenadas[indice].hora_inicio)
+        const fim = horaParaMinutos(ordenadas[indice].hora_fim)
+
+        if (inicio === null || fim === null || fim <= inicio) {
+            return `Ausência ${indice + 1}: intervalo inválido.`
+        }
+        if (inicio < entradaMin || fim > saidaMin) {
+            return `Ausência ${indice + 1}: tem de estar dentro do horário de trabalho.`
+        }
+        if (indice > 0) {
+            const anteriorFim = horaParaMinutos(ordenadas[indice - 1].hora_fim)
+
+            if (anteriorFim !== null && inicio < anteriorFim) {
+                return "As ausências parciais não podem sobrepor-se."
+            }
+        }
+    }
+
+    return null
+}
+
 function resumirRegistos(registos) {
     let trabalhadas = 0
     let naoTrabalhadas = 0
@@ -158,18 +234,26 @@ function resumirRegistos(registos) {
     let faltas = 0
     let atrasos = 0
     let ocorrencias = 0
+    let ausencias = 0
+    let ausenciasDias = 0
+    let ausenciasMin = 0
 
     for (const registo of registos) {
         const entradaMin = horaParaMinutos(formatarHora(registo?.hora_entrada_real))
         const falta = TIPOS_FALTA.has(registo?.tipo_ocorrencia)
         const atraso = registo?.tipo_ocorrencia === "atraso"
             || (entradaMin !== null && entradaMin > MINUTOS_INICIO_ATRASO)
+        const calculo = calcularHorasDia(registo)
 
         if (falta) faltas += 1
         if (atraso) atrasos += 1
-        if (registo?.tipo_ocorrencia || atraso) ocorrencias += 1
+        if (registo?.tipo_ocorrencia || atraso || calculo.ausencias.length > 0) ocorrencias += 1
 
-        const calculo = calcularHorasDia(registo)
+        if (calculo.ausencias.length > 0) {
+            ausencias += calculo.ausencias.length
+            ausenciasDias += 1
+            ausenciasMin += calculo.ausenciasMin
+        }
 
         if (calculo.previstas > 0) {
             trabalhadas += calculo.trabalhadas
@@ -187,6 +271,9 @@ function resumirRegistos(registos) {
         faltas,
         atrasos,
         ocorrencias,
+        ausencias,
+        ausenciasDias,
+        ausenciasMin,
         efetividade: previstas > 0 ? (trabalhadas / previstas) * 100 : 0
     }
 }
@@ -218,6 +305,13 @@ function HorarioPage() {
     const [errosDia, setErrosDia] = useState({})
     const [salvando, setSalvando] = useState(false)
     const [versao, setVersao] = useState(0)
+    const [ausenciaEmEdicao, setAusenciaEmEdicao] = useState(null)
+    const [rascunhoAusencia, setRascunhoAusencia] = useState({
+        inicio: "",
+        fim: "",
+        motivo: ""
+    })
+    const [erroAusencia, setErroAusencia] = useState(null)
 
     useEffect(() => {
         let activo = true
@@ -267,6 +361,9 @@ function HorarioPage() {
                 setAlterados(new Set())
                 setEstados({})
                 setErrosDia({})
+                setAusenciaEmEdicao(null)
+                setRascunhoAusencia({ inicio: "", fim: "", motivo: "" })
+                setErroAusencia(null)
             } catch (error) {
                 if (!activo) return
                 setRegistosMes([])
@@ -348,6 +445,9 @@ function HorarioPage() {
         setAlterados(new Set())
         setEstados({})
         setErrosDia({})
+        setAusenciaEmEdicao(null)
+        setRascunhoAusencia({ inicio: "", fim: "", motivo: "" })
+        setErroAusencia(null)
     }
 
     function mudarPeriodo(event) {
@@ -458,7 +558,11 @@ function HorarioPage() {
 
             if (indice >= 0) {
                 const copia = [...anterior]
-                copia[indice] = { ...copia[indice], tipo_ocorrencia: tipoOcorrencia }
+                copia[indice] = {
+                    ...copia[indice],
+                    tipo_ocorrencia: tipoOcorrencia,
+                    ausencias: tipoOcorrencia ? [] : (copia[indice].ausencias || [])
+                }
                 return copia
             }
 
@@ -470,10 +574,16 @@ function HorarioPage() {
                     data,
                     hora_entrada_real: null,
                     hora_saida_real: null,
-                    tipo_ocorrencia: tipoOcorrencia
+                    tipo_ocorrencia: tipoOcorrencia,
+                    ausencias: []
                 }
             ]
         })
+
+        if (ausenciaEmEdicao === data) {
+            setAusenciaEmEdicao(null)
+            setErroAusencia(null)
+        }
 
         setAlterados((anterior) => new Set(anterior).add(data))
         setEstados((anterior) => ({ ...anterior, [data]: "pendente" }))
@@ -484,6 +594,111 @@ function HorarioPage() {
         })
         setSucesso(null)
         setErro(null)
+    }
+
+    function marcarDiaAlterado(data) {
+        setAlterados((anterior) => new Set(anterior).add(data))
+        setEstados((anterior) => ({ ...anterior, [data]: "pendente" }))
+        setErrosDia((anterior) => {
+            const novo = { ...anterior }
+            delete novo[data]
+            return novo
+        })
+        setSucesso(null)
+        setErro(null)
+    }
+
+    function atualizarAusenciasDia(data, transformar) {
+        setRegistosMes((anterior) => {
+            const indice = anterior.findIndex((registo) => (
+                String(registo.funcionario_id) === String(funcionarioId)
+                && normalizarData(registo.data) === data
+            ))
+            const registoAtual = indice >= 0 ? anterior[indice] : null
+            const novas = transformar(ausenciasDoRegisto(registoAtual))
+            const registoBase = registoAtual || {
+                id: null,
+                funcionario_id: Number(funcionarioId),
+                data,
+                hora_entrada_real: null,
+                hora_saida_real: null,
+                tipo_ocorrencia: null
+            }
+            const atualizado = { ...registoBase, ausencias: novas }
+
+            if (indice >= 0) {
+                const copia = [...anterior]
+                copia[indice] = atualizado
+                return copia
+            }
+
+            return [...anterior, atualizado]
+        })
+
+        marcarDiaAlterado(data)
+    }
+
+    function abrirFormularioAusencia(data) {
+        if (!podeGerir || salvando) return
+
+        if (ausenciaEmEdicao === data) {
+            setAusenciaEmEdicao(null)
+            setErroAusencia(null)
+            return
+        }
+
+        setAusenciaEmEdicao(data)
+        setRascunhoAusencia({ inicio: "", fim: "", motivo: "" })
+        setErroAusencia(null)
+    }
+
+    function adicionarAusencia(data) {
+        if (!podeGerir || salvando || !funcionarioId) return
+
+        const registo = registosPorData.get(data) || null
+        const calculo = calcularHorasDia(registo)
+        const inicio = rascunhoAusencia.inicio
+        const fim = rascunhoAusencia.fim
+
+        if (!inicio || !fim) {
+            setErroAusencia("Indique a hora de início e de fim da ausência.")
+            return
+        }
+
+        const nova = {
+            hora_inicio: inicio,
+            hora_fim: fim,
+            motivo: rascunhoAusencia.motivo.trim() || null
+        }
+        const ausencias = [...calculo.ausencias, nova].sort(
+            (a, b) => (horaParaMinutos(a.hora_inicio) ?? 0) - (horaParaMinutos(b.hora_inicio) ?? 0)
+        )
+        const erro = validarAusenciasDoDia(
+            calculo.entrada,
+            calculo.saida,
+            registo?.tipo_ocorrencia,
+            ausencias
+        )
+
+        if (erro) {
+            setErroAusencia(erro)
+            return
+        }
+
+        atualizarAusenciasDia(data, () => ausencias)
+        setAusenciaEmEdicao(null)
+        setRascunhoAusencia({ inicio: "", fim: "", motivo: "" })
+        setErroAusencia(null)
+    }
+
+    function removerAusencia(data, indice) {
+        if (!podeGerir || salvando || !funcionarioId) return
+
+        atualizarAusenciasDia(
+            data,
+            (ausencias) => ausencias.filter((_, posicao) => posicao !== indice)
+        )
+        setErroAusencia(null)
     }
 
     async function guardarAlteracoes() {
@@ -512,16 +727,25 @@ function HorarioPage() {
                 const entrada = formatarHora(registo?.hora_entrada_real) || null
                 const saida = formatarHora(registo?.hora_saida_real) || null
                 const tipoOcorrencia = registo?.tipo_ocorrencia ?? null
+                const ausencias = tipoOcorrencia && TIPOS_FALTA.has(tipoOcorrencia)
+                    ? []
+                    : ausenciasDoRegisto(registo)
                 const erroHoras = validarHorasDoDia(entrada, saida)
+                const erroAusencias = validarAusenciasDoDia(
+                    entrada,
+                    saida,
+                    tipoOcorrencia,
+                    ausencias
+                )
 
-                if (erroHoras) {
+                if (erroHoras || erroAusencias) {
                     novosEstados[data] = "erro"
-                    novosErros[data] = erroHoras
+                    novosErros[data] = erroHoras || erroAusencias
                     falhas += 1
                     continue
                 }
 
-                if (!registo?.id && !entrada && !saida && !tipoOcorrencia) {
+                if (!registo?.id && !entrada && !saida && !tipoOcorrencia && ausencias.length === 0) {
                     novosAlterados.delete(data)
                     delete novosEstados[data]
                     delete novosErros[data]
@@ -534,7 +758,12 @@ function HorarioPage() {
                         data,
                         hora_entrada_real: entrada,
                         hora_saida_real: saida,
-                        tipo_ocorrencia: tipoOcorrencia
+                        tipo_ocorrencia: tipoOcorrencia,
+                        ausencias: ausencias.map(({ hora_inicio, hora_fim, motivo }) => ({
+                            hora_inicio,
+                            hora_fim,
+                            motivo
+                        }))
                     })
 
                     registosGuardados.push(resposta.data)
@@ -612,6 +841,14 @@ function HorarioPage() {
             }
         }
 
+        if (linha.ausencias.length > 0) {
+            return {
+                tipo: "ausencia",
+                texto: "Ausência",
+                titulo: `${formatarDuracao(linha.ausenciasMin)} de ausência parcial.`
+            }
+        }
+
         if (linha.registo?.tipo_ocorrencia === "atraso"
             || (linha.entradaMin !== null && linha.entradaMin > MINUTOS_INICIO_ATRASO)) {
             const minutosAtraso = linha.entradaMin === null
@@ -661,7 +898,7 @@ function HorarioPage() {
                         <div>
                             <h1 className="admin-page-title">Controlo mensal de horários</h1>
                             <p className="admin-page-subtitle">
-                                Registe a entrada e a saída de cada funcionário. Base diária: {HORARIO_BASE.entrada}–{HORARIO_BASE.saida} (10 horas).
+                                Registe a entrada e a saída de cada funcionário. Base diária: {HORARIO_BASE.entrada}–{HORARIO_BASE.saida} (10 horas). As ausências parciais descontam horas e salário.
                             </p>
                         </div>
 
@@ -756,7 +993,11 @@ function HorarioPage() {
                         <div>
                             <span className="horario-stat-label">Horas não trabalhadas</span>
                             <strong>{formatarDuracao(resumo.naoTrabalhadas)}</strong>
-                            <small>Diferença para as 10h diárias</small>
+                            <small>
+                                {resumo.ausenciasMin > 0
+                                    ? `Inclui ${formatarDuracao(resumo.ausenciasMin)} de ausências`
+                                    : "Diferença para as 10h diárias"}
+                            </small>
                         </div>
                     </article>
 
@@ -766,6 +1007,19 @@ function HorarioPage() {
                             <span className="horario-stat-label">Horas previstas</span>
                             <strong>{resumo.previstas > 0 ? formatarDuracao(resumo.previstas) : "—"}</strong>
                             <small>10h por dia completo</small>
+                        </div>
+                    </article>
+
+                    <article className="horario-stat-card">
+                        <span className="horario-stat-icon warning"><Clock3 size={20} /></span>
+                        <div>
+                            <span className="horario-stat-label">Ausências parciais</span>
+                            <strong>{resumo.ausenciasMin > 0 ? formatarDuracao(resumo.ausenciasMin) : "—"}</strong>
+                            <small>
+                                {resumo.ausenciasDias > 0
+                                    ? `${resumo.ausenciasDias} ${resumo.ausenciasDias === 1 ? "dia" : "dias"} · ${resumo.ausencias} ${resumo.ausencias === 1 ? "intervalo" : "intervalos"}`
+                                    : "Sem ausências no mês"}
+                            </small>
                         </div>
                     </article>
 
@@ -818,6 +1072,7 @@ function HorarioPage() {
                                             <th>Dia</th>
                                             <th>Entrada</th>
                                             <th>Saída</th>
+                                            <th className="horario-ausencias-header">Ausências parciais</th>
                                             <th>Horas trabalhadas</th>
                                             <th>Horas não trabalhadas</th>
                                             <th>Horas previstas</th>
@@ -862,6 +1117,123 @@ function HorarioPage() {
                                                             aria-label={`Hora de saída do dia ${linha.dia}`}
                                                         />
                                                     </td>
+                                                    <td className="horario-ausencias-cell">
+                                                        {linha.ausencias.length > 0 && (
+                                                            <div className="horario-ausencias-list">
+                                                                {linha.ausencias.map((ausencia, indice) => (
+                                                                    <span
+                                                                        key={ausencia.id ?? `${ausencia.hora_inicio}-${ausencia.hora_fim}-${indice}`}
+                                                                        className="horario-ausencia-chip"
+                                                                    >
+                                                                        <Clock3 size={11} />
+                                                                        {ausencia.hora_inicio}–{ausencia.hora_fim}
+                                                                        {ausencia.motivo && (
+                                                                            <em
+                                                                                className="horario-ausencia-motivo"
+                                                                                title={ausencia.motivo}
+                                                                            >
+                                                                                {ausencia.motivo}
+                                                                            </em>
+                                                                        )}
+                                                                        <button
+                                                                            type="button"
+                                                                            className="horario-ausencia-remove"
+                                                                            onClick={() => removerAusencia(linha.data, indice)}
+                                                                            disabled={!podeGerir || salvando}
+                                                                            aria-label={`Remover ausência das ${ausencia.hora_inicio} às ${ausencia.hora_fim} no dia ${linha.dia}`}
+                                                                        >
+                                                                            <X size={11} />
+                                                                        </button>
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+
+                                                        {linha.falta ? (
+                                                            <span className="horario-ausencia-empty">Dia de falta</span>
+                                                        ) : ausenciaEmEdicao === linha.data ? (
+                                                            <form
+                                                                className="horario-ausencia-form"
+                                                                onSubmit={(event) => {
+                                                                    event.preventDefault()
+                                                                    adicionarAusencia(linha.data)
+                                                                }}
+                                                            >
+                                                                <input
+                                                                    type="time"
+                                                                    value={rascunhoAusencia.inicio}
+                                                                    onChange={(event) => setRascunhoAusencia((anterior) => ({
+                                                                        ...anterior,
+                                                                        inicio: event.target.value
+                                                                    }))}
+                                                                    disabled={!podeGerir || salvando}
+                                                                    aria-label={`Início da ausência do dia ${linha.dia}`}
+                                                                />
+                                                                <span className="horario-ausencia-separator">–</span>
+                                                                <input
+                                                                    type="time"
+                                                                    value={rascunhoAusencia.fim}
+                                                                    onChange={(event) => setRascunhoAusencia((anterior) => ({
+                                                                        ...anterior,
+                                                                        fim: event.target.value
+                                                                    }))}
+                                                                    disabled={!podeGerir || salvando}
+                                                                    aria-label={`Fim da ausência do dia ${linha.dia}`}
+                                                                />
+                                                                <input
+                                                                    type="text"
+                                                                    className="horario-ausencia-motivo-input"
+                                                                    value={rascunhoAusencia.motivo}
+                                                                    onChange={(event) => setRascunhoAusencia((anterior) => ({
+                                                                        ...anterior,
+                                                                        motivo: event.target.value
+                                                                    }))}
+                                                                    placeholder="Motivo (opcional)"
+                                                                    maxLength={255}
+                                                                    disabled={!podeGerir || salvando}
+                                                                    aria-label={`Motivo da ausência do dia ${linha.dia}`}
+                                                                />
+                                                                <span className="horario-ausencia-actions">
+                                                                    <button
+                                                                        type="submit"
+                                                                        className="horario-ausencia-add"
+                                                                        disabled={!podeGerir || salvando}
+                                                                    >
+                                                                        <Plus size={13} />
+                                                                        Adicionar
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="horario-ausencia-cancel"
+                                                                        onClick={() => {
+                                                                            setAusenciaEmEdicao(null)
+                                                                            setErroAusencia(null)
+                                                                        }}
+                                                                        disabled={salvando}
+                                                                        aria-label="Cancelar ausência"
+                                                                    >
+                                                                        <X size={13} />
+                                                                    </button>
+                                                                </span>
+                                                                {erroAusencia && (
+                                                                    <span className="horario-ausencia-erro">{erroAusencia}</span>
+                                                                )}
+                                                            </form>
+                                                        ) : (
+                                                            <button
+                                                                type="button"
+                                                                className="horario-ausencia-button"
+                                                                onClick={() => abrirFormularioAusencia(linha.data)}
+                                                                disabled={!podeGerir || salvando || !linha.entrada || !linha.saida}
+                                                                title={!linha.entrada || !linha.saida
+                                                                    ? "Registe a entrada e a saída antes de marcar ausências."
+                                                                    : undefined}
+                                                            >
+                                                                <Plus size={13} />
+                                                                Adicionar ausência
+                                                            </button>
+                                                        )}
+                                                    </td>
                                                     <td className="horario-value">
                                                         {linha.previstas > 0 ? formatarDuracao(linha.trabalhadas) : "—"}
                                                     </td>
@@ -899,6 +1271,7 @@ function HorarioPage() {
                                     <tfoot>
                                         <tr>
                                             <td colSpan={3}>Total do mês</td>
+                                            <td>{resumo.ausenciasMin > 0 ? formatarDuracao(resumo.ausenciasMin) : "—"}</td>
                                             <td>{formatarDuracao(resumo.trabalhadas)}</td>
                                             <td>{formatarDuracao(resumo.naoTrabalhadas)}</td>
                                             <td>{resumo.previstas > 0 ? formatarDuracao(resumo.previstas) : "—"}</td>
@@ -910,6 +1283,7 @@ function HorarioPage() {
 
                             <p className="horario-table-note">
                                 Dias sem marcação não entram nas horas previstas; uma falta marcada conta como 10 horas não trabalhadas.
+                                As ausências parciais descontam as horas trabalhadas e o salário, e não podem coincidir com uma falta de dia inteiro.
                                 Entradas depois das 09:00 contam como atraso. A saída tem de ser posterior à entrada e não há desconto de almoço.
                             </p>
                         </>
@@ -936,6 +1310,7 @@ function HorarioPage() {
                                         <th>Horas previstas</th>
                                         <th>Efetividade</th>
                                         <th>Faltas</th>
+                                        <th>Ausências</th>
                                         <th>Atrasos</th>
                                         <th>Ocorrências</th>
                                     </tr>
@@ -981,6 +1356,11 @@ function HorarioPage() {
                                                     </strong>
                                                 </td>
                                                 <td>{resumoFuncionario.faltas}</td>
+                                                <td>
+                                                    {resumoFuncionario.ausenciasDias > 0
+                                                        ? `${resumoFuncionario.ausenciasDias} d · ${formatarDuracao(resumoFuncionario.ausenciasMin)}`
+                                                        : "—"}
+                                                </td>
                                                 <td>{resumoFuncionario.atrasos}</td>
                                                 <td>{resumoFuncionario.ocorrencias}</td>
                                             </tr>

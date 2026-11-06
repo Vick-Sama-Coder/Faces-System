@@ -78,7 +78,7 @@ Isso depende de suporte do browser e de um service worker próprio (não impleme
 
 - Consultar todas as páginas e modais já visitados ou pré-carregados.
 - Criar/editar clientes, atendimentos, pagamentos, despesas, stock, serviços,
-  categorias, funcionários, horários e assiduidade.
+  categorias, funcionários, horários e assiduidade, incluindo ausências parciais.
 - Aplicar descontos, concluir/anular atendimentos e alterar estados.
 - Usar o benefício de fidelização **como parte de um atendimento**; o servidor valida-o
   na sincronização.

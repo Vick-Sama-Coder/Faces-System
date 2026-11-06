@@ -181,7 +181,7 @@ Legenda: ✅ implementado · ⚠️ implementado com desvio/lacuna · ❌ não i
 | **RF13 — Despesas** | ✅ | `services/despesa.js` | Registo com itens ou total, categoria, método, sessão de caixa e comprovativo; gera saída no método escolhido e audita. Despesas de sessões fechadas não podem ser editadas ou removidas. |
 | **RF14 — Funcionários** | ✅ | `controller/funcionario.js` | Dados, salário, comissão, conta associada e ativação/desativação sem apagar histórico. |
 | **RF15 — Horários** | ⚠️ | `controller/horario.js` | Programação semanal e substituição transacional OK. **Não** guarda histórico das alterações (a substituição apaga as linhas anteriores); turnos rotativos ficam para decisão (§16.7). |
-| **RF16 — Assiduidade** | ✅ | `controller/assiduidade.js` | Tipos de ocorrência, horas reais, correção com antes/depois na auditoria. |
+| **RF16 — Assiduidade** | ✅ | `controller/assiduidade.js` | Tipos de ocorrência, horas reais, ausências parciais (vários intervalos por dia) e correção com antes/depois na auditoria. |
 | **RF17 — Salários** | ✅ | `services/salario.js` | Base + comissões − deduções, estados `Preparado → Aprovado → Pago`, data de pagamento e só funcionários ativos. |
 | **RF18 — Comissões** | ✅ | `repository/comissao.js` | 30% por omissão (ou taxa do funcionário/serviço), sobre `valor_final` após desconto, só com pagamento liquidado; consulta por funcionário/período. |
 | **RF19 — Aprovação salarial** | ✅ | `services/salario.js` | Consulta, deduções, aprovação (`salarios:aprovar`), pagamento e histórico; comissões passam a `Paga` ao pagar. |
@@ -676,11 +676,27 @@ curl -s -b "$JAR" -X PUT "$BASE/assiduidade/dia" \
     "tipo_ocorrencia": "falta_injustificada"
   }'
 # A falta prevalece para o cálculo de efetividade; as horas registadas mantêm-se.
+
+# Ausências parciais: saída e regresso no mesmo dia (podem existir várias)
+curl -s -b "$JAR" -X PUT "$BASE/assiduidade/dia" \
+  -H 'Content-Type: application/json' -d '{
+    "funcionario_id": 1,
+    "data": "2026-10-06",
+    "hora_entrada_real": "09:00",
+    "hora_saida_real": "19:00",
+    "ausencias": [
+      {"hora_inicio": "10:00", "hora_fim": "11:00", "motivo": "Consulta"},
+      {"hora_inicio": "15:00", "hora_fim": "15:30"}
+    ]
+  }'
+# O intervalo e descontado as horas trabalhadas e ao salario; `ausencias` substitui
+# a lista do dia. Uma falta de dia inteiro exige `ausencias: []`.
 ```
 
 **Erros:** data ou horas inválidas → `400`; saída não posterior à entrada → `400`;
-dia novo sem horas → `400`; funcionário inexistente → `400`; `PUT /assiduidade/:id`
-inexistente → `404`.
+dia novo sem horas → `400`; ausências sobrepostas/fora do horário → `400`; falta de dia
+inteiro com ausências parciais → `400`; funcionário inexistente → `400`;
+`PUT /assiduidade/:id` inexistente → `404`.
 
 **Verificação de auditoria:**
 

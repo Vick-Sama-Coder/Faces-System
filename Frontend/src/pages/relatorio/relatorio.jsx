@@ -1864,6 +1864,8 @@ function Relatorio() {
                                                         <th>Ocorrencias</th>
                                                         <th>Atrasos</th>
                                                         <th>Faltas</th>
+                                                        <th>Dias c/ ausência</th>
+                                                        <th>Horas de ausência</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -1878,6 +1880,12 @@ function Relatorio() {
                                                             </td>
                                                             <td>{formatarNumero(registo.atrasos)}</td>
                                                             <td>{formatarNumero(registo.faltas)}</td>
+                                                            <td>{formatarNumero(registo.dias_ausencia)}</td>
+                                                            <td>
+                                                                {Number(registo.horas_ausencia) > 0
+                                                                    ? `${formatarNumero(registo.horas_ausencia)}h`
+                                                                    : "—"}
+                                                            </td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
@@ -2049,6 +2057,8 @@ function Relatorio() {
                                                         <th>Ocorrencias</th>
                                                         <th>Atrasos</th>
                                                         <th>Faltas</th>
+                                                        <th>Dias c/ ausência</th>
+                                                        <th>Horas de ausência</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -2063,6 +2073,12 @@ function Relatorio() {
                                                             </td>
                                                             <td>{formatarNumero(registo.atrasos)}</td>
                                                             <td>{formatarNumero(registo.faltas)}</td>
+                                                            <td>{formatarNumero(registo.dias_ausencia)}</td>
+                                                            <td>
+                                                                {Number(registo.horas_ausencia) > 0
+                                                                    ? `${formatarNumero(registo.horas_ausencia)}h`
+                                                                    : "—"}
+                                                            </td>
                                                         </tr>
                                                     ))}
                                                 </tbody>

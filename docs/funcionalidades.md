@@ -88,6 +88,9 @@ Painel interno protegido por sessão, alimentado por `GET /api/dashboard`.
 - Uma falta marcada equivale a 10 horas não trabalhadas; as horas registadas são
   preservadas para consulta. Dias sem registo não são automaticamente classificados como
   falta.
+- **Ausências parciais**: vários intervalos por dia (ex.: saída para consulta e regresso),
+  com motivo opcional. Cada intervalo é descontado às horas trabalhadas e ao salário,
+  não pode sobrepor-se a outro nem coincidir com uma falta de dia inteiro.
 - Gravação através de `PUT /api/assiduidade/dia` (cria ou actualiza o par
   `funcionario` + `data` sem duplicar), marcação/remoção de faltas e correcção de
   ocorrências. As reduções salariais seguem os escalões mensais documentados na API e

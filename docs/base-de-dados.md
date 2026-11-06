@@ -18,7 +18,7 @@ domínio:
 | `fidelizacao.js` | `cartao_fidelizacao`, `movimento_fidelizacao` |
 | `financeiro.js` | `categoria_despesa`, `caixa`, `caixa_sessao`, `movimento_caixa`, `despesa`, `item_produto` |
 | `movimento_estoque.js` | `movimento_estoque` |
-| `rh.js` | `funcionario`, `horario_funcionario`, `assiduidade`, `processamento_salarial`, `deducao_salarial` |
+| `rh.js` | `funcionario`, `horario_funcionario`, `assiduidade`, `assiduidade_ausencia`, `processamento_salarial`, `deducao_salarial` |
 | `auditoria.js` | `log_auditoria` |
 | `idempotencia.js` | `requisicao_idempotencia` |
 | `legacy.js` | `aplicacao`* |
@@ -115,7 +115,7 @@ produto 1───n movimento_estoque
 cliente 1───1 cartao_fidelizacao 1───n movimento_fidelizacao
 
 funcionario 1───n horario_funcionario
-funcionario 1───n assiduidade
+funcionario 1───n assiduidade 1───n assiduidade_ausencia
 funcionario 1───n processamento_salarial 1───n deducao_salarial
 usuario 1───n log_auditoria
 ```
@@ -227,6 +227,10 @@ usuario 1───n log_auditoria
   (`atraso`/`falta_justificada`/`falta_injustificada`/`saida_antecipada`/`ausencia`/
   `sem_registo`), `justificacao`, `estado`, `registado_por`, `criado_em`. Índice único
   `(funcionario_id, data)`.
+- **`assiduidade_ausencia`** — `id`, `assiduidade_id` (FK com `on delete cascade`),
+  `hora_inicio`, `hora_fim`, `motivo`, `registado_por`, `criado_em`. Permite vários
+  intervalos de ausência parcial no mesmo dia; `check` garante `hora_fim > hora_inicio`
+  e índice em `assiduidade_id`.
 - **`processamento_salarial`** — `id`, `funcionario_id` (FK), `periodo_inicio`,
   `periodo_fim`, `salario_base`, `total_comissoes`, `total_deducoes`, `total_a_pagar`,
   `estado` (`Preparado`/`Aprovado`/`Pago`), `aprovado_por`, `data_aprovacao`,

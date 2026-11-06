@@ -161,7 +161,8 @@ const pagar = async (processamento_id, registado_por) => {
 
 
 //O salario base cobre 10 horas por cada dia do mes. As horas em falta sao
-//descontadas proporcionalmente ao total de horas previstas no periodo.
+//descontadas proporcionalmente ao total de horas previstas no periodo. As
+//ausencias parciais do dia sao subtraidas as horas entre entrada e saida.
 export const MINUTOS_PREVISTAS_DIA = 10 * 60;
 export const TIPO_DEDUCAO_ASSIDUIDADE = 'reducao_assiduidade';
 
@@ -192,10 +193,18 @@ export const computarReducoesAssiduidade = async (periodo, executor = db) => {
                     and a.hora_entrada_real is not null
                     and a.hora_saida_real is not null
                     and a.hora_saida_real > a.hora_entrada_real
-                    then (
+                    then greatest(0, (
                         extract(epoch from a.hora_saida_real)
                         - extract(epoch from a.hora_entrada_real)
-                    )::int
+                        - coalesce((
+                            select sum(
+                                extract(epoch from aa.hora_fim)
+                                - extract(epoch from aa.hora_inicio)
+                            )
+                              from assiduidade_ausencia aa
+                             where aa.assiduidade_id = a.id
+                        ), 0)
+                    ))::int
                     else 0
                 end
             ), 0)::int as trabalhadas_segundos,

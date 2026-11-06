@@ -1,7 +1,9 @@
 import { and, asc, eq, sql } from 'drizzle-orm';
 import db from '../db/client.js';
-import { assiduidade, funcionario } from '../db/schema/index.js';
+import { assiduidade, assiduidadeAusencia, funcionario } from '../db/schema/index.js';
 
+// As ausencias parciais ficam numa tabela filha para permitir varios intervalos
+// no mesmo dia. O json_agg evita multiplicar as linhas do registo diario.
 const campos = {
     id: assiduidade.id,
     funcionario_id: assiduidade.funcionario_id,
@@ -13,7 +15,22 @@ const campos = {
     justificacao: assiduidade.justificacao,
     estado: assiduidade.estado,
     registado_por: assiduidade.registado_por,
-    criado_em: assiduidade.criado_em
+    criado_em: assiduidade.criado_em,
+    ausencias: sql`coalesce((
+        select json_agg(
+            json_build_object(
+                'id', aa.id,
+                'hora_inicio', to_char(aa.hora_inicio, 'HH24:MI'),
+                'hora_fim', to_char(aa.hora_fim, 'HH24:MI'),
+                'motivo', aa.motivo,
+                'registado_por', aa.registado_por,
+                'criado_em', aa.criado_em
+            )
+            order by aa.hora_inicio, aa.id
+        )
+        from assiduidade_ausencia aa
+        where aa.assiduidade_id = ${assiduidade.id}
+    ), '[]'::json)`
 };
 
 //filtros opcionais porque a assiduidade e consultada por funcionario, periodo ou ocorrencia
@@ -116,12 +133,29 @@ const update = async (id, {
     return linha || null;
 };
 
+// Substitui por completo as ausencias de um dia (usado no upsert mensal).
+const substituirAusencias = async (assiduidade_id, ausencias, registado_por, executor = db) => {
+    await executor.delete(assiduidadeAusencia)
+        .where(eq(assiduidadeAusencia.assiduidade_id, assiduidade_id));
+
+    if (!Array.isArray(ausencias) || ausencias.length === 0) return;
+
+    await executor.insert(assiduidadeAusencia).values(ausencias.map((ausencia) => ({
+        assiduidade_id,
+        hora_inicio: ausencia.hora_inicio,
+        hora_fim: ausencia.hora_fim,
+        motivo: ausencia.motivo ?? null,
+        registado_por: registado_por ?? null
+    })));
+};
+
 const Assiduidade = {
     findAll,
     findById,
     findByFuncionarioData,
     create,
-    update
+    update,
+    substituirAusencias
 };
 
 export default Assiduidade;

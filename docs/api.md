@@ -530,28 +530,37 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 
 - `GET /api/assiduidade?funcionario=&de=&ate=&tipo=` 🔒(`assiduidade:gerir`) — registos
 - `POST /api/assiduidade` 🔒(`assiduidade:gerir`) — corpo:
-  `{ funcionario_id, data?, hora_entrada_real?, hora_saida_real?, tipo_ocorrencia?, justificacao? }`. `201`
+  `{ funcionario_id, data?, hora_entrada_real?, hora_saida_real?, tipo_ocorrencia?, justificacao?, ausencias? }`. `201`
   - `tipo_ocorrencia`: `atraso` | `falta_justificada` | `falta_injustificada` |
     `saida_antecipada` | `ausencia` | `sem_registo`
+  - `ausencias`: lista de intervalos parciais
+    `[{ hora_inicio: "HH:MM", hora_fim: "HH:MM", motivo? }]`, sem sobreposições
   - `409` se já existir registo do funcionário nesse dia; `400` se o funcionário não existir
 - `PUT /api/assiduidade/:id` 🔒(`assiduidade:gerir`) — correção parcial
-  (`hora_entrada_real`, `hora_saida_real`, `tipo_ocorrencia`, `justificacao`, `estado`).
-  Enviar `null` nas horas limpa o valor
+  (`hora_entrada_real`, `hora_saida_real`, `tipo_ocorrencia`, `justificacao`, `estado`,
+  `ausencias`). Enviar `null` nas horas limpa o valor; `ausencias: []` remove todas
 - `PUT /api/assiduidade/dia` 🔒(`assiduidade:gerir`) — cria ou atualiza o dia
   `(funcionario_id, data)` sem duplicar. Corpo:
-  `{ funcionario_id, data, hora_entrada_real, hora_saida_real, tipo_ocorrencia? }`
+  `{ funcionario_id, data, hora_entrada_real, hora_saida_real, tipo_ocorrencia?, ausencias? }`
   - `data` no formato `AAAA-MM-DD`; horas em `HH:MM` ou `null` (registo parcial permitido)
   - Um dia novo exige pelo menos uma hora ou uma ocorrência; se o dia já existir, `null` limpa a hora/ocorrência
   - Se ambas as horas forem enviadas, a saída tem de ser posterior à entrada
   - A ocorrência pode ser `atraso`, `falta_justificada`, `falta_injustificada`,
     `saida_antecipada`, `ausencia` ou `sem_registo`
+  - `ausencias` substitui a lista do dia; omitir o campo mantém as ausências existentes e
+    `[]` remove-as. Cada intervalo tem de estar dentro do horário real de entrada/saída
+  - Uma falta de dia inteiro (`falta_justificada`, `falta_injustificada`, `ausencia` ou
+    `sem_registo`) não pode ter ausências parciais no mesmo dia
   - `201` ao criar e `200` ao atualizar
 
 > A página `/horarios` usa `PUT /api/assiduidade/dia` para o controlo mensal: base
 > `09:00–19:00` (10h). Marcar uma falta conta como 10h não trabalhadas, mesmo que
 > existam horas registadas nesse dia; a marcação pode ser removida. Uma entrada depois
-> das `09:00` conta como atraso, incluindo os minutos após esse horário. Dias sem
-> registo/falta marcada não entram nas horas previstas e não há desconto de almoço.
+> das `09:00` conta como atraso, incluindo os minutos após esse horário. As ausências
+> parciais (ex.: sair às 11:00 e regressar às 12:00) descontam o respetivo intervalo às
+> horas trabalhadas e ao salário; podem existir várias no mesmo dia, mas não podem
+> sobrepor-se nem coincidir com uma falta de dia inteiro. Dias sem registo/falta marcada
+> não entram nas horas previstas e não há desconto de almoço.
 
 > A ocorrência é registada separadamente do efeito salarial (RN15).
 > Criar ou corrigir um registo de assiduidade recalcula, na mesma transação, a
@@ -589,8 +598,9 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 
 > Para o cálculo salarial, as horas previstas são `10 × todos os dias do mês` (por exemplo,
 > 310 horas num mês de 31 dias). Somam-se as horas efetivamente trabalhadas no mês, pelo que
-> horas acima de 10 num dia compensam horas em falta noutros dias. Dias sem registo e
-> ocorrências de falta/ausência contam como zero horas trabalhadas. O desconto é proporcional:
+> horas acima de 10 num dia compensam horas em falta noutros dias. Dias sem registo,
+> ocorrências de falta/ausência e intervalos de ausência parcial contam como horas não
+> trabalhadas. O desconto é proporcional:
 > `salario_base × max(0, horas_previstas − horas_trabalhadas) / horas_previstas`, arredondado
 > ao Metical. Assim, sem registos aplica-se o desconto correspondente ao salário base inteiro;
 > atingir ou ultrapassar a meta mensal não gera desconto. Este cálculo salarial é distinto
@@ -607,7 +617,8 @@ filtro devolve todo o histórico.
 - `GET /api/relatorios/caixa?de=&ate=` — `{ entradas, saidas, levantamentos, sessoes }`
 - `GET /api/relatorios/servicos?de=&ate=` — serviços mais realizados
 - `GET /api/relatorios/funcionarios?de=&ate=` — serviços e comissões por funcionário
-- `GET /api/relatorios/assiduidade?de=&ate=` — registos e ocorrências por funcionário
+- `GET /api/relatorios/assiduidade?de=&ate=` — registos e ocorrências por funcionário,
+  incluindo `dias_ausencia` e `horas_ausencia` (ausências parciais)
 - `GET /api/relatorios/clientes?de=&ate=` — clientes mais frequentes
 - `GET /api/relatorios/fidelizacao?de=&ate=` — `{ marcas, beneficios_ganhos, beneficios_utilizados }`
 - `GET /api/relatorios/anulacoes?de=&ate=` — histórico de anulações (atendimentos + pagamentos)

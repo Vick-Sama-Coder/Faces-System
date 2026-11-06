@@ -113,12 +113,31 @@ const assiduidade = async ({ de, ate } = {}) => {
                count(a.id) filter (
                    where a.tipo_ocorrencia is not null
                       or a.hora_entrada_real > time '09:00'
+                      or exists (
+                          select 1
+                            from assiduidade_ausencia aa
+                           where aa.assiduidade_id = a.id
+                      )
                )::int as ocorrencias,
                count(a.id) filter (
                    where a.tipo_ocorrencia = 'atraso'
                       or a.hora_entrada_real > time '09:00'
                )::int as atrasos,
-               count(a.id) filter (where a.tipo_ocorrencia in ('falta_justificada', 'falta_injustificada', 'ausencia'))::int as faltas
+               count(a.id) filter (where a.tipo_ocorrencia in ('falta_justificada', 'falta_injustificada', 'ausencia'))::int as faltas,
+               count(a.id) filter (
+                   where exists (
+                       select 1
+                         from assiduidade_ausencia aa
+                        where aa.assiduidade_id = a.id
+                   )
+               )::int as dias_ausencia,
+               coalesce(round(sum((
+                   select coalesce(sum(
+                       extract(epoch from aa.hora_fim) - extract(epoch from aa.hora_inicio)
+                   ), 0) / 3600.0
+                     from assiduidade_ausencia aa
+                    where aa.assiduidade_id = a.id
+               )), 2), 0)::float8 as horas_ausencia
            from funcionario f
            left join assiduidade a on a.funcionario_id = f.id
             and (${periodo(sql`a.data`, de, ate)})
