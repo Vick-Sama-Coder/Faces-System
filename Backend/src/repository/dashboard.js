@@ -5,23 +5,35 @@ import db from '../db/client.js';
 const resumo = async () => {
     const resultado = await db.execute(sql`
         select
-            coalesce((select sum(pp.valor)
-                        from pagamento_parcela pp
-                        join pagamento p on p.id = pp.pagamento_id
-                       where p.estado <> 'Anulado'
-                         and p.data_hora >= date_trunc('month', current_date)
-                         and p.data_hora < date_trunc('month', current_date) + interval '1 month'), 0)::int as receita,
+            (
+                coalesce((select sum(pp.valor)
+                            from pagamento_parcela pp
+                            join pagamento p on p.id = pp.pagamento_id
+                           where p.estado <> 'Anulado'
+                             and p.data_hora >= date_trunc('month', current_date)
+                             and p.data_hora < date_trunc('month', current_date) + interval '1 month'), 0)
+                - coalesce((select sum(r.valor)
+                              from agendamento_reembolso r
+                             where r.data_hora >= date_trunc('month', current_date)
+                               and r.data_hora < date_trunc('month', current_date) + interval '1 month'), 0)
+            )::int as receita,
             coalesce((select sum(d.valor_total)
                         from despesa d
                        where d.estado = 'Ativo'
                          and d.data_compra >= date_trunc('month', current_date)::date
                          and d.data_compra < (date_trunc('month', current_date) + interval '1 month')::date), 0)::int as despesas,
-            coalesce((select sum(pp.valor)
-                        from pagamento_parcela pp
-                        join pagamento p on p.id = pp.pagamento_id
-                       where p.estado <> 'Anulado'
-                         and p.data_hora >= date_trunc('month', current_date) - interval '1 month'
-                         and p.data_hora < date_trunc('month', current_date)), 0)::int as receita_anterior,
+            (
+                coalesce((select sum(pp.valor)
+                            from pagamento_parcela pp
+                            join pagamento p on p.id = pp.pagamento_id
+                           where p.estado <> 'Anulado'
+                             and p.data_hora >= date_trunc('month', current_date) - interval '1 month'
+                             and p.data_hora < date_trunc('month', current_date)), 0)
+                - coalesce((select sum(r.valor)
+                              from agendamento_reembolso r
+                             where r.data_hora >= date_trunc('month', current_date) - interval '1 month'
+                               and r.data_hora < date_trunc('month', current_date)), 0)
+            )::int as receita_anterior,
             coalesce((select sum(d.valor_total)
                         from despesa d
                        where d.estado = 'Ativo'
@@ -75,12 +87,18 @@ const serie = async () => {
         )
         select
             to_char(m.mes, 'YYYY-MM') as mes,
-            coalesce((select sum(pp.valor)
-                        from pagamento_parcela pp
-                        join pagamento p on p.id = pp.pagamento_id
-                       where p.estado <> 'Anulado'
-                         and p.data_hora >= m.mes
-                         and p.data_hora < m.mes + interval '1 month'), 0)::int as receita,
+            (
+                coalesce((select sum(pp.valor)
+                            from pagamento_parcela pp
+                            join pagamento p on p.id = pp.pagamento_id
+                           where p.estado <> 'Anulado'
+                             and p.data_hora >= m.mes
+                             and p.data_hora < m.mes + interval '1 month'), 0)
+                - coalesce((select sum(r.valor)
+                              from agendamento_reembolso r
+                             where r.data_hora >= m.mes
+                               and r.data_hora < m.mes + interval '1 month'), 0)
+            )::int as receita,
             coalesce((select sum(d.valor_total)
                         from despesa d
                        where d.estado = 'Ativo'

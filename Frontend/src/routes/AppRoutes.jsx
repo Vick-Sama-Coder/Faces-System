@@ -11,6 +11,7 @@ import Clientes from "../pages/clientes/clientes.jsx";
 import Despesas from "../pages/despesas/despesas.jsx"
 import Funcionarios from "../pages/funcionarios/funcionarios.jsx"
 import NovoAtendimento from "../pages/novoAtendimento/novoAtendimento.jsx"
+import Agendamentos from "../pages/agendamentos/agendamentos.jsx"
 import Relatorio from "../pages/relatorio/relatorio.jsx"
 import Servico from "../pages/servicos/servicos.jsx"
 import Categorias from "../pages/categorias/categorias.jsx"
@@ -43,6 +44,9 @@ export default function AppRoutes(){
                 }/>
                 <Route path="/novoAtendimento" element={
                     <RequirePermission permissoes={["atendimentos:escrever"]}><NovoAtendimento/></RequirePermission>
+                }/>
+                <Route path="/agendamentos" element={
+                    <RequirePermission permissoes={["atendimentos:escrever"]}><Agendamentos/></RequirePermission>
                 }/>
                 <Route path="/servicos" element={
                     <RequirePermission permissoes={["servicos:ler", "servicos:escrever"]}><Servico/></RequirePermission>

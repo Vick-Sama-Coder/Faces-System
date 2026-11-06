@@ -14,6 +14,7 @@ import { cliente } from './clientes.js';
 import { servico, servicoModalidade } from './catalogo.js';
 import { funcionario } from './rh.js';
 import { usuario } from './acesso.js';
+import { agendamento, agendamentoServico } from './agendamentos.js';
 
 // Cabecalho do atendimento; os totais sao derivados dos servicos.
 export const atendimento = pgTable('atendimento', {
@@ -40,6 +41,9 @@ export const atendimentoServico = pgTable('atendimento_servico', {
     cliente_id: integer('cliente_id').notNull().references(() => cliente.id),
     servico_id: integer('servico_id').notNull().references(() => servico.id),
     servico_principal_id: integer('servico_principal_id').references(() => atendimentoServico.id),
+    // Linha do agendamento pre-pago que originou este servico. Nulo nos
+    // atendimentos normais; preenchido quando o servico e consumido do saldo.
+    agendamento_servico_id: integer('agendamento_servico_id').references(() => agendamentoServico.id),
     funcionario_id: integer('funcionario_id').notNull().references(() => funcionario.id),
     modalidade_id: integer('modalidade_id').references(() => servicoModalidade.id),
     modalidade_nome: varchar('modalidade_nome', { length: 100 }),
@@ -55,7 +59,8 @@ export const atendimentoServico = pgTable('atendimento_servico', {
     check('atendimento_servico_preco_original_check', sql`${table.preco_original} >= 0`),
     check('atendimento_servico_valor_desconto_check', sql`${table.valor_desconto} >= 0`),
     check('atendimento_servico_tipo_check', sql`${table.tipo_servico} in ('Servico', 'Aplicacao')`),
-    index('atendimento_servico_atendimento_idx').on(table.atendimento_id)
+    index('atendimento_servico_atendimento_idx').on(table.atendimento_id),
+    index('atendimento_servico_agendamento_idx').on(table.agendamento_servico_id)
 ]);
 
 // Registo das operacoes de desconto aplicadas a um atendimento.
@@ -83,17 +88,26 @@ export const descontoAtendimento = pgTable('desconto_atendimento', {
     index('desconto_atendimento_atendimento_idx').on(table.atendimento_id)
 ]);
 
-// Pagamento de um atendimento (1 atendimento -> n pagamentos).
+// Pagamento de um atendimento ou de um agendamento pre-pago (1 dono -> n pagamentos).
+// Exatamente um dos vinculos (atendimento_id/agendamento_id) esta preenchido.
 export const pagamento = pgTable('pagamento', {
     id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
-    atendimento_id: integer('atendimento_id').notNull().references(() => atendimento.id),
+    atendimento_id: integer('atendimento_id').references(() => atendimento.id),
+    agendamento_id: integer('agendamento_id').references(() => agendamento.id),
     valor_total: integer('valor_total').notNull(),
     estado: varchar('estado', { length: 20 }).notNull().default('Pendente'),
     data_hora: timestamp('data_hora').notNull().defaultNow(),
     registado_por: integer('registado_por').references(() => usuario.id),
     motivo_anulacao: varchar('motivo_anulacao', { length: 255 })
 }, (table) => [
-    check('pagamento_valor_total_check', sql`${table.valor_total} >= 0`)
+    check('pagamento_valor_total_check', sql`${table.valor_total} >= 0`),
+    check(
+        'pagamento_dono_check',
+        sql`(${table.atendimento_id} is not null and ${table.agendamento_id} is null)
+            or (${table.atendimento_id} is null and ${table.agendamento_id} is not null)`
+    ),
+    index('pagamento_atendimento_idx').on(table.atendimento_id),
+    index('pagamento_agendamento_idx').on(table.agendamento_id)
 ]);
 
 // Parcelas de um pagamento (permite dividir por varios metodos).

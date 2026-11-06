@@ -5,6 +5,7 @@ import { pagamento, pagamentoParcela } from '../db/schema/index.js';
 const campos = {
     id: pagamento.id,
     atendimento_id: pagamento.atendimento_id,
+    agendamento_id: pagamento.agendamento_id,
     valor_total: pagamento.valor_total,
     estado: pagamento.estado,
     data_hora: pagamento.data_hora,
@@ -65,6 +66,13 @@ const findByAtendimento = async (atendimento_id) => {
         .orderBy(sql`${pagamento.data_hora} desc`);
 };
 
+const findByAgendamento = async (agendamento_id) => {
+    return db.select(campos)
+        .from(pagamento)
+        .where(eq(pagamento.agendamento_id, agendamento_id))
+        .orderBy(sql`${pagamento.data_hora} desc`);
+};
+
 //soma das parcelas ja registadas (ignora pagamentos anulados)
 const somaParcelas = async (executor, atendimento_id) => {
     const [linha] = await executor.select({
@@ -80,12 +88,27 @@ const somaParcelas = async (executor, atendimento_id) => {
     return linha.total;
 };
 
+const somaParcelasAgendamento = async (executor, agendamento_id) => {
+    const [linha] = await executor.select({
+        total: sql`coalesce(sum(${pagamentoParcela.valor}), 0)::int`
+    })
+        .from(pagamentoParcela)
+        .innerJoin(pagamento, eq(pagamento.id, pagamentoParcela.pagamento_id))
+        .where(and(
+            eq(pagamento.agendamento_id, agendamento_id),
+            ne(pagamento.estado, 'Anulado')
+        ));
+
+    return linha.total;
+};
+
 //---- operacoes usadas dentro de transacoes (recebem o tx) ----
 
-const insert = async (tx, { atendimento_id, valor_total, estado, registado_por }) => {
+const insert = async (tx, { atendimento_id, agendamento_id, valor_total, estado, registado_por }) => {
     const [linha] = await tx.insert(pagamento)
         .values({
-            atendimento_id,
+            atendimento_id: atendimento_id ?? null,
+            agendamento_id: agendamento_id ?? null,
             valor_total,
             estado,
             registado_por
@@ -127,7 +150,9 @@ const Pagamento = {
     findById,
     findParcelas,
     findByAtendimento,
+    findByAgendamento,
     somaParcelas,
+    somaParcelasAgendamento,
     insert,
     insertParcela,
     updateEstado

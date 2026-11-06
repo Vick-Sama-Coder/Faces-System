@@ -14,6 +14,7 @@ import usuarioRoutes from './routes/usuario.js'
 import perfilRoutes from './routes/perfil.js'
 import clienteRoutes from './routes/cliente.js'
 import atendimentoRoutes from './routes/atendimento.js'
+import agendamentoRoutes from './routes/agendamento.js'
 import pagamentoRoutes from './routes/pagamento.js'
 import comissaoRoutes from './routes/comissao.js'
 import caixaRoutes from './routes/caixa.js'
@@ -100,6 +101,7 @@ app.use("/api", usuarioRoutes);
 app.use("/api", perfilRoutes);
 app.use("/api", clienteRoutes);
 app.use("/api", atendimentoRoutes);
+app.use("/api", agendamentoRoutes);
 app.use("/api", pagamentoRoutes);
 app.use("/api", comissaoRoutes);
 app.use("/api", caixaRoutes);

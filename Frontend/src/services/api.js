@@ -185,6 +185,35 @@ export const aplicarDesconto = (atendimentoId, data) => {
     return server.post(`api/atendimentos/${atendimentoId}/descontos`, data);
 };
 
+//---- agendamentos pre-pagos ----
+export const getAgendamentos = (params) => {
+    return server.get("api/agendamentos", { params });
+};
+
+export const getAgendamento = (id) => {
+    return server.get(`api/agendamentos/${id}`);
+};
+
+export const createAgendamento = (data) => {
+    return server.post("api/agendamentos", data);
+};
+
+export const registrarPagamentoAgendamento = (agendamentoId, data) => {
+    return server.post(`api/agendamentos/${agendamentoId}/pagamentos`, data);
+};
+
+export const getPagamentoAgendamento = (agendamentoId) => {
+    return server.get(`api/agendamentos/${agendamentoId}/pagamento`);
+};
+
+export const consumirAgendamento = (agendamentoId, data) => {
+    return server.post(`api/agendamentos/${agendamentoId}/consumir`, data);
+};
+
+export const cancelarAgendamento = (agendamentoId, data) => {
+    return server.post(`api/agendamentos/${agendamentoId}/cancelar`, data);
+};
+
 export const getFidelizacao = (clienteId) => {
     return server.get(`api/clientes/${clienteId}/fidelizacao`);
 };

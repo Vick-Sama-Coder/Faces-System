@@ -37,16 +37,20 @@ const findAll = async ({ funcionario: funcionarioId, de, ate, estado } = {}) => 
 //gera a comissao de cada servico do atendimento que ainda nao tenha comissao.
 //a taxa especifica por servico sobrepoe-se a geral do funcionario (RN27);
 //o "on conflict do nothing" garante idempotencia (no maximo uma por servico).
+//Nos servicos consumidos de um agendamento pre-pago a linha do atendimento tem
+//valor zero (a receita foi reconhecida no pagamento); a base da comissao e o
+//preco unitario acordado no agendamento.
 const gerarParaAtendimento = async (tx, atendimento_id) => {
     await tx.execute(sql`
         insert into comissao (atendimento_servico_id, funcionario_id, taxa, base_calculo, valor_comissao)
         select s.id,
                s.funcionario_id,
                coalesce(cc.taxa_percentual, f.comissao_percentual),
-               s.valor_final,
-               round(s.valor_final * coalesce(cc.taxa_percentual, f.comissao_percentual) / 100)::int
+               coalesce(ags.preco_unitario, s.valor_final),
+               round(coalesce(ags.preco_unitario, s.valor_final) * coalesce(cc.taxa_percentual, f.comissao_percentual) / 100)::int
           from atendimento_servico s
           join funcionario f on f.id = s.funcionario_id
+          left join agendamento_servico ags on ags.id = s.agendamento_servico_id
           left join lateral (
                select c.taxa_percentual
                  from comissao_config c

@@ -3,6 +3,7 @@ export * from './catalogo.js';
 export * from './clientes.js';
 export * from './rh.js';
 export * from './atendimentos.js';
+export * from './agendamentos.js';
 export * from './fidelizacao.js';
 export * from './financeiro.js';
 export * from './movimento_estoque.js';

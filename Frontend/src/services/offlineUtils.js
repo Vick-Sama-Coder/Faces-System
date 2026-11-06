@@ -8,7 +8,10 @@ const ONLINE_ONLY = [
     /^api\/perfis(?:\/|$)/,
     // O cartao de fidelizacao pode ser consultado offline, mas as alteracoes
     // manuais (marcas/beneficios) dependem do ciclo calculado pelo servidor.
-    /^api\/clientes\/-?\d+\/fidelizacao\/(?:marcas|beneficios)(?:\/|$)/
+    /^api\/clientes\/-?\d+\/fidelizacao\/(?:marcas|beneficios)(?:\/|$)/,
+    // Agendamentos e reembolsos envolvem pagamentos e saldos de servicos:
+    // ficam sempre online para o servidor validar o estado atual.
+    /^api\/agendamentos(?:\/|$)/
 ];
 
 let contadorTemporario = 0;
@@ -128,7 +131,7 @@ export function obterRecurso(caminho) {
 export function recursosParaInvalidar(recurso) {
     const agregados = new Set();
 
-    if (['atendimentos', 'pagamentos', 'despesas', 'estoque', 'caixa', 'salarios', 'fidelizacao'].includes(recurso)) {
+    if (['atendimentos', 'agendamentos', 'pagamentos', 'despesas', 'estoque', 'caixa', 'salarios', 'fidelizacao'].includes(recurso)) {
         agregados.add('dashboard');
         agregados.add('relatorios');
         agregados.add('caixa');

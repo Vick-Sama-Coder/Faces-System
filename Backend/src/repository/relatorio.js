@@ -11,11 +11,16 @@ const periodo = (coluna, de, ate) => sql`
 const resumo = async ({ de, ate } = {}) => {
     const resultado = await db.execute(sql`
         select
-            coalesce((select sum(pp.valor)
-                        from pagamento_parcela pp
-                        join pagamento p on p.id = pp.pagamento_id
-                       where p.estado <> 'Anulado'
-                         and (${periodo(sql`p.data_hora::date`, de, ate)})), 0)::int as receita,
+            (
+                coalesce((select sum(pp.valor)
+                            from pagamento_parcela pp
+                            join pagamento p on p.id = pp.pagamento_id
+                           where p.estado <> 'Anulado'
+                             and (${periodo(sql`p.data_hora::date`, de, ate)})), 0)
+                - coalesce((select sum(r.valor)
+                              from agendamento_reembolso r
+                             where (${periodo(sql`r.data_hora::date`, de, ate)})), 0)
+            )::int as receita,
             coalesce((select sum(d.valor_total)
                         from despesa d
                        where d.estado = 'Ativo'
@@ -231,15 +236,33 @@ const calcularVariacao = (atual, anterior) => {
 const resumoFinanceiro = async ({ de, ate } = {}) => {
     const resultado = await db.execute(sql`
         select
-            coalesce((select sum(pp.valor)
-                        from pagamento_parcela pp
-                        join pagamento p on p.id = pp.pagamento_id
-                       where p.estado <> 'Anulado'
-                         and (${periodo(sql`p.data_hora::date`, de, ate)})), 0)::int as receitas_recebidas,
+            (
+                coalesce((select sum(pp.valor)
+                            from pagamento_parcela pp
+                            join pagamento p on p.id = pp.pagamento_id
+                           where p.estado <> 'Anulado'
+                             and (${periodo(sql`p.data_hora::date`, de, ate)})), 0)
+                - coalesce((select sum(r.valor)
+                              from agendamento_reembolso r
+                             where (${periodo(sql`r.data_hora::date`, de, ate)})), 0)
+            )::int as receitas_recebidas,
+            coalesce((select sum(r.valor)
+                        from agendamento_reembolso r
+                       where (${periodo(sql`r.data_hora::date`, de, ate)})), 0)::int as reembolsos,
             coalesce((select sum(a.valor_total)
                         from atendimento a
                        where a.estado <> 'Anulado'
-                         and (${periodo(sql`a.data_hora::date`, de, ate)})), 0)::int as receitas_geradas,
+                         and (${periodo(sql`a.data_hora::date`, de, ate)})), 0)::int
+            + coalesce((select sum(ag.valor_total - coalesce(c.cancelado, 0))
+                          from agendamento ag
+                          left join (
+                              select agendamento_id,
+                                     sum(quantidade_cancelada * preco_unitario)::int as cancelado
+                                from agendamento_servico
+                               group by agendamento_id
+                          ) c on c.agendamento_id = ag.id
+                         where ag.estado <> 'Anulado'
+                           and (${periodo(sql`ag.criado_em::date`, de, ate)})), 0)::int as receitas_geradas,
             coalesce((select sum(a.valor_desconto)
                         from atendimento a
                        where a.estado <> 'Anulado'
@@ -280,6 +303,7 @@ const resumoFinanceiro = async ({ de, ate } = {}) => {
 
     return resultado.rows[0] || {
         receitas_recebidas: 0,
+        reembolsos: 0,
         receitas_geradas: 0,
         descontos: 0,
         atendimentos: 0,
@@ -293,14 +317,28 @@ const resumoFinanceiro = async ({ de, ate } = {}) => {
 
 const receitasPorMetodo = async ({ de, ate } = {}) => {
     const resultado = await db.execute(sql`
-        select coalesce(pp.metodo_pagamento, 'Nao indicado') as metodo,
-               count(*)::int as quantidade,
-               coalesce(sum(pp.valor), 0)::int as total
-          from pagamento_parcela pp
-          join pagamento p on p.id = pp.pagamento_id
-         where p.estado <> 'Anulado'
-           and (${periodo(sql`p.data_hora::date`, de, ate)})
-         group by coalesce(pp.metodo_pagamento, 'Nao indicado')
+        with movimentos as (
+            select coalesce(pp.metodo_pagamento, 'Nao indicado') as metodo,
+                   1 as quantidade,
+                   pp.valor::int as valor
+              from pagamento_parcela pp
+              join pagamento p on p.id = pp.pagamento_id
+             where p.estado <> 'Anulado'
+               and (${periodo(sql`p.data_hora::date`, de, ate)})
+
+            union all
+
+            select r.metodo_pagamento as metodo,
+                   0 as quantidade,
+                   -r.valor::int as valor
+              from agendamento_reembolso r
+             where (${periodo(sql`r.data_hora::date`, de, ate)})
+        )
+        select metodo,
+               coalesce(sum(quantidade), 0)::int as quantidade,
+               coalesce(sum(valor), 0)::int as total
+          from movimentos
+         group by metodo
          order by total desc
     `);
 

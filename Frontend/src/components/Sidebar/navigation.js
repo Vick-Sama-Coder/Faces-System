@@ -1,4 +1,5 @@
 import {
+    CalendarClock,
     CalendarPlus,
     ChartNoAxesCombined,
     Clock3,
@@ -33,6 +34,12 @@ export const NAV_GROUPS = [
                 label: "Novo Atendimento",
                 to: "/novoAtendimento",
                 icon: CalendarPlus,
+                permissions: ["atendimentos:escrever"]
+            },
+            {
+                label: "Agendamentos",
+                to: "/agendamentos",
+                icon: CalendarClock,
                 permissions: ["atendimentos:escrever"]
             },
             {
