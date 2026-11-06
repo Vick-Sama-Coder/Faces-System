@@ -46,7 +46,11 @@ function formatarDataHora(valor) {
 }
 
 function nomeCliente(cliente) {
-    return `${cliente?.nome || ""} ${cliente?.apelido || ""}`.trim() || "Cliente"
+    // A listagem/detalhe do agendamento devolve cliente_nome/cliente_apelido;
+    // as listagens de clientes devolvem nome/apelido. Suportamos os dois formatos.
+    const nome = cliente?.nome ?? cliente?.cliente_nome ?? ""
+    const apelido = cliente?.apelido ?? cliente?.cliente_apelido ?? ""
+    return `${nome} ${apelido}`.trim() || "Cliente"
 }
 
 function iniciais(cliente) {
@@ -72,6 +76,17 @@ function estaTotalmentePago(agendamento) {
     const devido = Number(agendamento?.valor_devido || 0)
     const pago = Number(agendamento?.valor_pago_liquido || 0)
     return devido > 0 && pago >= devido
+}
+
+// Quando o backend em execução ainda não tem as rotas de agendamentos, o
+// Express responde 404 com "Rota nao encontrada". Traduzimos isso para uma
+// mensagem que explica o que fazer, em vez de mostrar o erro técnico.
+function getErroAgendamento(erro) {
+    const mensagem = String(erro?.response?.data?.message || "")
+    if (erro?.response?.status === 404 && mensagem.toLowerCase().includes("rota nao encontrada")) {
+        return "O servidor ainda não tem o módulo de agendamentos. Atualize o backend e tente novamente."
+    }
+    return getApiError(erro)
 }
 
 function Modal({ children, onClose, wide = false }) {
@@ -121,7 +136,15 @@ function MensagemErro({ children }) {
     )
 }
 
-function NovoAgendamentoModal({ clientes, servicos, onClose, onCreated }) {
+function NovoAgendamentoModal({
+    clientes,
+    servicos,
+    carregandoReferencias,
+    erroReferencias,
+    onRecarregarReferencias,
+    onClose,
+    onCreated
+}) {
     const [clienteId, setClienteId] = useState("")
     const [pesquisaCliente, setPesquisaCliente] = useState("")
     const [itens, setItens] = useState([{ servico_id: "", quantidade: 1, preco_unitario: "" }])
@@ -170,6 +193,21 @@ function NovoAgendamentoModal({ clientes, servicos, onClose, onCreated }) {
     const submeter = async (evento) => {
         evento.preventDefault()
         setErro(null)
+
+        if (carregandoReferencias) {
+            setErro("Aguarde pelo carregamento dos clientes e serviços.")
+            return
+        }
+
+        if (clientes.length === 0) {
+            setErro("Não há clientes ativos disponíveis. Ative ou registe um cliente primeiro.")
+            return
+        }
+
+        if (servicos.length === 0) {
+            setErro("Não há serviços ativos disponíveis. Ative ou registe um serviço primeiro.")
+            return
+        }
 
         if (!clienteId) {
             setErro("Escolha o cliente do agendamento.")
@@ -227,6 +265,29 @@ function NovoAgendamentoModal({ clientes, servicos, onClose, onCreated }) {
                 <div className="agenda-modal-body">
                     <MensagemErro>{erro}</MensagemErro>
 
+                    {carregandoReferencias && (
+                        <p className="agenda-reference-status" role="status">
+                            <RefreshCw size={15} className="mgmt-spin" />
+                            A carregar clientes e serviços...
+                        </p>
+                    )}
+
+                    {erroReferencias && (
+                        <div className="mgmt-alert" role="alert">
+                            <AlertCircle size={17} />
+                            <span>{erroReferencias}</span>
+                            {onRecarregarReferencias && (
+                                <button
+                                    type="button"
+                                    onClick={onRecarregarReferencias}
+                                    disabled={carregandoReferencias}
+                                >
+                                    {carregandoReferencias ? "A tentar..." : "Tentar novamente"}
+                                </button>
+                            )}
+                        </div>
+                    )}
+
                     <div className="agenda-form-grid">
                         <label className="agenda-field">
                             <span>Pesquisar cliente</span>
@@ -249,13 +310,23 @@ function NovoAgendamentoModal({ clientes, servicos, onClose, onCreated }) {
                                     value={clienteId}
                                     onChange={(evento) => setClienteId(evento.target.value)}
                                     required
+                                    disabled={carregandoReferencias}
                                 >
-                                    <option value="">Selecionar cliente</option>
+                                    <option value="">
+                                        {carregandoReferencias
+                                            ? "A carregar clientes..."
+                                            : clientes.length === 0
+                                                ? "Sem clientes ativos"
+                                                : "Selecionar cliente"}
+                                    </option>
                                     {clientesVisiveis.map((cliente) => (
                                         <option key={cliente.id} value={cliente.id}>
                                             {nomeCliente(cliente)} — {cliente.telefone || "sem telefone"}
                                         </option>
                                     ))}
+                                    {!carregandoReferencias && clientes.length > 0 && clientesVisiveis.length === 0 && (
+                                        <option value="" disabled>Nenhum cliente corresponde à pesquisa</option>
+                                    )}
                                 </select>
                                 <ChevronDown size={16} />
                             </div>
@@ -284,8 +355,15 @@ function NovoAgendamentoModal({ clientes, servicos, onClose, onCreated }) {
                                             value={item.servico_id}
                                             onChange={(evento) => alterarItem(indice, "servico_id", evento.target.value)}
                                             required
+                                            disabled={carregandoReferencias}
                                         >
-                                            <option value="">Selecionar serviço</option>
+                                            <option value="">
+                                                {carregandoReferencias
+                                                    ? "A carregar serviços..."
+                                                    : servicos.length === 0
+                                                        ? "Sem serviços ativos"
+                                                        : "Selecionar serviço"}
+                                            </option>
                                             {servicos.map((servico) => (
                                                 <option key={servico.id} value={servico.id}>
                                                     {servico.nome} — {formatarMoeda(servico.valor)}
@@ -363,7 +441,7 @@ function NovoAgendamentoModal({ clientes, servicos, onClose, onCreated }) {
                     <button type="button" className="mgmt-btn ghost" onClick={onClose} disabled={salvando}>
                         Cancelar
                     </button>
-                    <button type="submit" className="mgmt-btn primary" disabled={salvando}>
+                    <button type="submit" className="mgmt-btn primary" disabled={salvando || carregandoReferencias}>
                         <CalendarClock size={16} />
                         {salvando ? "A criar..." : "Criar agendamento"}
                     </button>
@@ -1121,6 +1199,11 @@ export default function Agendamentos() {
     const [pesquisa, setPesquisa] = useState("")
     const [filtroEstado, setFiltroEstado] = useState("Todos")
 
+    // Dados de apoio do modal. Sao carregados separadamente dos agendamentos
+    // para que uma falha numa lista nao impeça as restantes de aparecer.
+    const [referenciasLoading, setReferenciasLoading] = useState(true)
+    const [referenciasErro, setReferenciasErro] = useState(null)
+
     const [modal, setModal] = useState(null)
     const [detalhe, setDetalhe] = useState(null)
     const [detalheLoading, setDetalheLoading] = useState(false)
@@ -1134,49 +1217,77 @@ export default function Agendamentos() {
             const resposta = await getAgendamentos()
             setAgendamentos(Array.isArray(resposta.data) ? resposta.data : [])
         } catch (erro) {
-            setError(getApiError(erro))
+            setError(getErroAgendamento(erro))
         } finally {
             setLoading(false)
         }
     }, [])
 
-    useEffect(() => {
-        let activo = true
+    const carregarReferencias = useCallback(async () => {
+        setReferenciasLoading(true)
+        setReferenciasErro(null)
 
-        getAgendamentos()
-            .then((resposta) => {
-                if (!activo) return
-                setAgendamentos(Array.isArray(resposta.data) ? resposta.data : [])
-            })
-            .catch((erro) => {
-                if (activo) setError(getApiError(erro))
-            })
-            .finally(() => {
-                if (activo) setLoading(false)
-            })
+        const resultados = await Promise.allSettled([
+            getClientes(),
+            getServicos(),
+            getFuncionarios()
+        ])
 
-        return () => { activo = false }
+        const [resClientes, resServicos, resFuncionarios] = resultados
+
+        const lista = (resultado) => (
+            resultado.status === "fulfilled" && Array.isArray(resultado.value.data)
+                ? resultado.value.data
+                : []
+        )
+
+        setClientes(lista(resClientes).filter((cliente) => cliente.estado === "Ativo"))
+        setServicos(lista(resServicos).filter((servico) => servico.estado === "Ativo"))
+        setFuncionarios(lista(resFuncionarios).filter((funcionario) => funcionario.estado === "Ativo"))
+
+        const falhas = []
+        if (resClientes.status === "rejected") falhas.push("clientes")
+        if (resServicos.status === "rejected") falhas.push("serviços")
+        if (resFuncionarios.status === "rejected") falhas.push("funcionários")
+
+        if (falhas.length > 0) {
+            const primeiroErro = resultados.find((resultado) => resultado.status === "rejected")?.reason
+            setReferenciasErro(
+                `Não foi possível carregar ${falhas.join(", ")}. ${getApiError(primeiroErro)}`
+            )
+        }
+
+        setReferenciasLoading(false)
     }, [])
 
     useEffect(() => {
         let ativo = true
 
-        Promise.all([getClientes(), getServicos(), getFuncionarios()])
-            .then(([resClientes, resServicos, resFuncionarios]) => {
-                if (!ativo) return
-
-                const listaClientes = Array.isArray(resClientes.data) ? resClientes.data : []
-                const listaServicos = Array.isArray(resServicos.data) ? resServicos.data : []
-                const listaFuncionarios = Array.isArray(resFuncionarios.data) ? resFuncionarios.data : []
-
-                setClientes(listaClientes.filter((cliente) => cliente.estado === "Ativo"))
-                setServicos(listaServicos.filter((servico) => servico.estado === "Ativo"))
-                setFuncionarios(listaFuncionarios.filter((funcionario) => funcionario.estado === "Ativo"))
-            })
-            .catch(() => {})
+        // O carregamento começa numa microtarefa para não atualizar estado
+        // sincronamente durante a montagem do componente.
+        Promise.resolve().then(() => {
+            if (ativo) carregar()
+        })
 
         return () => { ativo = false }
-    }, [])
+    }, [carregar])
+
+    useEffect(() => {
+        let ativo = true
+
+        Promise.resolve().then(() => {
+            if (ativo) carregarReferencias()
+        })
+
+        return () => { ativo = false }
+    }, [carregarReferencias])
+
+    const abrirNovo = () => {
+        if (!referenciasLoading && (!clientes.length || !servicos.length)) {
+            carregarReferencias()
+        }
+        setModal("novo")
+    }
 
     const abrirDetalhe = async (id) => {
         setModal("detalhe")
@@ -1189,7 +1300,7 @@ export default function Agendamentos() {
             const resposta = await getAgendamento(id)
             setDetalhe(resposta.data)
         } catch (erro) {
-            setAcaoErro(getApiError(erro))
+            setAcaoErro(getErroAgendamento(erro))
         } finally {
             setDetalheLoading(false)
         }
@@ -1205,7 +1316,7 @@ export default function Agendamentos() {
             setDetalhe(resposta.data)
             await carregar()
         } catch (erro) {
-            setAcaoErro(getApiError(erro))
+            setAcaoErro(getErroAgendamento(erro))
         } finally {
             setDetalheLoading(false)
         }
@@ -1294,7 +1405,7 @@ export default function Agendamentos() {
                         Atualizar
                     </button>
                     {podeCriar && (
-                        <button type="button" className="mgmt-btn primary" onClick={() => setModal("novo")}>
+                        <button type="button" className="mgmt-btn primary" onClick={abrirNovo}>
                             <Plus size={16} />
                             Novo agendamento
                         </button>
@@ -1397,7 +1508,7 @@ export default function Agendamentos() {
                             : "Nenhum agendamento corresponde aos filtros selecionados."}
                     </p>
                     {podeCriar && agendamentos.length === 0 && (
-                        <button type="button" className="mgmt-btn primary" onClick={() => setModal("novo")}>
+                        <button type="button" className="mgmt-btn primary" onClick={abrirNovo}>
                             <Plus size={16} />
                             Criar primeiro agendamento
                         </button>
@@ -1457,6 +1568,9 @@ export default function Agendamentos() {
                 <NovoAgendamentoModal
                     clientes={clientes}
                     servicos={servicos}
+                    carregandoReferencias={referenciasLoading}
+                    erroReferencias={referenciasErro}
+                    onRecarregarReferencias={carregarReferencias}
                     onClose={fecharModal}
                     onCreated={async (data) => {
                         setModal("detalhe")

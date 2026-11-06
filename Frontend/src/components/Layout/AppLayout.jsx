@@ -10,6 +10,7 @@ const PAGE_TITLES = {
     "/perfil": "O Meu Perfil",
     "/clientes": "Clientes",
     "/novoAtendimento": "Atendimentos",
+    "/agendamentos": "Agendamentos",
     "/servicos": "Serviços",
     "/categorias": "Categorias",
     "/relatorio": "Relatórios",
