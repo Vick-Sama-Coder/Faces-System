@@ -6,11 +6,13 @@ import DataGrid from "../../components/DataGrid/DataGrid.jsx"
 import "./novoAtendimento.css"
 import "../../Styles/management.css"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { format, isAfter, isToday, isValid, parseISO, startOfDay, subDays } from "date-fns"
 import { pt } from "date-fns/locale"
 import {
     AlertCircle,
     Ban,
+    CalendarClock,
     CalendarPlus,
     CheckCircle2,
     ChevronDown,
@@ -37,6 +39,7 @@ import {
 import {
     getAtendimentos,
     getAtendimento,
+    getAgendamentos,
     getClientes,
     getServicos,
     getFuncionarios,
@@ -51,7 +54,7 @@ import {
 } from "../../services/api.js"
 import { useAuthStore } from "../../store/authStore.js"
 
-const ESTADOS = ["Todos", "Concluido", "Anulado"]
+const ESTADOS = ["Todos", "Concluido", "Anulado", "Agendamento"]
 const PERIODOS = ["Todos", "Hoje", "7 dias", "30 dias"]
 const FORMAS_PAGAMENTO = ["Dinheiro", "M-Pesa", "e-Mola", "Cartao", "Transferencia", "Outro"]
 
@@ -203,13 +206,13 @@ async function buscarAtendimentos() {
     return Array.isArray(res.data) ? res.data : (res.data?.atendimentos || [])
 }
 
-function ClienteAtendimentoCell({ data }) {
+function ClienteAtendimentoCell({ data, rotulo = "Atendimento" }) {
     return (
         <div className="mgmt-user-cell">
             <span className="mgmt-avatar customer name-icon ">{iniciais(data.cliente_nome, data.cliente_apelido)}</span>
             <span className="mgmt-user-copy">
                 <strong>{data.cliente_nome} {data.cliente_apelido || ""}</strong>
-                <small>{data.cliente_telefone || `Atendimento #${data.id}`}</small>
+                <small>{data.cliente_telefone || `${rotulo} #${data.id}`}</small>
             </span>
         </div>
     )
@@ -291,8 +294,59 @@ function AcoesAtendimentoCell({ data, podeEditar, podeAnular, onVer, onEditar, o
     )
 }
 
+function EstadoAgendamentoCell() {
+    return (
+        <span className="mgmt-badge warning">
+            <span className="mgmt-badge-dot" />
+            Agendamento
+        </span>
+    )
+}
+
+function ServicosAgendamentoCell({ data }) {
+    const restante = Number(data.quantidade_restante || 0)
+    const total = Number(data.quantidade_total || 0)
+
+    return (
+        <span className="mgmt-cell-stack">
+            <strong className="mgmt-money">{restante} de {total}</strong>
+            <small>{restante === 1 ? "serviço por consumir" : "serviços por consumir"}</small>
+        </span>
+    )
+}
+
+function PagamentoAgendamentoCell({ data }) {
+    const saldo = Math.max(Number(data.saldo || 0), 0)
+
+    return (
+        <span className="mgmt-payment-copy">
+            <strong>{formatarMoeda(data.valor_pago_liquido)} pago</strong>
+            <small className={`mgmt-money ${saldo > 0 ? "pending" : "settled"}`}>
+                {saldo > 0 ? `${formatarMoeda(saldo)} em falta` : "Liquidado"}
+            </small>
+        </span>
+    )
+}
+
+function AcoesAgendamentoCell({ data, onAbrir }) {
+    return (
+        <div className="mgmt-row-actions">
+            <button
+                type="button"
+                className="mgmt-row-btn view"
+                onClick={() => onAbrir(data)}
+                title="Abrir na página de agendamentos"
+                aria-label={`Abrir agendamento ${data.id}`}
+            >
+                <Eye size={16} />
+            </button>
+        </div>
+    )
+}
+
 function NovoAtendimento() {
     const { user } = useAuthStore()
+    const navigate = useNavigate()
     const podePagar = user?.permissoes?.includes("pagamentos:registar")
     const podeEditar = user?.permissoes?.includes("atendimentos:escrever")
     const podeAnular = user?.permissoes?.includes("atendimentos:anular")
@@ -301,8 +355,11 @@ function NovoAtendimento() {
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [atendimentos, setAtendimentos] = useState([])
+    const [agendamentos, setAgendamentos] = useState([])
     const [loading, setLoading] = useState(true)
+    const [loadingAgendamentos, setLoadingAgendamentos] = useState(true)
     const [error, setError] = useState(null)
+    const [erroAgendamentos, setErroAgendamentos] = useState(null)
     const [filtro, setFiltro] = useState("Todos")
     const [periodo, setPeriodo] = useState("Todos")
     const [searchTerm, setSearchTerm] = useState("")
@@ -340,8 +397,10 @@ function NovoAtendimento() {
         valor: ""
     })
     const gridApiRef = useRef(null)
+    const agendaGridApiRef = useRef(null)
     const detalheRequestRef = useRef(0)
     const edicaoRequestRef = useRef(0)
+    const agendamentosRequestRef = useRef(0)
 
     const carregarAtendimentos = useCallback(async () => {
         setLoading(true)
@@ -354,6 +413,45 @@ function NovoAtendimento() {
             setLoading(false)
         }
     }, [])
+
+    // Agendamentos pré-pagos ainda com serviços por consumir. São mostrados
+    // na aba "Agendamento" sem se misturarem com os atendimentos concluídos.
+    const carregarAgendamentos = useCallback(async () => {
+        const pedido = agendamentosRequestRef.current + 1
+        agendamentosRequestRef.current = pedido
+
+        setLoadingAgendamentos(true)
+        setErroAgendamentos(null)
+
+        try {
+            const res = await getAgendamentos({ estado: "Aberto" })
+            if (pedido !== agendamentosRequestRef.current) return
+
+            const lista = Array.isArray(res.data) ? res.data : []
+            setAgendamentos(lista.filter((item) => Number(item.quantidade_restante) > 0))
+        } catch (err) {
+            if (pedido === agendamentosRequestRef.current) {
+                setErroAgendamentos(getApiError(err))
+            }
+        } finally {
+            if (pedido === agendamentosRequestRef.current) {
+                setLoadingAgendamentos(false)
+            }
+        }
+    }, [])
+
+    useEffect(() => {
+        let activo = true
+
+        Promise.resolve()
+            .then(() => { if (activo) carregarAgendamentos() })
+            .catch(() => {})
+
+        return () => {
+            activo = false
+            agendamentosRequestRef.current += 1
+        }
+    }, [carregarAgendamentos])
 
     useEffect(() => {
         let activo = true
@@ -571,13 +669,51 @@ function NovoAtendimento() {
         })
     }, [atendimentos, filtro, periodo, searchTerm])
 
+    const agendamentosFiltrados = useMemo(() => {
+        const termo = searchTerm.trim().toLowerCase()
+        const hoje = startOfDay(new Date())
+        const limite = periodo === "7 dias"
+            ? subDays(hoje, 6)
+            : periodo === "30 dias"
+                ? subDays(hoje, 29)
+                : null
+
+        return agendamentos.filter((item) => {
+            const data = dataAtendimento(item.criado_em)
+            let correspondePeriodo = periodo === "Todos"
+            if (!correspondePeriodo && data) {
+                correspondePeriodo = periodo === "Hoje"
+                    ? isToday(data)
+                    : limite
+                        ? isAfter(data, limite)
+                        : true
+            }
+            if (!correspondePeriodo) return false
+            if (!termo) return true
+
+            return String(item.cliente_nome || "").toLowerCase().includes(termo)
+                || String(item.cliente_apelido || "").toLowerCase().includes(termo)
+                || String(item.cliente_telefone || "").includes(termo)
+                || String(item.id).includes(termo)
+        })
+    }, [agendamentos, periodo, searchTerm])
+
     const contagemEstados = useMemo(() => {
         const contagem = { Todos: atendimentos.length }
         ESTADOS.slice(1).forEach((estado) => {
+            if (estado === "Agendamento") return
             contagem[estado] = atendimentos.filter((item) => item.estado === estado).length
         })
+        contagem.Agendamento = agendamentos.length
         return contagem
-    }, [atendimentos])
+    }, [atendimentos, agendamentos])
+
+    const mostrarAgendamentos = filtro === "Agendamento"
+    const listaFiltrada = mostrarAgendamentos ? agendamentosFiltrados : atendimentosFiltrados
+    const totalLista = mostrarAgendamentos ? agendamentos.length : atendimentos.length
+    const rotuloLista = mostrarAgendamentos ? "agendamentos" : "atendimentos"
+    const carregandoLista = mostrarAgendamentos ? loadingAgendamentos : loading
+    const erroLista = mostrarAgendamentos ? erroAgendamentos : error
 
     const concluidos = contagemEstados.Concluido || 0
     const anulados = contagemEstados.Anulado || 0
@@ -588,6 +724,7 @@ function NovoAtendimento() {
         return data ? isToday(data) : false
     }).length
     const temFiltros = Boolean(searchTerm.trim() || filtro !== "Todos" || periodo !== "Todos")
+    const temFiltrosLista = Boolean(searchTerm.trim() || periodo !== "Todos")
 
     const clientesEdicaoDisponiveis = useMemo(() => {
         const idAtual = String(atendimentoEmEdicao?.cliente_id ?? "")
@@ -1101,11 +1238,26 @@ function NovoAtendimento() {
         setPeriodo("Todos")
     }
 
+    function limparFiltrosLista() {
+        setSearchTerm("")
+        setPeriodo("Todos")
+    }
+
     function exportarAtendimentos() {
         if (!gridApiRef.current || !atendimentosFiltrados.length) return
         gridApiRef.current.exportDataAsCsv({
             fileName: `atendimentos-${format(new Date(), "yyyy-MM-dd")}.csv`,
             columnKeys: (gridApiRef.current.getColumns() || [])
+                .filter((coluna) => coluna.getColId() !== "acoes")
+                .map((coluna) => coluna.getColId())
+        })
+    }
+
+    function exportarAgendamentos() {
+        if (!agendaGridApiRef.current || !agendamentosFiltrados.length) return
+        agendaGridApiRef.current.exportDataAsCsv({
+            fileName: `agendamentos-${format(new Date(), "yyyy-MM-dd")}.csv`,
+            columnKeys: (agendaGridApiRef.current.getColumns() || [])
                 .filter((coluna) => coluna.getColId() !== "acoes")
                 .map((coluna) => coluna.getColId())
         })
@@ -1172,9 +1324,77 @@ function NovoAtendimento() {
         }
     ], [podeEditar, podeAnular, handleVerDetalhe, handleEditar, handleAnular])
 
+    const columnDefsAgendamentos = useMemo(() => [
+        {
+            headerName: "Cliente",
+            field: "cliente_nome",
+            flex: 1.7,
+            minWidth: 220,
+            cellRenderer: ClienteAtendimentoCell,
+            cellRendererParams: { rotulo: "Agendamento" }
+        },
+        {
+            headerName: "Criado em",
+            field: "criado_em",
+            flex: 1,
+            minWidth: 140,
+            cellRenderer: DataAtendimentoCell,
+            valueFormatter: (params) => formatarData(params.value),
+            comparator: (a, b) => new Date(a || 0) - new Date(b || 0)
+        },
+        {
+            headerName: "Serviços",
+            field: "quantidade_restante",
+            flex: 0.9,
+            minWidth: 160,
+            cellRenderer: ServicosAgendamentoCell
+        },
+        {
+            headerName: "Estado",
+            field: "estado",
+            flex: 0,
+            width: 140,
+            minWidth: 140,
+            cellRenderer: EstadoAgendamentoCell
+        },
+        {
+            headerName: "Pagamento",
+            field: "saldo",
+            flex: 1,
+            minWidth: 180,
+            cellRenderer: PagamentoAgendamentoCell
+        },
+        {
+            headerName: "Total",
+            field: "valor_total",
+            flex: 0.8,
+            minWidth: 125,
+            cellRenderer: TotalAtendimentoCell
+        },
+        {
+            headerName: "Ações",
+            colId: "acoes",
+            flex: 0,
+            width: 92,
+            minWidth: 92,
+            maxWidth: 92,
+            pinned: "right",
+            sortable: false,
+            filter: false,
+            resizable: false,
+            cellRenderer: AcoesAgendamentoCell,
+            cellRendererParams: {
+                onAbrir: () => navigate("/agendamentos")
+            }
+        }
+    ], [navigate])
+
     const mensagemVazia = temFiltros
         ? "Nenhum atendimento corresponde aos filtros aplicados."
         : "Registe o primeiro atendimento para começar a acompanhar o movimento do salão."
+    const mensagemVaziaAgendamentos = temFiltrosLista
+        ? "Nenhum agendamento corresponde aos filtros aplicados."
+        : "Não há agendamentos com serviços por consumir."
 
     return (
         <>
@@ -1991,11 +2211,16 @@ function NovoAtendimento() {
                         </article>
                     </section>
 
-                    {error && (
+                    {erroLista && (
                         <div className="mgmt-alert" role="alert">
                             <AlertCircle size={17} />
-                            <span>{error}</span>
-                            <button type="button" onClick={() => setError(null)}>Fechar</button>
+                            <span>{erroLista}</span>
+                            <button
+                                type="button"
+                                onClick={() => (mostrarAgendamentos ? setErroAgendamentos(null) : setError(null))}
+                            >
+                                Fechar
+                            </button>
                         </div>
                     )}
 
@@ -2053,16 +2278,16 @@ function NovoAtendimento() {
                         </div>
 
                         <span className="mgmt-toolbar-meta">
-                            <strong>{atendimentosFiltrados.length}</strong>
-                            de {atendimentos.length} atendimentos
+                            <strong>{listaFiltrada.length}</strong>
+                            {" "}de {totalLista} {rotuloLista}
                         </span>
 
                         <div className="mgmt-toolbar-actions">
                             <button
                                 type="button"
                                 className="mgmt-tool export"
-                                onClick={exportarAtendimentos}
-                                disabled={!atendimentosFiltrados.length}
+                                onClick={mostrarAgendamentos ? exportarAgendamentos : exportarAtendimentos}
+                                disabled={!listaFiltrada.length}
                                 title="Exportar lista em CSV"
                             >
                                 <Download size={16} />
@@ -2071,66 +2296,115 @@ function NovoAtendimento() {
                             <button
                                 type="button"
                                 className="mgmt-tool icon-only"
-                                onClick={carregarAtendimentos}
-                                disabled={loading}
+                                onClick={mostrarAgendamentos ? carregarAgendamentos : carregarAtendimentos}
+                                disabled={carregandoLista}
                                 title="Actualizar lista"
-                                aria-label="Actualizar lista de atendimentos"
+                                aria-label={`Actualizar lista de ${rotuloLista}`}
                             >
-                                <RefreshCw size={16} className={loading ? "mgmt-spin" : ""} />
+                                <RefreshCw size={16} className={carregandoLista ? "mgmt-spin" : ""} />
                             </button>
                         </div>
                     </section>
 
-                    <DataGrid
-                        rowData={atendimentosFiltrados}
-                        columnDefs={columnDefs}
-                        loading={loading}
-                        onGridReady={(params) => { gridApiRef.current = params.api }}
-                        onRowDoubleClicked={(event) => handleVerDetalhe(event.data)}
-                        emptyIcon={error ? AlertCircle : temFiltros ? Search : CalendarPlus}
-                        emptyTitle={error ? "Não foi possível carregar" : temFiltros ? "Sem resultados" : "Ainda não há atendimentos"}
-                        emptyMessage={error ? "Verifique a ligação ao servidor e tente novamente." : mensagemVazia}
-                        emptyAction={error ? (
-                            <button type="button" className="mgmt-btn ghost" onClick={carregarAtendimentos}>
-                                <RefreshCw size={16} />
-                                Tentar novamente
-                            </button>
-                        ) : temFiltros ? (
-                            <button type="button" className="mgmt-btn ghost" onClick={limparFiltros}>
-                                Limpar filtros
-                            </button>
-                        ) : (
-                            <button type="button" className="mgmt-btn primary" onClick={() => setIsModalOpen(true)}>
-                                <CalendarPlus size={16} />
-                                Novo atendimento
-                            </button>
-                        )}
-                        mobileCard={(atendimento) => (
-                            <>
-                                <div className="faces-grid-card-head">
-                                    <ClienteAtendimentoCell data={atendimento} />
-                                    <EstadoAtendimentoCell value={atendimento.estado} />
-                                </div>
+                    {mostrarAgendamentos ? (
+                        <DataGrid
+                            rowData={agendamentosFiltrados}
+                            columnDefs={columnDefsAgendamentos}
+                            loading={loadingAgendamentos}
+                            onGridReady={(params) => { agendaGridApiRef.current = params.api }}
+                            onRowDoubleClicked={() => navigate("/agendamentos")}
+                            emptyIcon={erroAgendamentos ? AlertCircle : temFiltrosLista ? Search : CalendarClock}
+                            emptyTitle={erroAgendamentos ? "Não foi possível carregar" : temFiltrosLista ? "Sem resultados" : "Sem agendamentos em aberto"}
+                            emptyMessage={erroAgendamentos ? "Verifique a ligação ao servidor e tente novamente." : mensagemVaziaAgendamentos}
+                            emptyAction={erroAgendamentos ? (
+                                <button type="button" className="mgmt-btn ghost" onClick={carregarAgendamentos}>
+                                    <RefreshCw size={16} />
+                                    Tentar novamente
+                                </button>
+                            ) : temFiltrosLista ? (
+                                <button type="button" className="mgmt-btn ghost" onClick={limparFiltrosLista}>
+                                    Limpar filtros
+                                </button>
+                            ) : (
+                                <button type="button" className="mgmt-btn primary" onClick={() => navigate("/agendamentos")}>
+                                    <CalendarClock size={16} />
+                                    Ver agendamentos
+                                </button>
+                            )}
+                            mobileCard={(agendamento) => (
+                                <>
+                                    <div className="faces-grid-card-head">
+                                        <ClienteAtendimentoCell data={agendamento} rotulo="Agendamento" />
+                                        <EstadoAgendamentoCell />
+                                    </div>
 
-                                <div className="faces-grid-card-meta">
-                                    <DataAtendimentoCell value={atendimento.data_hora} />
-                                    <TotalAtendimentoCell value={atendimento.valor_total} />
-                                </div>
+                                    <div className="faces-grid-card-meta">
+                                        <DataAtendimentoCell value={agendamento.criado_em} />
+                                        <TotalAtendimentoCell value={agendamento.valor_total} />
+                                    </div>
 
-                                <div className="faces-grid-card-foot">
-                                    <PagamentoAtendimentoCell data={atendimento} />
-                                    <AcoesAtendimentoCell
-                                        data={atendimento}
-                                        podeEditar={podeEditar}
-                                        podeAnular={podeAnular}
-                                        onVer={handleVerDetalhe}
-                                        onEditar={handleEditar}
-                                        onAnular={handleAnular}
-                                    />
-                                </div>
-                            </>
-                        )}
-                    />
+                                    <div className="faces-grid-card-foot">
+                                        <ServicosAgendamentoCell data={agendamento} />
+                                        <AcoesAgendamentoCell
+                                            data={agendamento}
+                                            onAbrir={() => navigate("/agendamentos")}
+                                        />
+                                    </div>
+                                </>
+                            )}
+                        />
+                    ) : (
+                        <DataGrid
+                            rowData={atendimentosFiltrados}
+                            columnDefs={columnDefs}
+                            loading={loading}
+                            onGridReady={(params) => { gridApiRef.current = params.api }}
+                            onRowDoubleClicked={(event) => handleVerDetalhe(event.data)}
+                            emptyIcon={error ? AlertCircle : temFiltros ? Search : CalendarPlus}
+                            emptyTitle={error ? "Não foi possível carregar" : temFiltros ? "Sem resultados" : "Ainda não há atendimentos"}
+                            emptyMessage={error ? "Verifique a ligação ao servidor e tente novamente." : mensagemVazia}
+                            emptyAction={error ? (
+                                <button type="button" className="mgmt-btn ghost" onClick={carregarAtendimentos}>
+                                    <RefreshCw size={16} />
+                                    Tentar novamente
+                                </button>
+                            ) : temFiltros ? (
+                                <button type="button" className="mgmt-btn ghost" onClick={limparFiltros}>
+                                    Limpar filtros
+                                </button>
+                            ) : (
+                                <button type="button" className="mgmt-btn primary" onClick={() => setIsModalOpen(true)}>
+                                    <CalendarPlus size={16} />
+                                    Novo atendimento
+                                </button>
+                            )}
+                            mobileCard={(atendimento) => (
+                                <>
+                                    <div className="faces-grid-card-head">
+                                        <ClienteAtendimentoCell data={atendimento} />
+                                        <EstadoAtendimentoCell value={atendimento.estado} />
+                                    </div>
+
+                                    <div className="faces-grid-card-meta">
+                                        <DataAtendimentoCell value={atendimento.data_hora} />
+                                        <TotalAtendimentoCell value={atendimento.valor_total} />
+                                    </div>
+
+                                    <div className="faces-grid-card-foot">
+                                        <PagamentoAtendimentoCell data={atendimento} />
+                                        <AcoesAtendimentoCell
+                                            data={atendimento}
+                                            podeEditar={podeEditar}
+                                            podeAnular={podeAnular}
+                                            onVer={handleVerDetalhe}
+                                            onEditar={handleEditar}
+                                            onAnular={handleAnular}
+                                        />
+                                    </div>
+                                </>
+                            )}
+                        />
+                    )}
             </div>
         </>
     )
