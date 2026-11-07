@@ -40,7 +40,11 @@ const findAll = async ({ funcionario: funcionarioId, de, ate, estado } = {}) => 
 //Nos servicos consumidos de um agendamento pre-pago a linha do atendimento tem
 //valor zero (a receita foi reconhecida no pagamento); a base da comissao e o
 //preco unitario acordado no agendamento.
-const gerarParaAtendimento = async (tx, atendimento_id) => {
+const gerarParaAtendimento = async (tx, atendimento_id, { apenasAgendamento = false } = {}) => {
+    const filtroAgendamento = apenasAgendamento
+        ? sql`and s.agendamento_servico_id is not null`
+        : sql``;
+
     await tx.execute(sql`
         insert into comissao (atendimento_servico_id, funcionario_id, taxa, base_calculo, valor_comissao)
         select s.id,
@@ -60,14 +64,32 @@ const gerarParaAtendimento = async (tx, atendimento_id) => {
                 order by c.vigencia_inicio desc
                 limit 1
           ) cc on true
-         where s.atendimento_id = ${atendimento_id} and s.estado = 'Ativo'
+         where s.atendimento_id = ${atendimento_id}
+           and s.estado = 'Ativo'
+           ${filtroAgendamento}
         on conflict (atendimento_servico_id) do nothing
+    `);
+};
+
+// As comissoes ainda por pagar sao derivadas das linhas ativas. As que ja
+// foram pagas ficam intactas: sao historico de folha e nao devem ser apagadas
+// por uma edicao posterior do atendimento.
+const deleteParaAtendimento = async (executor, atendimento_id) => {
+    await executor.execute(sql`
+        delete from comissao
+         where estado <> 'Paga'
+           and atendimento_servico_id in (
+               select id
+                 from atendimento_servico
+                where atendimento_id = ${atendimento_id}
+           )
     `);
 };
 
 const Comissao = {
     findAll,
-    gerarParaAtendimento
+    gerarParaAtendimento,
+    deleteParaAtendimento
 };
 
 export default Comissao;

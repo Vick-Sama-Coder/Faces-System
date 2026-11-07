@@ -177,6 +177,10 @@ export const registrarPagamento = (atendimentoId, data) => {
     return server.post(`api/atendimentos/${atendimentoId}/pagamentos`, data);
 };
 
+export const anularPagamento = (pagamentoId, motivo) => {
+    return server.post(`api/pagamentos/${pagamentoId}/anular`, { motivo });
+};
+
 export const getPagamentoAtendimento = (atendimentoId) => {
     return server.get(`api/atendimentos/${atendimentoId}/pagamento`);
 };

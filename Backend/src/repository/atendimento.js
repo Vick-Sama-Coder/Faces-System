@@ -113,7 +113,35 @@ const findServicos = async (atendimento_id) => {
         .innerJoin(servico, eq(servico.id, atendimentoServico.servico_id))
         .innerJoin(categoriaSalao, eq(categoriaSalao.id, servico.categoria_id))
         .innerJoin(funcionario, eq(funcionario.id, atendimentoServico.funcionario_id))
-        .where(eq(atendimentoServico.atendimento_id, atendimento_id))
+        .where(and(
+            eq(atendimentoServico.atendimento_id, atendimento_id),
+            eq(atendimentoServico.estado, 'Ativo')
+        ))
+        .orderBy(asc(atendimentoServico.id));
+};
+
+// Linhas ativas completas, usadas na edicao para comparar o que mudou.
+const findItensAtivos = async (executor, atendimento_id) => {
+    return executor.select({
+        id: atendimentoServico.id,
+        cliente_id: atendimentoServico.cliente_id,
+        servico_id: atendimentoServico.servico_id,
+        servico_principal_id: atendimentoServico.servico_principal_id,
+        agendamento_servico_id: atendimentoServico.agendamento_servico_id,
+        funcionario_id: atendimentoServico.funcionario_id,
+        modalidade_id: atendimentoServico.modalidade_id,
+        modalidade_nome: atendimentoServico.modalidade_nome,
+        tipo_servico: atendimentoServico.tipo_servico,
+        preco_original: atendimentoServico.preco_original,
+        tipo_preco: atendimentoServico.tipo_preco,
+        valor_desconto: atendimentoServico.valor_desconto,
+        valor_final: atendimentoServico.valor_final
+    })
+        .from(atendimentoServico)
+        .where(and(
+            eq(atendimentoServico.atendimento_id, atendimento_id),
+            eq(atendimentoServico.estado, 'Ativo')
+        ))
         .orderBy(asc(atendimentoServico.id));
 };
 
@@ -156,7 +184,7 @@ const temBeneficioFidelizacao = async (executor, atendimento_id) => {
     return linhas.length > 0;
 };
 
-// Verifica se o atendimento já gerou uma marca de fidelização
+// Verifica se o atendimento ja gerou uma marca de fidelização
 const temMarcaFidelizacao = async (executor, atendimento_id) => {
     const linhas = await executor.select({ id: movimentoFidelizacao.id })
         .from(movimentoFidelizacao)
@@ -171,6 +199,49 @@ const temMarcaFidelizacao = async (executor, atendimento_id) => {
         .limit(1);
 
     return linhas.length > 0;
+};
+
+// Qualquer movimento (marca, beneficio ganho ou beneficio utilizado) ligado
+// ao atendimento. Usado para impedir mudancas de cliente que deixariam a
+// fidelizacao no cartao errado.
+const temMovimentosFidelizacao = async (executor, atendimento_id) => {
+    const linhas = await executor.select({ id: movimentoFidelizacao.id })
+        .from(movimentoFidelizacao)
+        .innerJoin(
+            atendimentoServico,
+            eq(atendimentoServico.id, movimentoFidelizacao.atendimento_servico_id)
+        )
+        .where(eq(atendimentoServico.atendimento_id, atendimento_id))
+        .limit(1);
+
+    return linhas.length > 0;
+};
+
+// Linhas consumidas de um agendamento pre-pago nao podem ser alteradas nem
+// removidas: o saldo do agendamento ja foi debitado por elas.
+const temServicoAgendamento = async (executor, atendimento_id) => {
+    const linhas = await executor.select({ id: atendimentoServico.id })
+        .from(atendimentoServico)
+        .where(and(
+            eq(atendimentoServico.atendimento_id, atendimento_id),
+            sql`${atendimentoServico.agendamento_servico_id} is not null`
+        ))
+        .limit(1);
+
+    return linhas.length > 0;
+};
+
+//bloqueia o cabecalho durante a edicao para duas alteracoes simultaneas nao
+//recalcularem os totais a partir de estados diferentes
+const lockById = async (executor, id) => {
+    const resultado = await executor.execute(sql`
+        select id, cliente_id, estado
+          from atendimento
+         where id = ${id}
+         for update
+    `);
+
+    return resultado.rows?.[0] || null;
 };
 
 //---- operacoes usadas dentro de transacoes (recebem o tx) ----
@@ -259,7 +330,9 @@ const recalcular = async (tx, atendimento_id) => {
 const findServicoItem = async (tx, item_id) => {
     const [linha] = await tx.select({
         id: atendimentoServico.id,
-        atendimento_id: atendimentoServico.atendimento_id
+        atendimento_id: atendimentoServico.atendimento_id,
+        agendamento_servico_id: atendimentoServico.agendamento_servico_id,
+        estado: atendimentoServico.estado
     })
         .from(atendimentoServico)
         .where(eq(atendimentoServico.id, item_id))
@@ -268,9 +341,24 @@ const findServicoItem = async (tx, item_id) => {
     return linha || null;
 };
 
-const deleteServicoItem = async (tx, item_id) => {
-    await tx.delete(atendimentoServico)
+// Remocao logica: preserva ligacoes historicas (fidelizacao, comissao,
+// descontos) e retira a linha de todos os totais.
+const anularServicoItem = async (tx, item_id) => {
+    await tx.update(atendimentoServico)
+        .set({ estado: 'Anulado' })
         .where(eq(atendimentoServico.id, item_id));
+};
+
+const updateServicoItem = async (tx, item_id, valores) => {
+    await tx.update(atendimentoServico)
+        .set(valores)
+        .where(eq(atendimentoServico.id, item_id));
+};
+
+const updateClienteItens = async (tx, atendimento_id, cliente_id) => {
+    await tx.update(atendimentoServico)
+        .set({ cliente_id })
+        .where(eq(atendimentoServico.atendimento_id, atendimento_id));
 };
 
 // Inserir registo de desconto
@@ -304,7 +392,7 @@ const insertDesconto = async (tx, {
 
 //---- atualizacoes simples (db) ----
 
-const updateHeader = async (id, { cliente_id, data_hora }) => {
+const updateHeader = async (id, { cliente_id, data_hora }, executor = db) => {
     const valores = {};
 
     if (cliente_id !== undefined && cliente_id !== null) {
@@ -316,7 +404,7 @@ const updateHeader = async (id, { cliente_id, data_hora }) => {
 
     // Sem campos para alterar, devolve apenas a existencia do atendimento.
     if (Object.keys(valores).length === 0) {
-        const [linha] = await db.select({ id: atendimento.id })
+        const [linha] = await executor.select({ id: atendimento.id })
             .from(atendimento)
             .where(eq(atendimento.id, id))
             .limit(1);
@@ -324,7 +412,7 @@ const updateHeader = async (id, { cliente_id, data_hora }) => {
         return linha || null;
     }
 
-    const [linha] = await db.update(atendimento)
+    const [linha] = await executor.update(atendimento)
         .set(valores)
         .where(eq(atendimento.id, id))
         .returning({ id: atendimento.id });
@@ -354,15 +442,21 @@ const Atendimento = {
     findAll,
     findById,
     findServicos,
+    findItensAtivos,
     findDescontos,
     insertHeader,
     insertServico,
     insertDesconto,
     recalcular,
     findServicoItem,
-    deleteServicoItem,
+    anularServicoItem,
+    updateServicoItem,
+    updateClienteItens,
     temBeneficioFidelizacao,
     temMarcaFidelizacao,
+    temMovimentosFidelizacao,
+    temServicoAgendamento,
+    lockById,
     updateHeader,
     updateEstado
 };

@@ -89,34 +89,36 @@ const createAtendimento = async (req, res, next) => {
 
 const updateAtendimento = async (req, res, next) => {
     try {
-        const { cliente_id, data_hora } = req.body;
+        const { cliente_id, data_hora, servicos } = req.body;
         const admin = podeAlterarDataHora(req);
+        const enviouServicos = servicos !== undefined;
 
-        if (cliente_id === undefined && !(admin && data_hora !== undefined)) {
+        if (cliente_id === undefined && !enviouServicos && !(admin && data_hora !== undefined)) {
             return res.status(400).json({ message: "Nenhum campo para atualizar foi enviado" });
         }
 
-        const campos = {};
-        if (cliente_id !== undefined) {
-            campos.cliente_id = cliente_id;
-        }
-        if (admin && data_hora !== undefined) {
-            const data = normalizarDataHora(data_hora);
-            if (!data) {
-                return res.status(400).json({ message: "Data e hora do atendimento invalidas" });
-            }
-            campos.data_hora = data;
-        }
+        await AtendimentoService.atualizar(req.params.id, {
+            cliente_id,
+            // A data continua a ser uma opcao exclusiva do Administrador.
+            data_hora: admin ? normalizarDataHora(data_hora) : undefined,
+            servicos
+        }, req.user.id);
 
-        const atendimento = await Atendimento.updateHeader(req.params.id, campos);
-        if (!atendimento) {
-            return res.status(404).json({ message: "Atendimento nao encontrado" });
-        }
+        const atendimento = await Atendimento.findById(req.params.id);
+        atendimento.servicos = await Atendimento.findServicos(atendimento.id);
+        atendimento.descontos = await Atendimento.findDescontos(atendimento.id);
 
-        res.status(200).json(await Atendimento.findById(req.params.id));
+        const pagamentos = await Pagamento.findByAtendimento(atendimento.id);
+        for (const pagamento of pagamentos) {
+            pagamento.parcelas = await Pagamento.findParcelas(pagamento.id);
+        }
+        atendimento.pagamentos = pagamentos;
+        atendimento.fidelizacao = await FidelizacaoService.progresso(atendimento.cliente_id);
+
+        res.status(200).json(atendimento);
     } catch (error) {
         if (codigoPostgres(error) === "23503") {
-            return res.status(400).json({ message: "Cliente nao encontrado" });
+            return res.status(400).json({ message: "Cliente, servico ou funcionario nao encontrado" });
         }
         next(error);
     }

@@ -1,4 +1,5 @@
 import NewMarkModal from "../../components/Modals/NewMark/New-Mark-Modal.jsx"
+import CartaoClienteModal from "../../components/Modals/CartaoClienteModal/CartaoClienteModal.jsx"
 import FidelizacaoCard from "../../components/FidelizacaoCard/FidelizacaoCard.jsx"
 import ConfirmDialog from "../../components/ConfirmDialog/ConfirmDialog.jsx"
 import DataGrid from "../../components/DataGrid/DataGrid.jsx"
@@ -19,12 +20,15 @@ import {
     Edit3,
     Eye,
     Heart,
+    Lock,
     Phone,
+    Plus,
     Receipt,
     RefreshCw,
     ScissorsIcon,
     Search,
     Sparkles,
+    Tag,
     Trash2,
     UserRound,
     Wallet,
@@ -34,8 +38,14 @@ import {
     getAtendimentos,
     getAtendimento,
     getClientes,
+    getServicos,
+    getFuncionarios,
+    getFidelizacao,
+    getServicoModalidades,
+    getServicoAplicacoes,
     updateAtendimento,
     anularAtendimento,
+    anularPagamento,
     registrarPagamento,
     getApiError
 } from "../../services/api.js"
@@ -110,6 +120,82 @@ function iniciais(nome, apelido) {
 function saldoDoAtendimento(atendimento) {
     if (!atendimento || atendimento.estado === "Anulado") return 0
     return Math.max(Number(atendimento.valor_total || 0) - Number(atendimento.valor_pago || 0), 0)
+}
+
+function itemEdicaoVazio(chave = null) {
+    return {
+        chave,
+        id: null,
+        servico_id: "",
+        funcionario_id: "",
+        modalidade_id: "",
+        modalidade_nome: "",
+        tipo_servico: "Servico",
+        servico_principal_id: null,
+        servico_principal_chave: null,
+        preco_praticado: "",
+        desconto: "0",
+        agendamento_servico_id: null
+    }
+}
+
+let sequenciaItemEdicao = 0
+function novaChaveEdicao() {
+    sequenciaItemEdicao += 1
+    return `novo-${sequenciaItemEdicao}`
+}
+
+function itemEdicaoDeServico(servico) {
+    return {
+        chave: `linha-${servico.id}`,
+        id: servico.id,
+        servico_id: String(servico.servico_id ?? ""),
+        servico_nome: servico.servico_nome || "",
+        funcionario_id: String(servico.funcionario_id ?? ""),
+        funcionario_nome: servico.funcionario_nome || "",
+        modalidade_id: servico.modalidade_id ? String(servico.modalidade_id) : "",
+        modalidade_nome: servico.modalidade_nome || "",
+        tipo_servico: servico.tipo_servico || "Servico",
+        servico_principal_id: servico.servico_principal_id ?? null,
+        servico_principal_chave: null,
+        preco_praticado: String(servico.preco_original ?? ""),
+        desconto: String(servico.valor_desconto ?? 0),
+        agendamento_servico_id: servico.agendamento_servico_id ?? null
+    }
+}
+
+function totalEdicao(itens) {
+    return itens.reduce((total, item) => {
+        const preco = Number(item.preco_praticado) || 0
+        const desconto = Number(item.desconto) || 0
+        return total + Math.max(preco - desconto, 0)
+    }, 0)
+}
+
+// A aplicação pertence à linha principal quando aponta para o id dessa linha.
+// Versões antigas do formulário gravavam o id do catálogo; aceitamos essa
+// referência apenas quando não colide com o id de outra linha principal.
+function aplicacaoPertenceAoPrincipal(aplicacao, principal, itens) {
+    if (!principal || aplicacao?.tipo_servico !== "Aplicacao") return false
+
+    if (
+        principal.chave
+        && String(aplicacao.servico_principal_chave || "") === String(principal.chave)
+    ) {
+        return true
+    }
+
+    const referencia = String(aplicacao.servico_principal_id || "")
+    if (!referencia) return false
+
+    const linhaReferenciada = itens.find((item) => (
+        item.tipo_servico !== "Aplicacao"
+        && String(item.id || "") === referencia
+    ))
+
+    if (linhaReferenciada) return linhaReferenciada === principal
+
+    return referencia === String(principal.servico_id || "")
 }
 
 async function buscarAtendimentos() {
@@ -210,6 +296,7 @@ function NovoAtendimento() {
     const podePagar = user?.permissoes?.includes("pagamentos:registar")
     const podeEditar = user?.permissoes?.includes("atendimentos:escrever")
     const podeAnular = user?.permissoes?.includes("atendimentos:anular")
+    const podeAnularPagamento = user?.permissoes?.includes("pagamentos:anular")
     const ehAdministrador = user?.perfil === "Administrador"
 
     const [isModalOpen, setIsModalOpen] = useState(false)
@@ -226,18 +313,35 @@ function NovoAtendimento() {
     const [anulacao, setAnulacao] = useState(null)
     const [aAnular, setAAnular] = useState(false)
     const [atendimentoEmEdicao, setAtendimentoEmEdicao] = useState(null)
+    const [detalheEdicao, setDetalheEdicao] = useState(null)
+    const [carregandoEdicao, setCarregandoEdicao] = useState(false)
     const [clientesEdicao, setClientesEdicao] = useState([])
+    const [servicosEdicao, setServicosEdicao] = useState([])
+    const [funcionariosEdicao, setFuncionariosEdicao] = useState([])
+    const [itensEdicao, setItensEdicao] = useState([])
+    const [modalidadesEdicao, setModalidadesEdicao] = useState({})
+    const [aplicacoesEdicao, setAplicacoesEdicao] = useState({})
+    const [fidelizacaoEdicao, setFidelizacaoEdicao] = useState(null)
     const [clienteEdicaoId, setClienteEdicaoId] = useState("")
-    const [carregandoClientesEdicao, setCarregandoClientesEdicao] = useState(false)
     const [salvandoEdicao, setSalvandoEdicao] = useState(false)
     const [erroEdicao, setErroEdicao] = useState(null)
+    const [sucessoEdicao, setSucessoEdicao] = useState(null)
     const [dataHoraEdicao, setDataHoraEdicao] = useState("")
+    const [pagamentoEdicao, setPagamentoEdicao] = useState({
+        metodo: "Dinheiro",
+        valor: ""
+    })
+    const [salvandoPagamentoEdicao, setSalvandoPagamentoEdicao] = useState(false)
+    const [pagamentoAAnular, setPagamentoAAnular] = useState(null)
+    const [anulandoPagamentoEdicao, setAnulandoPagamentoEdicao] = useState(false)
+    const [cartaoEdicaoAberto, setCartaoEdicaoAberto] = useState(false)
     const [pagamentoForm, setPagamentoForm] = useState({
         metodo: "Dinheiro",
         valor: ""
     })
     const gridApiRef = useRef(null)
     const detalheRequestRef = useRef(0)
+    const edicaoRequestRef = useRef(0)
 
     const carregarAtendimentos = useCallback(async () => {
         setLoading(true)
@@ -270,40 +374,170 @@ function NovoAtendimento() {
         return () => { activo = false }
     }, [])
 
+    const carregarEdicao = useCallback(async (atendimento) => {
+        if (!atendimento?.id) return
+
+        // Cada abertura do formulario invalida os pedidos anteriores, para
+        // uma resposta atrasada nao substituir o atendimento atual.
+        const pedido = edicaoRequestRef.current + 1
+        edicaoRequestRef.current = pedido
+
+        setCarregandoEdicao(true)
+        setErroEdicao(null)
+        setSucessoEdicao(null)
+
+        try {
+            const [detalheRes, clientesRes, servicosRes, funcionariosRes] = await Promise.all([
+                getAtendimento(atendimento.id),
+                getClientes(),
+                getServicos(),
+                getFuncionarios()
+            ])
+
+            if (pedido !== edicaoRequestRef.current) return
+
+            const detalheAtualizado = detalheRes.data || atendimento
+            const listaClientes = Array.isArray(clientesRes.data)
+                ? clientesRes.data
+                : (clientesRes.data?.clientes || [])
+            const listaServicos = Array.isArray(servicosRes.data)
+                ? servicosRes.data
+                : (servicosRes.data?.servicos || [])
+            const listaFuncionarios = Array.isArray(funcionariosRes.data)
+                ? funcionariosRes.data
+                : (funcionariosRes.data?.funcionarios || [])
+
+            setDetalheEdicao(detalheAtualizado)
+            setClientesEdicao(listaClientes)
+            setServicosEdicao(listaServicos)
+            setFuncionariosEdicao(listaFuncionarios)
+            setItensEdicao((detalheAtualizado.servicos || []).map(itemEdicaoDeServico))
+            setClienteEdicaoId(String(detalheAtualizado.cliente_id ?? ""))
+            setDataHoraEdicao(paraInputDataHora(detalheAtualizado.data_hora))
+            setFidelizacaoEdicao(detalheAtualizado.fidelizacao || null)
+
+            const saldoAtual = saldoDoAtendimento(detalheAtualizado)
+            setPagamentoEdicao({
+                metodo: "Dinheiro",
+                valor: saldoAtual > 0 ? String(saldoAtual) : ""
+            })
+        } catch (err) {
+            if (pedido === edicaoRequestRef.current) {
+                setErroEdicao(getApiError(err))
+            }
+        } finally {
+            if (pedido === edicaoRequestRef.current) {
+                setCarregandoEdicao(false)
+            }
+        }
+    }, [])
+
     useEffect(() => {
         if (!atendimentoEmEdicao) return undefined
 
         let activo = true
 
-        getClientes()
-            .then((res) => {
-                if (!activo) return
-                const lista = Array.isArray(res.data) ? res.data : (res.data?.clientes || [])
-                setClientesEdicao(lista)
-            })
-            .catch((err) => {
-                if (activo) setErroEdicao(getApiError(err))
-            })
+        Promise.resolve()
+            .then(() => carregarEdicao(atendimentoEmEdicao))
             .finally(() => {
-                if (activo) setCarregandoClientesEdicao(false)
+                if (activo) setCarregandoEdicao(false)
             })
 
+        return () => {
+            activo = false
+            edicaoRequestRef.current += 1
+        }
+    }, [atendimentoEmEdicao, carregarEdicao])
+
+    // Modalidades dos servicos presentes no formulario. Só são necessárias
+    // quando o serviço tem variantes de preço.
+    useEffect(() => {
+        if (!atendimentoEmEdicao || itensEdicao.length === 0) return undefined
+
+        let activo = true
+        const ids = [...new Set(itensEdicao
+            .filter((item) => item.tipo_servico !== "Aplicacao")
+            .map((item) => item.servico_id)
+            .filter(Boolean))]
+
+        ids.forEach(async (id) => {
+            if (modalidadesEdicao[id]) return
+
+            try {
+                const res = await getServicoModalidades(id)
+                const lista = Array.isArray(res.data) ? res.data : []
+                if (activo) {
+                    setModalidadesEdicao((anterior) => ({ ...anterior, [id]: lista }))
+                }
+            } catch {
+                if (activo) {
+                    setModalidadesEdicao((anterior) => ({ ...anterior, [id]: [] }))
+                }
+            }
+        })
+
         return () => { activo = false }
-    }, [atendimentoEmEdicao])
+    }, [atendimentoEmEdicao, itensEdicao, modalidadesEdicao])
+
+    // Aplicações permitidas pelos serviços principais já presentes no
+    // formulário, para que a edição consiga recriar o conjunto realizado.
+    useEffect(() => {
+        if (!atendimentoEmEdicao || itensEdicao.length === 0) return undefined
+
+        let activo = true
+        const ids = [...new Set(itensEdicao
+            .filter((item) => item.tipo_servico !== "Aplicacao" && item.servico_id)
+            .filter((item) => servicosEdicao.find(
+                (servico) => String(servico.id) === String(item.servico_id) && servico.permite_aplicacoes
+            ))
+            .map((item) => String(item.servico_id)))]
+
+        ids.forEach(async (id) => {
+            if (aplicacoesEdicao[id]) return
+
+            try {
+                const res = await getServicoAplicacoes(id)
+                const lista = Array.isArray(res.data) ? res.data : []
+                if (activo) {
+                    setAplicacoesEdicao((anterior) => ({ ...anterior, [id]: lista }))
+                }
+            } catch {
+                if (activo) {
+                    setAplicacoesEdicao((anterior) => ({ ...anterior, [id]: [] }))
+                }
+            }
+        })
+
+        return () => { activo = false }
+    }, [atendimentoEmEdicao, itensEdicao, servicosEdicao, aplicacoesEdicao])
 
     useEffect(() => {
         if (!atendimentoEmEdicao) return undefined
 
         function fecharComEscape(event) {
-            if (event.key === "Escape" && !salvandoEdicao) {
+            if (
+                event.key === "Escape"
+                && !salvandoEdicao
+                && !salvandoPagamentoEdicao
+                && !anulandoPagamentoEdicao
+                && !cartaoEdicaoAberto
+            ) {
                 setAtendimentoEmEdicao(null)
+                setDetalheEdicao(null)
                 setErroEdicao(null)
+                setSucessoEdicao(null)
+                setDataHoraEdicao("")
+                setItensEdicao([])
+                setModalidadesEdicao({})
+                setAplicacoesEdicao({})
+                setPagamentoAAnular(null)
+                setCartaoEdicaoAberto(false)
             }
         }
 
         window.addEventListener("keydown", fecharComEscape)
         return () => window.removeEventListener("keydown", fecharComEscape)
-    }, [atendimentoEmEdicao, salvandoEdicao])
+    }, [atendimentoEmEdicao, salvandoEdicao, salvandoPagamentoEdicao, anulandoPagamentoEdicao, cartaoEdicaoAberto])
 
     const atendimentosFiltrados = useMemo(() => {
         const termo = searchTerm.trim().toLowerCase()
@@ -374,12 +608,23 @@ function NovoAtendimento() {
     }, [atendimentoEmEdicao, clientesEdicao])
 
     const handleEditar = useCallback((atendimento) => {
+        edicaoRequestRef.current += 1
         setAtendimentoEmEdicao(atendimento)
+        setDetalheEdicao(null)
+        setClientesEdicao([])
+        setServicosEdicao([])
+        setFuncionariosEdicao([])
+        setItensEdicao([])
+        setModalidadesEdicao({})
+        setAplicacoesEdicao({})
+        setFidelizacaoEdicao(null)
         setClienteEdicaoId(String(atendimento.cliente_id ?? ""))
         setDataHoraEdicao(paraInputDataHora(atendimento.data_hora))
-        setClientesEdicao([])
-        setCarregandoClientesEdicao(true)
+        setCarregandoEdicao(true)
         setErroEdicao(null)
+        setSucessoEdicao(null)
+        setPagamentoAAnular(null)
+        setCartaoEdicaoAberto(false)
     }, [])
 
     const handleAnular = useCallback((atendimento) => {
@@ -437,15 +682,194 @@ function NovoAtendimento() {
     }
 
     function fecharEdicao() {
-        if (salvandoEdicao) return
+        if (salvandoEdicao || salvandoPagamentoEdicao || anulandoPagamentoEdicao) return
+        edicaoRequestRef.current += 1
         setAtendimentoEmEdicao(null)
+        setDetalheEdicao(null)
         setErroEdicao(null)
+        setSucessoEdicao(null)
         setDataHoraEdicao("")
+        setItensEdicao([])
+        setModalidadesEdicao({})
+        setAplicacoesEdicao({})
+        setPagamentoAAnular(null)
+        setCartaoEdicaoAberto(false)
+    }
+
+    async function recarregarDetalheEdicao({ sincronizarItens = false } = {}) {
+        if (!atendimentoEmEdicao) return null
+
+        const res = await getAtendimento(atendimentoEmEdicao.id)
+        const atualizado = res.data
+
+        setDetalheEdicao(atualizado)
+        setFidelizacaoEdicao(atualizado.fidelizacao || null)
+        if (sincronizarItens) {
+            setItensEdicao((atualizado.servicos || []).map(itemEdicaoDeServico))
+        }
+
+        const saldoAtual = saldoDoAtendimento(atualizado)
+        setPagamentoEdicao((anterior) => ({
+            ...anterior,
+            valor: saldoAtual > 0 ? String(saldoAtual) : ""
+        }))
+
+        return atualizado
+    }
+
+    function adicionarItemEdicao() {
+        setItensEdicao((anteriores) => [...anteriores, itemEdicaoVazio(novaChaveEdicao())])
+        setErroEdicao(null)
+        setSucessoEdicao(null)
+    }
+
+    function removerItemEdicao(indice) {
+        setItensEdicao((anteriores) => {
+            if (anteriores.length <= 1) return anteriores
+
+            const removido = anteriores[indice]
+            const restantes = anteriores.filter((_, i) => i !== indice)
+
+            // Ao remover um serviço principal, as aplicações associadas
+            // deixam de fazer sentido no formulário.
+            if (removido.tipo_servico === "Servico") {
+                return restantes.filter((item) => (
+                    !aplicacaoPertenceAoPrincipal(item, removido, anteriores)
+                ))
+            }
+
+            return restantes
+        })
+        setErroEdicao(null)
+        setSucessoEdicao(null)
+    }
+
+    function alterarItemEdicao(indice, campo, valor) {
+        setItensEdicao((anteriores) => anteriores.map((item, i) => (
+            i === indice ? { ...item, [campo]: valor } : item
+        )))
+        if (erroEdicao) setErroEdicao(null)
+        if (sucessoEdicao) setSucessoEdicao(null)
+    }
+
+    // Ao mudar o cliente, mostra o cartão do novo cliente. O backend recusa
+    // a mudança quando já existem movimentos de fidelização neste atendimento.
+    async function alterarClienteEdicao(valor) {
+        setClienteEdicaoId(valor)
+        if (erroEdicao) setErroEdicao(null)
+        if (sucessoEdicao) setSucessoEdicao(null)
+
+        if (!valor) {
+            setFidelizacaoEdicao(null)
+            return
+        }
+
+        try {
+            const res = await getFidelizacao(valor)
+            setFidelizacaoEdicao(res.data || null)
+        } catch {
+            setFidelizacaoEdicao(null)
+        }
+    }
+
+    function alterarServicoEdicao(indice, servicoId) {
+        const servico = servicosEdicao.find((item) => String(item.id) === String(servicoId))
+
+        setItensEdicao((anteriores) => {
+            const principal = anteriores[indice]
+            const ehAplicacao = principal?.tipo_servico === "Aplicacao"
+            const referenciaPrincipal = principal?.id ? Number(principal.id) : null
+            const chavePrincipal = principal?.id ? null : principal?.chave
+
+            const atualizados = anteriores.map((item, i) => (
+                i === indice
+                    ? {
+                        ...item,
+                        servico_id: servicoId,
+                        servico_nome: servico?.nome || "",
+                        tipo_servico: ehAplicacao ? "Aplicacao" : "Servico",
+                        modalidade_id: "",
+                        modalidade_nome: "",
+                        preco_praticado: servico ? String(servico.valor) : "",
+                        desconto: "0",
+                        servico_principal_id: ehAplicacao ? item.servico_principal_id : null
+                    }
+                    : item
+            ))
+
+            // As aplicações mantêm-se ligadas à mesma linha principal, mesmo
+            // quando o serviço dessa linha muda.
+            if (!ehAplicacao) {
+                return atualizados.map((item) => (
+                    aplicacaoPertenceAoPrincipal(item, principal, anteriores)
+                        ? {
+                            ...item,
+                            servico_principal_id: referenciaPrincipal,
+                            servico_principal_chave: chavePrincipal
+                        }
+                        : item
+                ))
+            }
+
+            return atualizados
+        })
+        if (erroEdicao) setErroEdicao(null)
+        if (sucessoEdicao) setSucessoEdicao(null)
+    }
+
+    function adicionarAplicacaoEdicao(indice, aplicacao) {
+        setItensEdicao((anteriores) => {
+            const principal = anteriores[indice]
+            if (!principal?.servico_id) return anteriores
+
+            const jaExiste = anteriores.some((item) => (
+                item.tipo_servico === "Aplicacao"
+                && String(item.servico_id) === String(aplicacao.id)
+                && aplicacaoPertenceAoPrincipal(item, principal, anteriores)
+            ))
+            if (jaExiste) return anteriores
+
+            return [
+                ...anteriores,
+                {
+                    ...itemEdicaoVazio(novaChaveEdicao()),
+                    servico_id: String(aplicacao.id),
+                    servico_nome: aplicacao.nome || "",
+                    funcionario_id: principal.funcionario_id,
+                    tipo_servico: "Aplicacao",
+                    // Linha existente usa o id da linha; linha nova usa a
+                    // chave temporária resolvida pelo backend após inserir.
+                    servico_principal_id: principal.id || null,
+                    servico_principal_chave: principal.id ? null : principal.chave,
+                    preco_praticado: String(aplicacao.valor ?? "")
+                }
+            ]
+        })
+        if (erroEdicao) setErroEdicao(null)
+        if (sucessoEdicao) setSucessoEdicao(null)
+    }
+
+    function alterarModalidadeEdicao(indice, modalidadeId) {
+        const item = itensEdicao[indice]
+        const lista = modalidadesEdicao[item?.servico_id] || []
+        const modalidade = lista.find((opcao) => String(opcao.id) === String(modalidadeId))
+
+        setItensEdicao((anteriores) => anteriores.map((atual, i) => (
+            i === indice
+                ? {
+                    ...atual,
+                    modalidade_id: modalidadeId,
+                    modalidade_nome: modalidade?.nome || "",
+                    preco_praticado: modalidade ? String(modalidade.valor) : atual.preco_praticado
+                }
+                : atual
+        )))
+        if (erroEdicao) setErroEdicao(null)
     }
 
     async function guardarEdicao(event) {
         event.preventDefault()
-        if (!atendimentoEmEdicao || salvandoEdicao) return
+        if (!atendimentoEmEdicao || !detalheEdicao || salvandoEdicao) return
 
         if (!clienteEdicaoId) {
             setErroEdicao("Selecione o cliente do atendimento.")
@@ -462,35 +886,158 @@ function NovoAtendimento() {
             return
         }
 
-        const clienteAlterado = String(clienteEdicaoId) !== String(atendimentoEmEdicao.cliente_id)
-        const dataAlterada = ehAdministrador
-            && Boolean(dataHoraEdicao)
-            && dataHoraEdicao !== paraInputDataHora(atendimentoEmEdicao.data_hora)
+        if (itensEdicao.length === 0) {
+            setErroEdicao("O atendimento tem de ter pelo menos um serviço.")
+            return
+        }
 
-        if (!clienteAlterado && !dataAlterada) {
+        for (let i = 0; i < itensEdicao.length; i++) {
+            const item = itensEdicao[i]
+
+            if (item.agendamento_servico_id) continue
+
+            if (!item.servico_id || !item.funcionario_id) {
+                setErroEdicao(`Preencha o serviço e o funcionário da linha ${i + 1}.`)
+                return
+            }
+
+            const preco = Number(item.preco_praticado)
+            const desconto = Number(item.desconto || 0)
+
+            if (!Number.isInteger(preco) || preco <= 0) {
+                setErroEdicao(`O preço da linha ${i + 1} deve ser um valor inteiro maior que zero.`)
+                return
+            }
+            if (!Number.isInteger(desconto) || desconto < 0 || desconto > preco) {
+                setErroEdicao(`O desconto da linha ${i + 1} deve ficar entre 0 e ${preco} MT.`)
+                return
+            }
+        }
+
+        const totalNovo = totalEdicao(itensEdicao)
+        const valorPago = Number(detalheEdicao.valor_pago || 0)
+
+        if (totalNovo < valorPago) {
             setErroEdicao(
-                ehAdministrador
-                    ? "Altere o cliente ou a data do atendimento."
-                    : "Selecione um cliente diferente do atual."
+                `O total (${formatarMoeda(totalNovo)}) não pode ficar abaixo do valor já pago (${formatarMoeda(valorPago)}). Anule pagamentos antes de guardar.`
             )
             return
         }
 
         setSalvandoEdicao(true)
         setErroEdicao(null)
+        setSucessoEdicao(null)
 
         try {
-            const payload = { cliente_id: Number(clienteEdicaoId) }
-            if (dataAlterada) payload.data_hora = dataSelecionada.toISOString()
+            const payload = {
+                cliente_id: Number(clienteEdicaoId),
+                servicos: itensEdicao.map((item) => {
+                    const base = {
+                        servico_id: Number(item.servico_id),
+                        funcionario_id: Number(item.funcionario_id),
+                        preco_praticado: Number(item.preco_praticado),
+                        desconto: Math.round(Number(item.desconto || 0)),
+                        tipo_servico: item.tipo_servico || "Servico"
+                    }
+
+                    if (item.id) base.id = Number(item.id)
+                    if (!item.id && item.chave) base.chave = item.chave
+                    if (item.modalidade_id) {
+                        base.modalidade_id = Number(item.modalidade_id)
+                        base.modalidade_nome = item.modalidade_nome || undefined
+                    }
+                    if (item.servico_principal_id) {
+                        base.servico_principal_id = Number(item.servico_principal_id)
+                    }
+                    if (item.servico_principal_chave) {
+                        base.servico_principal_chave = item.servico_principal_chave
+                    }
+
+                    return base
+                })
+            }
+
+            if (ehAdministrador && dataSelecionada) {
+                payload.data_hora = dataSelecionada.toISOString()
+            }
 
             await updateAtendimento(atendimentoEmEdicao.id, payload)
             setAtendimentoEmEdicao(null)
+            setDetalheEdicao(null)
             setDataHoraEdicao("")
             await carregarAtendimentos()
         } catch (err) {
             setErroEdicao(getApiError(err))
         } finally {
             setSalvandoEdicao(false)
+        }
+    }
+
+    function alterarPagamentoEdicao(campo, valor) {
+        setPagamentoEdicao((anterior) => ({ ...anterior, [campo]: valor }))
+        if (erroEdicao) setErroEdicao(null)
+        if (sucessoEdicao) setSucessoEdicao(null)
+    }
+
+    async function registarPagamentoEdicao(event) {
+        event.preventDefault()
+        if (!detalheEdicao || salvandoPagamentoEdicao) return
+
+        const saldo = saldoDoAtendimento(detalheEdicao)
+        const valor = Number(pagamentoEdicao.valor)
+
+        if (!valor || valor <= 0) {
+            setErroEdicao("Indique um valor de pagamento maior que zero.")
+            return
+        }
+        if (valor > saldo) {
+            setErroEdicao(`O valor não pode exceder o saldo em falta (${formatarMoeda(saldo)}).`)
+            return
+        }
+        if (!pagamentoEdicao.metodo) {
+            setErroEdicao("Selecione a forma de pagamento.")
+            return
+        }
+
+        setSalvandoPagamentoEdicao(true)
+        setErroEdicao(null)
+        setSucessoEdicao(null)
+
+        try {
+            await registrarPagamento(detalheEdicao.id, {
+                parcelas: [{
+                    metodo_pagamento: pagamentoEdicao.metodo,
+                    valor
+                }]
+            })
+            await recarregarDetalheEdicao()
+            await carregarAtendimentos()
+            setSucessoEdicao("Pagamento registado com sucesso.")
+        } catch (err) {
+            setErroEdicao(getApiError(err))
+        } finally {
+            setSalvandoPagamentoEdicao(false)
+        }
+    }
+
+    async function confirmarAnulacaoPagamento(motivo) {
+        if (!pagamentoAAnular || anulandoPagamentoEdicao) return
+
+        setAnulandoPagamentoEdicao(true)
+        setErroEdicao(null)
+        setSucessoEdicao(null)
+
+        try {
+            await anularPagamento(pagamentoAAnular.id, motivo)
+            setPagamentoAAnular(null)
+            await recarregarDetalheEdicao()
+            await carregarAtendimentos()
+            setSucessoEdicao("Pagamento anulado com sucesso.")
+        } catch (err) {
+            setErroEdicao(getApiError(err))
+            setPagamentoAAnular(null)
+        } finally {
+            setAnulandoPagamentoEdicao(false)
         }
     }
 
@@ -667,13 +1214,17 @@ function NovoAtendimento() {
                         <header className="appointment-detail-header">
                             <div>
                                 <h2 id="editar-atendimento-titulo">Editar atendimento #{atendimentoEmEdicao.id}</h2>
-                                <p>{atendimentoEmEdicao.cliente_nome} {atendimentoEmEdicao.cliente_apelido || ""} · {formatarData(atendimentoEmEdicao.data_hora)}</p>
+                                <p>
+                                    {detalheEdicao?.cliente_nome || atendimentoEmEdicao.cliente_nome}{" "}
+                                    {detalheEdicao?.cliente_apelido || atendimentoEmEdicao.cliente_apelido || ""} ·{" "}
+                                    {formatarData(detalheEdicao?.data_hora || atendimentoEmEdicao.data_hora)}
+                                </p>
                             </div>
                             <button
                                 type="button"
                                 className="appointment-close"
                                 onClick={fecharEdicao}
-                                disabled={salvandoEdicao}
+                                disabled={salvandoEdicao || salvandoPagamentoEdicao || anulandoPagamentoEdicao}
                                 aria-label="Fechar edição"
                             >
                                 <X size={20} />
@@ -683,69 +1234,433 @@ function NovoAtendimento() {
                         <form className="appointment-edit-form" onSubmit={guardarEdicao} aria-busy={salvandoEdicao}>
                             <div className="appointment-detail-body">
                                 {erroEdicao && <div className="appointment-alert" role="alert">{erroEdicao}</div>}
-
-                                <div className="appointment-detail-section">
-                                    <h3><UserRound size={16} /> Cliente</h3>
-                                    <div className="appointment-edit-field">
-                                        <label htmlFor="cliente-edicao">Cliente do atendimento</label>
-                                        {carregandoClientesEdicao ? (
-                                            <p className="appointment-empty">A carregar clientes...</p>
-                                        ) : (
-                                            <select
-                                                id="cliente-edicao"
-                                                value={clienteEdicaoId}
-                                                onChange={(event) => {
-                                                    setClienteEdicaoId(event.target.value)
-                                                    if (erroEdicao) setErroEdicao(null)
-                                                }}
-                                                disabled={salvandoEdicao}
-                                                aria-describedby="edicao-cliente-hint"
-                                            >
-                                                <option value="">Selecione o cliente...</option>
-                                                {clientesEdicaoDisponiveis.map((cliente) => (
-                                                    <option key={cliente.id} value={cliente.id}>
-                                                        {cliente.nome} {cliente.apelido || ""}{cliente.telefone ? ` — ${cliente.telefone}` : ""}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        )}
-                                        <p id="edicao-cliente-hint" className="appointment-payment-hint">
-                                            {ehAdministrador
-                                                ? "Pode alterar o cliente e a data do atendimento. Serviços, valores e pagamentos permanecem inalterados."
-                                                : "A edição altera apenas o cliente associado. Serviços, valores e pagamentos permanecem inalterados."}
-                                        </p>
+                                {sucessoEdicao && (
+                                    <div className="appointment-success" role="status">
+                                        <CheckCircle2 size={16} /> {sucessoEdicao}
                                     </div>
-                                </div>
+                                )}
 
-                                {ehAdministrador && (
-                                    <div className="appointment-detail-section">
-                                        <h3><Clock3 size={16} /> Data do atendimento</h3>
-                                        <div className="appointment-edit-field">
-                                            <label htmlFor="data-hora-edicao">Data e hora</label>
-                                            <input
-                                                id="data-hora-edicao"
-                                                type="datetime-local"
-                                                value={dataHoraEdicao}
-                                                onChange={(event) => {
-                                                    setDataHoraEdicao(event.target.value)
-                                                    if (erroEdicao) setErroEdicao(null)
-                                                }}
-                                                disabled={salvandoEdicao}
-                                            />
+                                {carregandoEdicao ? (
+                                    <p className="appointment-empty">A carregar informações do atendimento...</p>
+                                ) : !detalheEdicao ? (
+                                    <p className="appointment-empty">Não foi possível carregar o atendimento.</p>
+                                ) : (
+                                    <>
+                                        <section className="appointment-detail-section">
+                                            <h3><UserRound size={16} /> Cliente e data</h3>
+                                            <div className="appointment-edit-grid">
+                                                <div className="appointment-edit-field">
+                                                    <label htmlFor="cliente-edicao">Cliente do atendimento</label>
+                                                    <select
+                                                        id="cliente-edicao"
+                                                        value={clienteEdicaoId}
+                                                        onChange={(event) => alterarClienteEdicao(event.target.value)}
+                                                        disabled={salvandoEdicao}
+                                                    >
+                                                        <option value="">Selecione o cliente...</option>
+                                                        {clientesEdicaoDisponiveis.map((cliente) => (
+                                                            <option key={cliente.id} value={cliente.id}>
+                                                                {cliente.nome} {cliente.apelido || ""}{cliente.telefone ? ` — ${cliente.telefone}` : ""}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                {ehAdministrador && (
+                                                    <div className="appointment-edit-field">
+                                                        <label htmlFor="data-hora-edicao">Data e hora</label>
+                                                        <input
+                                                            id="data-hora-edicao"
+                                                            type="datetime-local"
+                                                            value={dataHoraEdicao}
+                                                            onChange={(event) => {
+                                                                setDataHoraEdicao(event.target.value)
+                                                                if (erroEdicao) setErroEdicao(null)
+                                                            }}
+                                                            disabled={salvandoEdicao}
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
                                             <p className="appointment-payment-hint">
-                                                Opção exclusiva do Administrador.
+                                                {ehAdministrador
+                                                    ? "A data é exclusiva do Administrador. Se o atendimento já tiver fidelização, não é possível trocar de cliente."
+                                                    : "Pode corrigir cliente, serviços, valores, pagamentos e fidelização. A data continua reservada ao Administrador."}
                                             </p>
-                                        </div>
-                                    </div>
+                                        </section>
+
+                                        <section className="appointment-detail-section">
+                                            <div className="edit-section-head">
+                                                <h3><ScissorsIcon size={16} /> Serviços</h3>
+                                                <button
+                                                    type="button"
+                                                    className="edit-add-item"
+                                                    onClick={adicionarItemEdicao}
+                                                    disabled={salvandoEdicao}
+                                                >
+                                                    <Plus size={14} /> Adicionar serviço
+                                                </button>
+                                            </div>
+
+                                            <div className="edit-items">
+                                                {itensEdicao.map((item, indice) => {
+                                                    const servicoSelecionado = servicosEdicao.find(
+                                                        (servico) => String(servico.id) === String(item.servico_id)
+                                                    )
+                                                    const ehAplicacao = item.tipo_servico === "Aplicacao"
+                                                    const prepago = Boolean(item.agendamento_servico_id)
+                                                    const modalidades = ehAplicacao
+                                                        ? []
+                                                        : (modalidadesEdicao[item.servico_id] || [])
+                                                    const aplicacoes = !ehAplicacao && servicoSelecionado?.permite_aplicacoes
+                                                        ? (aplicacoesEdicao[item.servico_id] || [])
+                                                        : []
+                                                    const aplicacoesAssociadas = itensEdicao.filter((outro) => (
+                                                        aplicacaoPertenceAoPrincipal(outro, item, itensEdicao)
+                                                    ))
+                                                    const opcoesServico = servicosEdicao.filter((servico) => (
+                                                        ehAplicacao
+                                                            ? servico.tipo_servico === "Aplicacao"
+                                                            : servico.tipo_servico !== "Aplicacao"
+                                                    ))
+                                                    const servicoNaLista = opcoesServico.some(
+                                                        (servico) => String(servico.id) === String(item.servico_id)
+                                                    )
+                                                    const funcionariosDisponiveis = funcionariosEdicao.filter((funcionario) => (
+                                                        funcionario.estado === "Ativo"
+                                                        || String(funcionario.id) === String(item.funcionario_id)
+                                                    ))
+                                                    const preco = Number(item.preco_praticado) || 0
+                                                    const desconto = Number(item.desconto) || 0
+
+                                                    return (
+                                                        <article
+                                                            className={`edit-item ${prepago ? "locked" : ""}`}
+                                                            key={item.chave || item.id || `linha-${indice}`}
+                                                        >
+                                                            <header className="edit-item-head">
+                                                                <strong>
+                                                                    {ehAplicacao ? "Aplicação" : "Serviço"} {indice + 1}
+                                                                    {prepago ? " · agendamento pré-pago" : ""}
+                                                                </strong>
+                                                                <button
+                                                                    type="button"
+                                                                    className="edit-item-remove"
+                                                                    onClick={() => removerItemEdicao(indice)}
+                                                                    disabled={prepago || itensEdicao.length <= 1 || salvandoEdicao}
+                                                                    title={prepago
+                                                                        ? "Serviço consumido de agendamento pré-pago não pode ser removido"
+                                                                        : "Remover linha"}
+                                                                    aria-label={`Remover ${ehAplicacao ? "aplicação" : "serviço"} ${indice + 1}`}
+                                                                >
+                                                                    <Trash2 size={15} />
+                                                                </button>
+                                                            </header>
+
+                                                            {prepago ? (
+                                                                <div className="edit-item-locked">
+                                                                    <Lock size={16} />
+                                                                    <div>
+                                                                        <strong>{item.servico_nome || servicoSelecionado?.nome || `Serviço #${item.servico_id}`}</strong>
+                                                                        <span>
+                                                                            {item.funcionario_nome || funcionariosEdicao.find(
+                                                                                (funcionario) => String(funcionario.id) === String(item.funcionario_id)
+                                                                            )?.nome || "—"} · {formatarMoeda(preco)}
+                                                                        </span>
+                                                                        <small>Consumido de agendamento pré-pago: não pode ser alterado nem removido.</small>
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <>
+                                                                    <div className="edit-item-grid">
+                                                                        <div className="appointment-edit-field">
+                                                                            <label>Serviço</label>
+                                                                            <select
+                                                                                value={item.servico_id}
+                                                                                onChange={(event) => alterarServicoEdicao(indice, event.target.value)}
+                                                                                disabled={salvandoEdicao}
+                                                                            >
+                                                                                <option value="">Selecione...</option>
+                                                                                {opcoesServico.map((servico) => (
+                                                                                    <option key={servico.id} value={servico.id}>
+                                                                                        {servico.nome} · {formatarMoeda(servico.valor)}
+                                                                                    </option>
+                                                                                ))}
+                                                                                {!servicoNaLista && item.servico_id && (
+                                                                                    <option value={item.servico_id}>
+                                                                                        {item.servico_nome || `Serviço #${item.servico_id}`}
+                                                                                    </option>
+                                                                                )}
+                                                                            </select>
+                                                                        </div>
+
+                                                                        <div className="appointment-edit-field">
+                                                                            <label>Funcionário</label>
+                                                                            <select
+                                                                                value={item.funcionario_id}
+                                                                                onChange={(event) => alterarItemEdicao(indice, "funcionario_id", event.target.value)}
+                                                                                disabled={salvandoEdicao}
+                                                                            >
+                                                                                <option value="">Selecione...</option>
+                                                                                {funcionariosDisponiveis.map((funcionario) => (
+                                                                                    <option key={funcionario.id} value={funcionario.id}>
+                                                                                        {funcionario.nome}
+                                                                                    </option>
+                                                                                ))}
+                                                                            </select>
+                                                                        </div>
+
+                                                                        {modalidades.length > 0 && (
+                                                                            <div className="appointment-edit-field">
+                                                                                <label>Modalidade</label>
+                                                                                <select
+                                                                                    value={item.modalidade_id}
+                                                                                    onChange={(event) => alterarModalidadeEdicao(indice, event.target.value)}
+                                                                                    disabled={salvandoEdicao}
+                                                                                >
+                                                                                    <option value="">Preço base</option>
+                                                                                    {modalidades.map((modalidade) => (
+                                                                                        <option key={modalidade.id} value={modalidade.id}>
+                                                                                            {modalidade.nome} ({modalidade.faixa_etaria || "todas"}) · {formatarMoeda(modalidade.valor)}
+                                                                                        </option>
+                                                                                    ))}
+                                                                                </select>
+                                                                            </div>
+                                                                        )}
+
+                                                                        <div className="appointment-edit-field">
+                                                                            <label>Preço (MT)</label>
+                                                                            <input
+                                                                                type="number"
+                                                                                min="1"
+                                                                                step="1"
+                                                                                value={item.preco_praticado}
+                                                                                onChange={(event) => alterarItemEdicao(indice, "preco_praticado", event.target.value)}
+                                                                                disabled={salvandoEdicao}
+                                                                            />
+                                                                        </div>
+
+                                                                        <div className="appointment-edit-field">
+                                                                            <label>Desconto (MT)</label>
+                                                                            <input
+                                                                                type="number"
+                                                                                min="0"
+                                                                                max={preco}
+                                                                                step="1"
+                                                                                value={item.desconto}
+                                                                                onChange={(event) => alterarItemEdicao(indice, "desconto", event.target.value)}
+                                                                                disabled={salvandoEdicao}
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <footer className="edit-item-foot">
+                                                                        <span>
+                                                                            Linha: <strong>{formatarMoeda(Math.max(preco - desconto, 0))}</strong>
+                                                                        </span>
+
+                                                                        {ehAplicacao ? (
+                                                                            <span className="edit-item-parent">
+                                                                                <Tag size={13} /> Aplicação associada ao serviço principal
+                                                                            </span>
+                                                                        ) : aplicacoes.length > 0 && (
+                                                                            <div className="edit-apps">
+                                                                                {aplicacoesAssociadas.length > 0 && (
+                                                                                    <div className="edit-apps-tags">
+                                                                                        {aplicacoesAssociadas.map((associada) => {
+                                                                                            const indiceAssociada = itensEdicao.findIndex(
+                                                                                                (outro) => outro === associada
+                                                                                            )
+
+                                                                                            return (
+                                                                                                <span className="edit-app-tag" key={associada.id || `app-${indiceAssociada}`}>
+                                                                                                    {associada.servico_nome || servicosEdicao.find(
+                                                                                                        (servico) => String(servico.id) === String(associada.servico_id)
+                                                                                                    )?.nome || "Aplicação"}
+                                                                                                    <button
+                                                                                                        type="button"
+                                                                                                        onClick={() => removerItemEdicao(indiceAssociada)}
+                                                                                                        disabled={salvandoEdicao}
+                                                                                                        title="Remover aplicação"
+                                                                                                    >
+                                                                                                        <X size={12} />
+                                                                                                    </button>
+                                                                                                </span>
+                                                                                            )
+                                                                                        })}
+                                                                                    </div>
+                                                                                )}
+                                                                                <div className="edit-apps-add">
+                                                                                    {aplicacoes
+                                                                                        .filter((aplicacao) => !aplicacoesAssociadas.some(
+                                                                                            (associada) => String(associada.servico_id) === String(aplicacao.id)
+                                                                                        ))
+                                                                                        .map((aplicacao) => (
+                                                                                            <button
+                                                                                                key={aplicacao.id}
+                                                                                                type="button"
+                                                                                                className="edit-add-app"
+                                                                                                onClick={() => adicionarAplicacaoEdicao(indice, aplicacao)}
+                                                                                                disabled={salvandoEdicao}
+                                                                                            >
+                                                                                                <Plus size={12} /> {aplicacao.nome} ({formatarMoeda(aplicacao.valor)})
+                                                                                            </button>
+                                                                                        ))}
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+                                                                    </footer>
+                                                                </>
+                                                            )}
+                                                        </article>
+                                                    )
+                                                })}
+                                            </div>
+
+                                            <div className="edit-totals">
+                                                <span>
+                                                    Total atual <strong>{formatarMoeda(detalheEdicao.valor_total)}</strong>
+                                                </span>
+                                                <span>
+                                                    Novo total <strong>{formatarMoeda(totalEdicao(itensEdicao))}</strong>
+                                                </span>
+                                            </div>
+                                        </section>
+
+                                        <section className="appointment-detail-section">
+                                            <h3><CreditCard size={16} /> Pagamentos</h3>
+
+                                            <div className="edit-payment-summary">
+                                                <span>Total <strong>{formatarMoeda(detalheEdicao.valor_total)}</strong></span>
+                                                <span>Pago <strong>{formatarMoeda(detalheEdicao.valor_pago)}</strong></span>
+                                                <span className={saldoDoAtendimento(detalheEdicao) > 0 ? "saldo-pendente" : "saldo-zero"}>
+                                                    Saldo <strong>{formatarMoeda(saldoDoAtendimento(detalheEdicao))}</strong>
+                                                </span>
+                                            </div>
+
+                                            {detalheEdicao.pagamentos?.length ? (
+                                                <div className="appointment-payments">
+                                                    {detalheEdicao.pagamentos.map((pagamento) => (
+                                                        <div key={pagamento.id} className="appointment-payment">
+                                                            <div className="appointment-payment-head">
+                                                                <strong>Pagamento #{pagamento.id}</strong>
+                                                                <span className={`status-badge ${pagamento.estado === "Anulado" ? "anulado" : pagamento.estado === "Liquidado" ? "pago" : "pendente"}`}>
+                                                                    {pagamento.estado}
+                                                                </span>
+                                                                <span>{formatarData(pagamento.data_hora)}</span>
+                                                            </div>
+                                                            <ul>
+                                                                {(pagamento.parcelas || []).map((parcela) => (
+                                                                    <li key={parcela.id}>
+                                                                        <span>{parcela.metodo_pagamento}</span>
+                                                                        <strong>{formatarMoeda(parcela.valor)}</strong>
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                            {pagamento.motivo_anulacao && (
+                                                                <p className="appointment-reason">Motivo: {pagamento.motivo_anulacao}</p>
+                                                            )}
+                                                            {podeAnularPagamento && pagamento.estado !== "Anulado" && detalheEdicao.estado !== "Anulado" && (
+                                                                <div className="edit-payment-actions">
+                                                                    <button
+                                                                        type="button"
+                                                                        className="edit-payment-void"
+                                                                        onClick={() => setPagamentoAAnular(pagamento)}
+                                                                        disabled={salvandoPagamentoEdicao || anulandoPagamentoEdicao}
+                                                                    >
+                                                                        <Ban size={14} /> Anular pagamento
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="appointment-empty">Ainda não existem pagamentos registados.</p>
+                                            )}
+
+                                            {podePagar && detalheEdicao.estado !== "Anulado" && saldoDoAtendimento(detalheEdicao) > 0 && (
+                                                <div
+                                                    className="edit-payment-form"
+                                                    onKeyDown={(event) => {
+                                                        if (event.key !== "Enter" || event.target.tagName === "BUTTON") return
+                                                        event.preventDefault()
+                                                        registarPagamentoEdicao(event)
+                                                    }}
+                                                >
+                                                    <div className="appointment-payment-grid">
+                                                        <div>
+                                                            <label>Forma de pagamento</label>
+                                                            <select
+                                                                value={pagamentoEdicao.metodo}
+                                                                onChange={(event) => alterarPagamentoEdicao("metodo", event.target.value)}
+                                                                disabled={salvandoPagamentoEdicao}
+                                                            >
+                                                                {FORMAS_PAGAMENTO.map((forma) => (
+                                                                    <option key={forma} value={forma}>{forma}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                        <div>
+                                                            <label>Valor (MT)</label>
+                                                            <input
+                                                                type="number"
+                                                                min="1"
+                                                                max={saldoDoAtendimento(detalheEdicao)}
+                                                                step="1"
+                                                                value={pagamentoEdicao.valor}
+                                                                onChange={(event) => alterarPagamentoEdicao("valor", event.target.value)}
+                                                                disabled={salvandoPagamentoEdicao}
+                                                            />
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            className="submit-btn"
+                                                            onClick={registarPagamentoEdicao}
+                                                            disabled={salvandoPagamentoEdicao || !pagamentoEdicao.valor}
+                                                        >
+                                                            {salvandoPagamentoEdicao ? "A registar..." : "Registar pagamento"}
+                                                        </button>
+                                                    </div>
+                                                    <p className="appointment-payment-hint">
+                                                        Para corrigir um pagamento, anule o registo anterior e crie um novo.
+                                                        Saldo em falta: <strong>{formatarMoeda(saldoDoAtendimento(detalheEdicao))}</strong>.
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </section>
+
+                                        <section className="appointment-detail-section">
+                                            <h3><Heart size={16} /> Fidelização do cliente</h3>
+                                            <FidelizacaoCard fidelizacao={fidelizacaoEdicao} compact />
+                                            <p className="appointment-payment-hint">
+                                                Alterar serviços ou valores não recalcula automaticamente as marcas já registadas.
+                                                Use o cartão do cliente para corrigir marcas ou benefícios.
+                                            </p>
+                                            <div className="edit-loyalty-actions">
+                                                <button
+                                                    type="button"
+                                                    className="edit-loyalty-btn"
+                                                    onClick={() => setCartaoEdicaoAberto(true)}
+                                                    disabled={salvandoEdicao || !clienteEdicaoId}
+                                                >
+                                                    <Heart size={15} /> Gerir cartão de fidelização
+                                                </button>
+                                            </div>
+                                        </section>
+                                    </>
                                 )}
                             </div>
 
                             <footer className="appointment-detail-footer">
+                                <span className="edit-footer-summary">
+                                    Novo total <strong>{formatarMoeda(totalEdicao(itensEdicao))}</strong>
+                                </span>
                                 <button
                                     type="button"
                                     className="appointment-close-btn"
                                     onClick={fecharEdicao}
-                                    disabled={salvandoEdicao}
+                                    disabled={salvandoEdicao || salvandoPagamentoEdicao || anulandoPagamentoEdicao}
                                 >
                                     Cancelar
                                 </button>
@@ -754,13 +1669,11 @@ function NovoAtendimento() {
                                     className="appointment-edit-submit"
                                     disabled={
                                         salvandoEdicao
-                                        || carregandoClientesEdicao
+                                        || carregandoEdicao
+                                        || !detalheEdicao
                                         || !clienteEdicaoId
+                                        || itensEdicao.length === 0
                                         || (ehAdministrador && !dataHoraEdicao)
-                                        || (
-                                            String(clienteEdicaoId) === String(atendimentoEmEdicao.cliente_id)
-                                            && (!ehAdministrador || dataHoraEdicao === paraInputDataHora(atendimentoEmEdicao.data_hora))
-                                        )
                                     }
                                 >
                                     {salvandoEdicao ? "A guardar..." : "Guardar alterações"}
@@ -769,6 +1682,41 @@ function NovoAtendimento() {
                         </form>
                     </section>
                 </div>
+            )}
+
+            {pagamentoAAnular && (
+                <ConfirmDialog
+                    open
+                    title="Anular pagamento?"
+                    description={`O pagamento #${pagamentoAAnular.id} de ${formatarMoeda(pagamentoAAnular.valor_total)} será anulado sem apagar o histórico. O saldo do atendimento é recalculado e as comissões associadas são atualizadas.`}
+                    tone="danger"
+                    icon={Ban}
+                    confirmLabel="Anular pagamento"
+                    withReason
+                    reasonLabel="Motivo da anulação"
+                    reasonPlaceholder="Ex.: valor registado por engano, forma de pagamento incorrecta..."
+                    loading={anulandoPagamentoEdicao}
+                    onConfirm={confirmarAnulacaoPagamento}
+                    onClose={() => !anulandoPagamentoEdicao && setPagamentoAAnular(null)}
+                />
+            )}
+
+            {cartaoEdicaoAberto && detalheEdicao && (
+                <CartaoClienteModal
+                    key={`cartao-edicao-${clienteEdicaoId}`}
+                    cliente={clientesEdicaoDisponiveis.find(
+                        (cliente) => String(cliente.id) === String(clienteEdicaoId)
+                    ) || {
+                        id: detalheEdicao.cliente_id,
+                        nome: detalheEdicao.cliente_nome,
+                        apelido: detalheEdicao.cliente_apelido,
+                        telefone: detalheEdicao.cliente_telefone
+                    }}
+                    onclose={() => setCartaoEdicaoAberto(false)}
+                    onSuccess={(progresso) => {
+                        if (progresso) setFidelizacaoEdicao(progresso)
+                    }}
+                />
             )}
 
             {detalhe && (

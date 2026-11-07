@@ -230,6 +230,22 @@ const anular = async (pagamento_id, { motivo, registado_por }) => {
 
         // O estado financeiro vive no pagamento; o atendimento continua
         // Concluido e o saldo em falta e recalculado pelas parcelas ativas.
+        // As comissoes so podem existir enquanto o total estiver liquidado.
+        if (pagamento.atendimento_id) {
+            const atendimento = await Atendimento.findById(pagamento.atendimento_id, tx);
+            await Comissao.deleteParaAtendimento(tx, pagamento.atendimento_id);
+
+            // As linhas pre-pagas continuam com comissao mesmo que o restante
+            // atendimento volte a ter saldo em falta.
+            const total = Number(atendimento?.valor_total || 0);
+            const pago = Number(await Pagamento.somaParcelas(tx, pagamento.atendimento_id));
+
+            if (total > 0 && pago >= total) {
+                await Comissao.gerarParaAtendimento(tx, pagamento.atendimento_id);
+            } else {
+                await Comissao.gerarParaAtendimento(tx, pagamento.atendimento_id, { apenasAgendamento: true });
+            }
+        }
 
         await AuditoriaService.registar({
             id_utilizador: registado_por,
