@@ -374,7 +374,7 @@ function NovoAgendamentoModal({
                                     </div>
                                 </label>
 
-                                <label className="agenda-field">
+                                <label className="agenda-field agenda-item-qty">
                                     <span>Qtd. *</span>
                                     <input
                                         className="agenda-input"
@@ -387,7 +387,7 @@ function NovoAgendamentoModal({
                                     />
                                 </label>
 
-                                <label className="agenda-field">
+                                <label className="agenda-field agenda-item-price">
                                     <span>Preço unit. (MT) *</span>
                                     <input
                                         className="agenda-input"
