@@ -98,7 +98,8 @@ assiduidade e salários. Helpers: `getApiError(err)` e `getApiErrorField(err)`.
 - `offlineCache.js` — atualização otimista do cache para clientes, atendimentos, pagamentos,
   descontos, fidelização, stock, horários e assiduidade.
 - `offlinePrefetch.js` — prepara em segundo plano os dados das páginas e modais; também
-  aceita preparação manual com progresso.
+  aceita preparação manual com progresso. É suspenso enquanto a conta estiver em primeiro
+  acesso (senha padrão por trocar), porque o backend bloqueia as restantes rotas.
 - `OfflinePreparation` — botão **Preparar offline** na sidebar, com progresso e data da
   última preparação.
 - `InstallAppButton` — instalação da PWA no Android/desktop e instruções no iOS.

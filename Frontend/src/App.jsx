@@ -19,6 +19,9 @@ function App() {
   const syncSystemTheme = useThemeStore((state) => state.syncSystemTheme)
   const { pathname } = useLocation()
   const showFloatingThemeToggle = AUTH_ROUTES.has(pathname.replace(/\/+$/, '') || '/')
+  // Enquanto a senha padrão não for trocada, o backend bloqueia as restantes
+  // rotas; não vale a pena preparar cache offline (receberia 403).
+  const senhaPendente = Boolean(user?.deve_alterar_senha || user?.alteracao_obrigatoria_senha)
 
   //confere a sessao uma unica vez no arranque: todas as paginas passam a ter
   //o utilizador e as permissoes efetivas disponiveis (sidebar e rotas)
@@ -31,7 +34,7 @@ function App() {
   // as paginas e modais funcionarem sem rede. O prefetch so arranca quando o
   // browser estiver livre e e cancelado se a sessao mudar ou a rede cair.
   useEffect(() => {
-    if (!user?.id) return undefined
+    if (!user?.id || senhaPendente) return undefined
 
     let ativo = true
 
@@ -61,7 +64,7 @@ function App() {
       window.removeEventListener('offline', aoFicarOffline)
       cancelarPrefetchOffline()
     }
-  }, [user])
+  }, [user, senhaPendente])
 
   // O tema inicial e aplicado pelo script inline antes do primeiro paint.
   // Este listener so reage ao sistema enquanto a preferencia for "Sistema".

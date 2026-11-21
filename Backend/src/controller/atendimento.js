@@ -2,7 +2,6 @@ import Atendimento from "../repository/atendimento.js";
 import Pagamento from "../repository/pagamento.js";
 import AtendimentoService from "../services/atendimento.js";
 import FidelizacaoService from "../services/fidelizacao.js";
-import AuditoriaService from "../services/auditoria.js";
 import { criarErro, codigoPostgres } from "../utils/erro.js";
 
 // A data do atendimento e uma opcao exclusiva do Administrador.
@@ -188,19 +187,9 @@ const anularAtendimento = async (req, res, next) => {
             return res.status(400).json({ message: "O motivo da anulacao e obrigatorio" });
         }
 
-        const atendimento = await Atendimento.updateEstado(req.params.id, { estado: "Anulado", motivo_anulacao: motivo });
-
-        if (!atendimento) {
-            return res.status(404).json({ message: "Atendimento nao encontrado" });
-        }
-
-        await AuditoriaService.registar({
-            id_utilizador: req.user.id,
-            entidade: "atendimento",
-            id_registo: atendimento.id,
-            operacao: "anular",
-            depois: { estado: "Anulado" },
-            motivo
+        const atendimento = await AtendimentoService.anular(req.params.id, {
+            motivo,
+            registado_por: req.user.id
         });
 
         res.status(200).json(atendimento);

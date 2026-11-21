@@ -303,7 +303,8 @@ permissões (documentacao.md §4, §7.1).
 
 - Conta `Inativo` não inicia sessão (bloquear no `/login`).
 - Credencial temporária força `alteracao_obrigatoria_senha = true`; enquanto ativo, o
-  login devolve estado que obriga a trocar a senha antes de usar a app.
+  login devolve estado que obriga a trocar a senha e o middleware `authenticate` bloqueia
+  as restantes rotas autenticadas (`403`), exceto o fluxo de primeiro acesso.
 - Registo público mantém perfil `Usuario` (compatibilidade).
 - Log de permissões e contas na auditoria (Fase 13).
 

@@ -1131,6 +1131,10 @@ function NovoAtendimento() {
             setErroEdicao(`O valor não pode exceder o saldo em falta (${formatarMoeda(saldo)}).`)
             return
         }
+        if (valor < saldo) {
+            setErroEdicao(`O pagamento tem de liquidar o saldo total (${formatarMoeda(saldo)}).`)
+            return
+        }
         if (!pagamentoEdicao.metodo) {
             setErroEdicao("Selecione a forma de pagamento.")
             return
@@ -1207,6 +1211,10 @@ function NovoAtendimento() {
         }
         if (valor > saldo) {
             setDetalheError(`O valor não pode exceder o saldo em falta (${formatarMoeda(saldo)})`)
+            return
+        }
+        if (valor < saldo) {
+            setDetalheError(`O pagamento tem de liquidar o saldo total (${formatarMoeda(saldo)})`)
             return
         }
         if (!pagamentoForm.metodo) {

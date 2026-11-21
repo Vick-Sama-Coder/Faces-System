@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { agruparParcelasPorMetodo } from "../src/services/pagamento.js";
-import { calcularSaldosPorMetodo } from "../src/services/caixa.js";
+import { calcularSaldosPorMetodo, validarSessaoDoDia } from "../src/services/caixa.js";
 
 test("agrupa parcelas de atendimento por método sem misturar os respetivos saldos", () => {
     const parcelas = [
@@ -18,6 +18,22 @@ test("agrupa parcelas de atendimento por método sem misturar os respetivos sald
 
 test("devolve lista vazia quando não existem parcelas", () => {
     assert.deepEqual(agruparParcelasPorMetodo([]), []);
+});
+
+test("bloqueia operacoes quando a sessao aberta e de um dia anterior", () => {
+    assert.throws(
+        () => validarSessaoDoDia({ data_abertura: new Date("2020-01-01T10:00:00") }),
+        /dia anterior/
+    );
+});
+
+test("aceita a sessao aberta no dia atual", () => {
+    const sessao = { id: 1, data_abertura: new Date() };
+    assert.equal(validarSessaoDoDia(sessao), sessao);
+});
+
+test("rejeita a ausencia de sessao aberta", () => {
+    assert.throws(() => validarSessaoDoDia(null), /Nao existe caixa aberto/);
 });
 
 test("calcula saldos individuais e adiciona o saldo inicial apenas ao Dinheiro", () => {

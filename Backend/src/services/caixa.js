@@ -18,6 +18,35 @@ function validarMetodoPagamento(metodo) {
     }
 }
 
+function diaLocal(data) {
+    const valor = new Date(data);
+
+    if (Number.isNaN(valor.getTime())) return null;
+
+    return [
+        valor.getFullYear(),
+        String(valor.getMonth() + 1).padStart(2, '0'),
+        String(valor.getDate()).padStart(2, '0')
+    ].join('-');
+}
+
+// O fecho e diario (RF11). Se a sessao aberta pertence a outro dia, as
+// operacoes financeiras ficam bloqueadas ate o administrador a fechar.
+export function validarSessaoDoDia(sessao) {
+    if (!sessao) {
+        throw criarErro(409, 'Nao existe caixa aberto');
+    }
+
+    if (diaLocal(sessao.data_abertura) !== diaLocal(new Date())) {
+        throw criarErro(
+            409,
+            'Existe uma sessao de caixa de um dia anterior aberta. Feche-a antes de continuar'
+        );
+    }
+
+    return sessao;
+}
+
 export function calcularSaldosPorMetodo(saldos, saldoInicial = 0) {
     const saldoPorNome = new Map(
         saldos.map((item) => [item.metodo_pagamento, Number(item.saldo)])
@@ -74,22 +103,21 @@ const atual = async () => {
         return { aberta: false, sessao: null, saldo_esperado: null };
     }
 
+    const sessao_anterior = diaLocal(sessao.data_abertura) !== diaLocal(new Date());
+
     const [saldo_esperado, saldos] = await Promise.all([
         Caixa.saldoEsperado(db, sessao.id),
         Caixa.saldosPorMetodo(db, sessao.id)
     ]);
     const saldo_por_metodo = calcularSaldosPorMetodo(saldos, sessao.saldo_inicial);
 
-    return { aberta: true, sessao, saldo_esperado, saldo_por_metodo };
+    return { aberta: true, sessao, sessao_anterior, saldo_esperado, saldo_por_metodo };
 };
 
 //levantamento: saida de dinheiro do caixa (RN12)
 const levantamento = async ({ valor, metodo_pagamento, descricao, registado_por }) => {
     validarMetodoPagamento(metodo_pagamento);
-    const sessao = await Caixa.findSessaoAberta();
-    if (!sessao) {
-        throw criarErro(409, "Nao existe caixa aberto");
-    }
+    const sessao = validarSessaoDoDia(await Caixa.findSessaoAberta());
 
     return db.transaction(async (tx) => {
         const movimento_id = await Caixa.inserirMovimento(tx, {
@@ -114,10 +142,7 @@ const levantamento = async ({ valor, metodo_pagamento, descricao, registado_por 
 
 //fecho: contagem fisica + diferenca (RN11)
 const fechar = async ({ valor_contado, observacoes, fechado_por }) => {
-    const sessao = await Caixa.findSessaoAberta();
-    if (!sessao) {
-        throw criarErro(409, "Nao existe caixa aberto");
-    }
+    const sessao = validarSessaoDoDia(await Caixa.findSessaoAberta());
 
     await db.transaction(async (tx) => {
         const valor_esperado = await Caixa.saldoEsperado(tx, sessao.id);
@@ -149,10 +174,7 @@ const fechar = async ({ valor_contado, observacoes, fechado_por }) => {
 };
 
 const movimentos = async () => {
-    const sessao = await Caixa.findSessaoAberta();
-    if (!sessao) {
-        throw criarErro(404, "Nao existe caixa aberto");
-    }
+    const sessao = validarSessaoDoDia(await Caixa.findSessaoAberta());
 
     return { sessao_id: sessao.id, movimentos: await Caixa.movimentos(sessao.id) };
 };

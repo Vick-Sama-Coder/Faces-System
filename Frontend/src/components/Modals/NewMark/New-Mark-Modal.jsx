@@ -504,6 +504,8 @@ function NewMarkModal({ onclose, onSuccess }) {
                 erros.pagamento = "O valor pago nao pode ser negativo";
             } else if (valorPago > totalComDescontos) {
                 erros.pagamento = "O valor pago nao pode exceder o total do atendimento";
+            } else if (valorPago > 0 && valorPago < totalComDescontos) {
+                erros.pagamento = "O pagamento tem de liquidar o total do atendimento (nao ha credito nesta fase)";
             } else if (valorPago > 0 && !pagamento.metodo) {
                 erros.pagamento = "Selecione a forma de pagamento";
             }

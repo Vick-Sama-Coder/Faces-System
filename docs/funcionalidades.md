@@ -16,9 +16,11 @@ Legenda: ✅ implementado · 🟡 parcial (API pronta, interface incompleta) · 
 - **Login** (`/login`): **nome de utilizador** + senha. Em caso de sucesso, emite o cookie
   `token` (`httpOnly`) e devolve as permissões efetivas e o flag `deve_alterar_senha`.
 - **Primeiro acesso** (`/primeiro-acesso`): quando a conta ainda usa a senha padrão, a
-  interface obriga a definir uma nova senha antes de entrar no dashboard.
-  > O bloqueio é apenas no frontend; a API continua a aceitar pedidos autenticados
-  > enquanto o flag estiver activo (ver [estado-e-pendencias.md](./estado-e-pendencias.md)).
+  interface obriga a definir uma nova senha antes de entrar no dashboard. O bloqueio é
+  também aplicado no backend: enquanto `alteracao_obrigatoria_senha = true`, as restantes
+  rotas autenticadas respondem `403` com `code: "SENHA_ALTERACAO_OBRIGATORIA"`. Só ficam
+  acessíveis `GET /api/auth/me`, `POST /api/auth/primeiro-acesso`,
+  `POST /api/auth/alterar-senha` e `POST /api/auth/logout`.
 - **Sessão**: a app verifica `GET /api/auth/me` no arranque.
 - **Perfil** (`/perfil`): o utilizador actualiza nome/telefone (confirmação com a senha
   actual) e altera a própria senha.
@@ -105,10 +107,10 @@ Painel interno protegido por sessão, alimentado por `GET /api/dashboard`.
 - Despesa associada a uma sessão de caixa gera automaticamente a saída.
 - Categorias de despesa (`GET/POST /api/categorias-despesa`).
 - **Stock na interface é parcial:** a página consulta os movimentos
-  (`GET /api/movimentos`), mas a lista de produtos não é carregada, pelo que o painel de
-  stock aparece vazio. A API de stock está completa (ver abaixo).
+  (`GET /api/movimentos`) e monta a lista de produtos a partir deles; falta um
+  CRUD/listagem de todos os produtos e acções de entrada/saída/ajuste na interface.
 
-## Stock (API) 🟡 · interface ❌
+## Stock (API) 🟡 · interface 🟡
 
 - `GET /api/movimentos` — movimentos com filtros por produto, tipo e datas.
 - `GET /api/stock/:produto_id` — resumo calculado a partir dos movimentos (entradas,
@@ -117,8 +119,6 @@ Painel interno protegido por sessão, alimentado por `GET /api/dashboard`.
   `estoque:escrever`.
   > A permissão `estoque:escrever` **não consta** do seed `0001_seed.sql`; é necessário
   > concedê-la manualmente (ver pendências).
-  > O `services/api.js` do frontend aponta para `/api/estoque/*`, que **não existe** no
-  > backend; as acções de stock falham com `404` até a URL ser corrigida.
 - Não existe CRUD de produtos na API/interface (as tabelas de produto existem na base de
   dados).
 

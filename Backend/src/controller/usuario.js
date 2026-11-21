@@ -62,6 +62,20 @@ const createUsuario = async (req, res, next) => {
             alteracaoObrigatoria: !senha
         });
 
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "usuario",
+            id_registo: criado.id,
+            operacao: "criar",
+            depois: {
+                nome: criado.nome,
+                telefone: criado.telefone,
+                id_perfil: criado.id_perfil,
+                estado: criado.estado,
+                alteracao_obrigatoria_senha: !senha
+            }
+        });
+
         res.status(201).json({
             user: criado,
             //a senha padrao so e mostrada quando foi o sistema a defini-la
@@ -97,11 +111,33 @@ const updateUsuario = async (req, res, next) => {
             return res.status(409).json({ field: "nome", message: "Ja existe um utilizador com este nome" });
         }
 
+        const antes = await Usuario.findById(id);
+        if (!antes) {
+            return res.status(404).json({ message: "Utilizador nao encontrado" });
+        }
+
         const usuario = await Usuario.update(id, { nome, telefone: telefoneLimpo, id_perfil });
 
         if (!usuario) {
             return res.status(404).json({ message: "Utilizador nao encontrado" });
         }
+
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "usuario",
+            id_registo: usuario.id,
+            operacao: "atualizar",
+            antes: {
+                nome: antes.nome,
+                telefone: antes.telefone,
+                id_perfil: antes.id_perfil
+            },
+            depois: {
+                nome: usuario.nome,
+                telefone: usuario.telefone,
+                id_perfil: usuario.id_perfil
+            }
+        });
 
         res.status(200).json(usuario);
     } catch (error) {
@@ -120,11 +156,25 @@ const updateEstadoUsuario = async (req, res, next) => {
             return res.status(400).json({ message: "O campo estado e obrigatorio" });
         }
 
+        const antes = await Usuario.findById(req.params.id);
+        if (!antes) {
+            return res.status(404).json({ message: "Utilizador nao encontrado" });
+        }
+
         const usuario = await Usuario.updateEstado(req.params.id, estado);
 
         if (!usuario) {
             return res.status(404).json({ message: "Utilizador nao encontrado" });
         }
+
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "usuario",
+            id_registo: usuario.id,
+            operacao: "alterar_estado",
+            antes: { estado: antes.estado },
+            depois: { estado: usuario.estado }
+        });
 
         res.status(200).json(usuario);
     } catch (error) {
@@ -144,6 +194,14 @@ const reporSenha = async (req, res, next) => {
 
         const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
         await Usuario.updateSenha(id, senhaHash, true);
+
+        await AuditoriaService.registar({
+            id_utilizador: req.user.id,
+            entidade: "usuario",
+            id_registo: alvo.id,
+            operacao: "repor_senha",
+            depois: { alteracao_obrigatoria_senha: true }
+        });
 
         res.status(200).json({
             message: "Credencial reposta com a senha padrao",

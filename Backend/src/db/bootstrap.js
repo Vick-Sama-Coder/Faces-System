@@ -6,6 +6,7 @@ import pg from 'pg';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import db, { pool } from './client.js';
 import { hostLocal, sslConfig } from '../config/pgSsl.js';
+import { logger } from '../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -91,7 +92,7 @@ export async function ensureDatabaseExists() {
     const manutencao = baseManutencao();
 
     if (!manutencao) {
-        console.log('[db] Host remoto sem DATABASE_MAINTENANCE_DB; criacao automatica de base desativada.');
+        logger.info('[db] Host remoto sem DATABASE_MAINTENANCE_DB; criacao automatica de base desativada.');
         return;
     }
 
@@ -107,7 +108,7 @@ export async function ensureDatabaseExists() {
 
         if (rows.length === 0) {
             await client.query(`create database ${ident(nome)}`);
-            console.log(`[db] Base de dados "${nome}" criada.`);
+            logger.info(`[db] Base de dados "${nome}" criada.`);
         }
     } finally {
         await client.end();
@@ -132,7 +133,7 @@ function gerarMigracoesIniciais() {
         process.platform === 'win32' ? 'drizzle-kit.cmd' : 'drizzle-kit'
     );
 
-    console.log('[db] Nenhuma migracao encontrada; a gerar a migracao inicial...');
+    logger.info('[db] Nenhuma migracao encontrada; a gerar a migracao inicial...');
 
     const resultado = spawnSync(binario, ['generate', '--name=init'], {
         cwd: BACKEND_DIR,
@@ -212,9 +213,9 @@ export async function bootstrapDatabase() {
     }
 
     if (tabelaPrincipal) {
-        console.log('[db] Migracoes pendentes aplicadas.');
+        logger.info('[db] Migracoes pendentes aplicadas.');
     } else {
-        console.log('[db] Base de dados criada e migracoes aplicadas.');
+        logger.info('[db] Base de dados criada e migracoes aplicadas.');
     }
 }
 

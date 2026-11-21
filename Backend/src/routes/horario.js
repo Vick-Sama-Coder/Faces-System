@@ -6,6 +6,7 @@ const router = express.Router();
 
 //Programacao do funcionario: leitura autenticada; escrita requer "horarios:gerir"
 router.get('/funcionarios/:id/horarios', authenticate, HorarioController.getHorarios);
+router.get('/funcionarios/:id/horarios/historico', authenticate, HorarioController.getHistorico);
 router.post('/funcionarios/:id/horarios', authenticate, authorizePermission('horarios:gerir'), HorarioController.createHorario);
 router.put('/funcionarios/:id/horarios', authenticate, authorizePermission('horarios:gerir'), HorarioController.substituirHorarios);
 router.put('/horarios/:id', authenticate, authorizePermission('horarios:gerir'), HorarioController.atualizarHorario);

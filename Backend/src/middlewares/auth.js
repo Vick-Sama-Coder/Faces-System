@@ -4,6 +4,27 @@ import db from '../db/client.js';
 import { perfil, usuario } from '../db/schema/index.js';
 import Permissao from '../repository/permissao.js';
 
+//Rotas que continuam acessiveis enquanto a conta ainda usa a senha padrao.
+//O frontend ja redirecciona para /primeiro-acesso, mas o bloqueio tambem tem
+//de ser aplicado no servidor (RF01): sem isto, uma chamada directa a API
+//contornaria a troca obrigatoria.
+const ROTAS_SENHA_PENDENTE = new Set([
+    '/api/auth/me',
+    '/api/auth/primeiro-acesso',
+    '/api/auth/alterar-senha',
+    '/api/auth/logout'
+]);
+
+export function caminhoPermitidoSenhaPendente(originalUrl){
+    const caminho = String(originalUrl || '').split('?')[0];
+
+    if(!caminho){
+        return false;
+    }
+
+    return ROTAS_SENHA_PENDENTE.has(caminho.length > 1 ? caminho.replace(/\/+$/, '') : caminho);
+}
+
 //Verifica o token no cookie, carrega o utilizador + perfil + permissoes para req.user
 export async function authenticate(req, res, next){
     try{
@@ -43,6 +64,15 @@ export async function authenticate(req, res, next){
         //contas inativas perdem o acesso, mesmo com token valido
         if(user.estado !== "Ativo"){
             return res.status(403).json({message: "Conta inativa: contacte o administrador"});
+        }
+
+        //primeiro acesso: a conta autentica-se, mas so pode consultar a sessao
+        //e trocar a senha ate o flag ser limpo (RF01)
+        if(user.alteracao_obrigatoria_senha && !caminhoPermitidoSenhaPendente(req.originalUrl)){
+            return res.status(403).json({
+                code: "SENHA_ALTERACAO_OBRIGATORIA",
+                message: "Defina uma nova senha antes de continuar"
+            });
         }
 
         const permissoes = await Permissao.codigosEfetivos(user.id, user.id_perfil);

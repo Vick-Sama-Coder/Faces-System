@@ -113,6 +113,20 @@
       "when": 1793971056295,
       "tag": "0015_assiduidade_ausencias",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793971056296,
+      "tag": "0016_estoque_permissao",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793971056297,
+      "tag": "0017_horario_historico",
+      "breakpoints": true
     }
   ]
 }

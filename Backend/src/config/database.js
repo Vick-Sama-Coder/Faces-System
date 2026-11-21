@@ -4,6 +4,7 @@ import path from 'path'
 import { fileURLToPath } from 'url';
 import net from 'node:net';
 import { sslConfig } from './pgSsl.js';
+import { logger } from '../utils/logger.js';
 
 // Servicos geridos (ex.: Neon) expoem varios IPs. O tempo de tentativa por
 // endereco do Node (250 ms) e curto para redes lentas e provoca ETIMEDOUT.
@@ -36,13 +37,13 @@ const pool = new Pool({
 });
 
 pool.on("connect", () => {
-  console.log("Database conectada ")
+  logger.info("Database conectada ")
 });
 
 // Um erro numa ligacao idle nao deve derrubar o backend. A pool remove a
 // ligacao invalida e cria outra no proximo pedido.
 pool.on("error", (err) => {
-  console.error("[db] Erro numa ligacao inativa da pool:", err.code || "", err.message);
+  logger.error("[db] Erro numa ligacao inativa da pool:", err.code || "", err.message);
 })
 
 export default pool;

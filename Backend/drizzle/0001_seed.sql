@@ -32,6 +32,7 @@ insert into permissao (codigo, descricao, modulo) values
     ('caixa:levantar',      'Registar levantamentos de caixa',    'caixa'),
     ('caixa:fechar',        'Fechar o caixa',                     'caixa'),
     ('despesas:escrever',   'Registar e editar despesas',         'despesas'),
+    ('estoque:escrever',    'Registar movimentos de stock',       'estoque'),
     ('fidelizacao:corrigir','Corrigir fidelizacao',               'fidelizacao'),
     ('horarios:gerir',      'Gerir horarios de funcionarios',     'horarios'),
     ('assiduidade:gerir',   'Gerir assiduidade',                  'assiduidade'),

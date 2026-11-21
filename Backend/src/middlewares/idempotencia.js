@@ -1,4 +1,5 @@
 import pool from '../config/database.js';
+import { logger } from '../utils/logger.js';
 
 const METODOS_COM_ESCRITA = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const CHAVE_VALIDA = /^[A-Za-z0-9._:-]{8,120}$/;
@@ -22,7 +23,7 @@ async function limparRegistosAntigos() {
              where criado_em < now() - interval '7 days'`
         );
     } catch (erro) {
-        console.error('[idempotencia] Falha ao limpar registos antigos:', erro.message);
+        logger.error('[idempotencia] Falha ao limpar registos antigos:', erro.message);
     }
 }
 
@@ -60,7 +61,7 @@ async function guardarResposta(req, res, statusCode, corpo) {
             ]
         );
     } catch (erro) {
-        console.error('[idempotencia] Falha ao guardar resposta:', erro.message);
+        logger.error('[idempotencia] Falha ao guardar resposta:', erro.message);
     }
 }
 
@@ -187,7 +188,7 @@ export default async function idempotencia(req, res, next) {
         return next();
     } catch (erro) {
         // A idempotencia nunca deve derrubar a operacao principal.
-        console.error('[idempotencia] Erro:', erro.message);
+        logger.error('[idempotencia] Erro:', erro.message);
         return next();
     }
 }

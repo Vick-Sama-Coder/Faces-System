@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import app from './app.js';
 import { bootstrapDatabase } from './db/bootstrap.js';
+import { logger } from './utils/logger.js';
 
 //Carrega o .env antes de ler a porta (o app.js tambem o faz, mas assim a ordem e explicita)
 const __filename = fileURLToPath(import.meta.url);
@@ -17,10 +18,10 @@ const PORT = process.env.PORT || 5001;
 try {
   await bootstrapDatabase();
 } catch (erro) {
-  console.error('[db] Nao foi possivel preparar a base de dados:', erro.message);
+  logger.error('[db] Nao foi possivel preparar a base de dados:', erro.message);
   process.exit(1);
 }
 
 app.listen(PORT, () =>{
-  console.log(`Servidor esta escutando na porta: ${PORT}`);
+  logger.info(`Servidor esta escutando na porta: ${PORT}`);
 });

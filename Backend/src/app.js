@@ -6,6 +6,8 @@ import path from 'node:path';
 import cookieParser from 'cookie-parser';
 import { codigoPostgres } from './utils/erro.js';
 import idempotencia from './middlewares/idempotencia.js';
+import paginacao from './middlewares/paginacao.js';
+import { logger } from './utils/logger.js';
 import authRoutes from './routes/auth.js'
 import funcionarioRoutes from './routes/funcionario.js'
 import servicoRoutes from './routes/servico.js'
@@ -20,6 +22,7 @@ import comissaoRoutes from './routes/comissao.js'
 import caixaRoutes from './routes/caixa.js'
 import despesaRoutes from './routes/despesa.js'
 import movimentoEstoqueRoutes from "./routes/movimento_estoque.js";
+import produtoRoutes from "./routes/produto.js";
 import fidelizacaoRoutes from './routes/fidelizacao.js'
 import horarioRoutes from './routes/horario.js'
 import assiduidadeRoutes from './routes/assiduidade.js'
@@ -52,7 +55,7 @@ function normalizarOrigens(valor) {
       try {
         return new URL(item).origin;
       } catch {
-        console.warn('[cors] CLIENT_URL invalido, ignorado:', item);
+        logger.warn('[cors] CLIENT_URL invalido, ignorado:', item);
         return null;
       }
     })
@@ -78,7 +81,7 @@ app.use(cors({
   optionsSuccessStatus: 204,
   maxAge: 86400
 }));
-console.log('CLIENT_URL carregado:', ORIGENS_UNICAS.join(', ') || '(nenhum)');
+logger.info('CLIENT_URL carregado:', ORIGENS_UNICAS.join(', ') || '(nenhum)');
 
 //adicionando middlewares globais
 app.use(express.json()); //para ler json
@@ -92,6 +95,7 @@ app.use('/api', (req, res, next) => {
 });
 
 app.use(idempotencia); //respostas idempotentes para a fila offline
+app.use(paginacao); //limit/offset opcionais em listagens GET
 
 app.use("/api/auth",authRoutes);
 app.use("/api", funcionarioRoutes);
@@ -107,6 +111,7 @@ app.use("/api", comissaoRoutes);
 app.use("/api", caixaRoutes);
 app.use("/api", despesaRoutes);
 app.use("/api", movimentoEstoqueRoutes);
+app.use("/api", produtoRoutes);
 app.use("/api", fidelizacaoRoutes);
 app.use("/api", horarioRoutes);
 app.use("/api", assiduidadeRoutes);
@@ -138,7 +143,7 @@ app.use((err, req, res, next) => {
   const message = err.status ? err.message : (conhecido ? conhecido[1] : "Erro interno do servidor");
 
   if (status === 500) {
-    console.error("Erro no servidor:", err.cause?.message || err.message);
+    logger.error("Erro no servidor:", err.cause?.message || err.message);
   }
 
   const resposta = { message };

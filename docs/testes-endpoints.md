@@ -103,6 +103,9 @@ curl -s -c "$JAR" -X POST "$BASE/auth/login" \
   -H 'Content-Type: application/json' \
   -d '{"nome":"Administrador","senha":"12345"}'
 
+# o backend bloqueia as restantes rotas até a senha ser trocada (403)
+curl -s -o /dev/null -w '%{http_code}\n' -b "$JAR" "$BASE/clientes"
+
 # define a senha definitiva
 curl -s -b "$JAR" -c "$JAR" -X POST "$BASE/auth/primeiro-acesso" \
   -H 'Content-Type: application/json' \
@@ -166,7 +169,7 @@ Legenda: ✅ implementado · ⚠️ implementado com desvio/lacuna · ❌ não i
 
 | Requisito | Estado | Onde está | Observações |
 | --- | --- | --- | --- |
-| **RF01 — Autenticação** | ⚠️ | `routes/auth.js`, `middlewares/auth.js` | Login/logout/me/permissoes OK; conta inativa bloqueada. **Não** há expiração por inatividade (JWT 30 dias, cookie 10 dias) nem **bloqueio** enquanto `alteracao_obrigatoria_senha` estiver ativa (o flag é devolvido, mas não impede chamadas). |
+| **RF01 — Autenticação** | ⚠️ | `routes/auth.js`, `middlewares/auth.js` | Login/logout/me/permissoes OK; conta inativa bloqueada; conta com `alteracao_obrigatoria_senha = true` fica limitada ao fluxo de primeiro acesso (`/auth/me`, `/auth/primeiro-acesso`, `/auth/alterar-senha`, `/auth/logout`). **Não** há expiração por inatividade (JWT 30 dias, cookie 10 dias). |
 | **RF02 — Gestão de contas** | ⚠️ | `controller/usuario.js`, `controller/perfil.js` | Criar/editar/estado/repor senha/perfis/permissões OK; último acesso exposto. **Auditoria só nas alterações de permissões** — criação, edição, estado e reposição de senha não geram log (RF02 pede “registar as alterações”). |
 | **RF03 — Gestão de clientes** | ⚠️ | `controller/cliente.js` | CRUD, pesquisa por nome/telefone e bloqueio de telefone duplicado OK. **Não** existe endpoint de “possíveis correspondências” antes de criar; o cliente tem de existir antes do atendimento. |
 | **RF04 — Gestão de serviços** | ✅ | `controller/servico.js` | CRUD, ativar/desativar, catálogo e histórico de preços. Serviço usado em atendimento não é apagável (`409`). |
@@ -194,17 +197,14 @@ Legenda: ✅ implementado · ⚠️ implementado com desvio/lacuna · ❌ não i
 
 ### 3.1. Lacunas que merecem correção prioritária
 
-1. **Anulação de pagamento (RF09)** — hoje deixa o dinheiro no caixa e a comissão ativa.
-   Um pagamento anulado continua a contar para `relatorios/resumo` se o atendimento
-   estiver anulado (a query só filtra `pagamento.estado <> 'Anulado'`, não o atendimento).
+1. **Anulação de pagamento (RF09)** — a comissão continua ativa. Um pagamento anulado
+   continua a contar para `relatorios/resumo` se o atendimento estiver anulado (a query só
+   filtra `pagamento.estado <> 'Anulado'`, não o atendimento).
 2. **Pagamento parcial (RF08)** — decidir: bloquear pagamentos inferiores ao devido ou
    documentar que “Parcial” é permitido (o requisito fala em não haver crédito).
-3. **Troca de senha obrigatória (RF01)** — bloquear as restantes rotas enquanto
-   `alteracao_obrigatoria_senha = true` (exceto `/auth/me`, `/auth/alterar-senha` e
-   `/auth/logout`).
-4. **Auditoria de contas (RF02/RF23)** — auditar criar/editar/estado/repor senha e
+3. **Auditoria de contas (RF02/RF23)** — auditar criar/editar/estado/repor senha e
    registar falhas (“resultado da operação”).
-5. **Fecho de caixa (RF11)** — bloquear operações no dia seguinte e documentar a
+4. **Fecho de caixa (RF11)** — bloquear operações no dia seguinte e documentar a
    correção administrativa.
 
 ### 3.2. Evidência observada (execução manual)
@@ -1508,9 +1508,6 @@ curl -s -b "$JAR" "$BASE/movimentos?produto_id=1&tipo=entrada"
 > **Atenção:** a permissão `estoque:escrever` não consta do seed inicial. Sem a conceder
 > manualmente, mesmo o Administrador recebe `403`. Saída sem stock suficiente deve ser
 > rejeitada (`400`/`409`).
->
-> O frontend chama `POST /api/estoque/entrada|saida|ajuste`, que devolve `404`. As rotas
-> reais são `POST /api/entrada|saida|ajuste`.
 
 ---
 

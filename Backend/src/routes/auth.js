@@ -6,6 +6,7 @@ import Permissao from '../repository/permissao.js';
 import AuditoriaService from '../services/auditoria.js';
 import { authenticate, authorize } from '../middlewares/auth.js';
 import { validarNome, validarTelefone, validarSenha, limparTelefone } from '../utils/validacoes.js';
+import { SESSAO_MS } from '../utils/sessao.js';
 
 const PRODUCAO = process.env.NODE_ENV === 'production';
 
@@ -17,8 +18,7 @@ const cookieOptions = {
     // atraves do proxy /api do frontend.
     sameSite: PRODUCAO ? 'none' : 'lax',
     ...(PRODUCAO ? { partitioned: true } : {}),
-    maxAge: 10 * 24 * 60 * 60 * 1000 //10 dias
-
+    maxAge: SESSAO_MS
 }
 
 //senha inicial de quem se regista: tem de ser mostrada e trocada no primeiro acesso

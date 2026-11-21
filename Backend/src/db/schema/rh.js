@@ -42,6 +42,22 @@ export const horarioFuncionario = pgTable('horario_funcionario', {
     check('horario_funcionario_dia_semana_check', sql`${table.dia_semana} between 0 and 6`)
 ]);
 
+// Versao historica de cada turno substituido/removido. Permite reconstruir a
+// programacao anterior sem manter linhas apagadas na tabela principal.
+export const horarioFuncionarioHistorico = pgTable('horario_funcionario_historico', {
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    funcionario_id: integer('funcionario_id').notNull().references(() => funcionario.id),
+    dia_semana: integer('dia_semana').notNull(),
+    hora_entrada: time('hora_entrada').notNull(),
+    hora_saida: time('hora_saida').notNull(),
+    estado: varchar('estado', { length: 20 }).notNull().default('Ativo'),
+    substituido_em: timestamp('substituido_em').notNull().defaultNow(),
+    substituido_por: integer('substituido_por').references(() => usuario.id)
+}, (table) => [
+    index('horario_funcionario_historico_funcionario_idx').on(table.funcionario_id),
+    check('horario_funcionario_historico_dia_semana_check', sql`${table.dia_semana} between 0 and 6`)
+]);
+
 // Registo diario de assiduidade.
 export const assiduidade = pgTable('assiduidade', {
     id: integer('id').primaryKey().generatedAlwaysAsIdentity(),

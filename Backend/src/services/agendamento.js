@@ -6,7 +6,7 @@ import Comissao from '../repository/comissao.js';
 import Caixa from '../repository/caixa.js';
 import FidelizacaoService from './fidelizacao.js';
 import AuditoriaService from './auditoria.js';
-import { METODOS_PAGAMENTO } from './caixa.js';
+import { METODOS_PAGAMENTO, validarSessaoDoDia } from './caixa.js';
 import { criarErro } from '../utils/erro.js';
 import { servicoContaParaFidelizacao } from '../utils/validacoes.js';
 
@@ -406,10 +406,7 @@ const cancelar = async (id, { itens, motivo, metodo_pagamento, registado_por }) 
                 throw criarErro(400, 'Escolha um metodo de pagamento valido para o reembolso');
             }
 
-            const sessao = await Caixa.findSessaoAberta(tx);
-            if (!sessao) {
-                throw criarErro(409, 'Abra uma sessao de Caixa antes de registar o reembolso');
-            }
+            const sessao = validarSessaoDoDia(await Caixa.findSessaoAberta(tx));
 
             const reembolso_id = await Agendamento.insertReembolso(tx, {
                 agendamento_id: id,

@@ -63,11 +63,11 @@
   primeiro acesso.
 - A recuperação de senha por telefone/SMS foi **removida**.
 
-> ⚠️ **Limitação actual:** o bloqueio do primeiro acesso é feito apenas no frontend. O
-> backend continua a aceitar chamadas autenticadas com uma conta que ainda tenha
-> `alteracao_obrigatoria_senha = true` (exceto o próprio fluxo de primeiro acesso).
-> Endurecer isto no servidor é uma pendência registada em
-> [estado-e-pendencias.md](./estado-e-pendencias.md).
+O bloqueio do primeiro acesso é aplicado **no frontend e no backend**. Enquanto
+`alteracao_obrigatoria_senha = true`, o middleware `authenticate` só deixa passar
+`GET /api/auth/me`, `POST /api/auth/primeiro-acesso`, `POST /api/auth/alterar-senha` e
+`POST /api/auth/logout`; as restantes rotas autenticadas respondem `403` com
+`code: "SENHA_ALTERACAO_OBRIGATORIA"`.
 
 ## Gestão da própria conta
 
@@ -87,6 +87,8 @@ Definidos em `Backend/src/middlewares/auth.js`.
 - Token inválido/expirado → `401 { "message": "Nao autenticado: token invalido ou expirado" }`
 - Utilizador não encontrado → `401 { "message": "Nao autenticado: utilizador nao existe" }`
 - Conta inativa → `403 { "message": "Conta inativa: contacte o administrador" }`
+- Senha padrão por trocar (fora do fluxo de primeiro acesso) →
+  `403 { "code": "SENHA_ALTERACAO_OBRIGATORIA", "message": "Defina uma nova senha antes de continuar" }`
 - Sucesso → define `req.user` (com `permissoes`) e chama `next()`
 
 ### `authorize(...perfis)`

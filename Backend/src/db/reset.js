@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import pg from 'pg';
 import { sslConfig } from '../config/pgSsl.js';
+import { logger } from '../utils/logger.js';
 
 dotenv.config();
 
@@ -8,7 +9,7 @@ const { Client } = pg;
 const nome = process.env.DATABASE_NAME;
 
 if (!nome) {
-    console.error('[db] DATABASE_NAME nao esta definido no .env');
+    logger.error('[db] DATABASE_NAME nao esta definido no .env');
     process.exit(1);
 }
 
@@ -39,7 +40,7 @@ try {
 
     await client.query(`drop database if exists ${ident(nome)}`);
     await client.query(`create database ${ident(nome)}`);
-    console.log(`[db] Base "${nome}" recriada.`);
+    logger.info(`[db] Base "${nome}" recriada.`);
 } finally {
     await client.end();
 }
@@ -53,7 +54,7 @@ try {
     await pool.end();
     process.exit(0);
 } catch (erro) {
-    console.error('[db] Falha ao migrar a base recriada:', erro.message);
+    logger.error('[db] Falha ao migrar a base recriada:', erro.message);
     await pool.end().catch(() => {});
     process.exit(1);
 }

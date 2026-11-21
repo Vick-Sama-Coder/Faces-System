@@ -11,7 +11,7 @@ mock. As lacunas abaixo são de implementação ou de decisão de produto.
 - ✅ Registo, login, sessão (`/auth/me`), perfil próprio e logout, com JWT em cookie
   `httpOnly`.
 - ✅ Registo com senha padrão `12345` e fluxo de **primeiro acesso** que obriga a definir
-  uma nova senha antes de usar o sistema.
+  uma nova senha antes de usar o sistema, com bloqueio aplicado também no servidor.
 - ✅ Autorização por **permissões (RBAC)** no backend e no frontend, com perfis
   `Administrador`, `Usuario` e `Auditor`.
 - ✅ Gestão de contas, perfis e permissões (incluindo permissões individuais) e reposição
@@ -43,47 +43,42 @@ mock. As lacunas abaixo são de implementação ou de decisão de produto.
 
 Prioridade alta porque afectam dinheiro, segurança ou requisitos explícitos.
 
-1. **Anulação de pagamento não reverte caixa nem comissão (RF09).** O pagamento fica
-   `Anulado`, mas o movimento de caixa continua `Ativo` e a comissão continua `Elegivel`.
+1. **Anulação de pagamento não reverte a comissão (RF09).** O pagamento fica `Anulado` e
+   os movimentos de caixa associados são anulados, mas a comissão continua `Elegivel`.
    O relatório `resumo` também conta pagamentos de atendimentos anulados (a query filtra
    apenas `pagamento.estado <> 'Anulado'`).
 2. **Pagamento parcial é aceite (RF08).** O requisito diz que não há crédito nesta fase,
    mas o backend devolve `estado = "Parcial"` quando a soma é inferior ao devido.
-3. **Troca de senha obrigatória não bloqueia acessos no servidor (RF01).** O flag
-   `alteracao_obrigatoria_senha` é devolvido no login e o frontend redirecciona para
-   `/primeiro-acesso`, mas a API continua a aceitar os restantes pedidos autenticados.
-4. **Auditoria incompleta de contas (RF02/RF23).** Criar/editar/activar/desactivar contas e
+3. **Auditoria incompleta de contas (RF02/RF23).** Criar/editar/activar/desactivar contas e
    repor senhas não geram log; não existe “resultado da operação” nem registo de tentativas
    falhadas. As alterações de permissões e do próprio perfil são auditadas.
-5. **Fecho de caixa do dia anterior (RF11).** Não há bloqueio de operações no dia seguinte
+4. **Fecho de caixa do dia anterior (RF11).** Não há bloqueio de operações no dia seguinte
    nem procedimento administrativo documentado para corrigir um fecho errado.
-6. **Permissão `estoque:escrever` em falta no seed.** As rotas de stock exigem essa
+5. **Permissão `estoque:escrever` em falta no seed.** As rotas de stock exigem essa
    permissão, mas ela não consta de `drizzle/0001_seed.sql`, pelo que nem o
    `Administrador` a recebe automaticamente. É necessário concedê-la manualmente ou
    acrescentá-la ao seed.
-7. **Sem CRUD de produtos.** As tabelas de produto existem, mas não há endpoints nem
+6. **Sem CRUD de produtos.** As tabelas de produto existem, mas não há endpoints nem
    interface para criar/editar produtos.
 
 ## Limitações de interface
 
-8. **Stock parcial em `/despesas`.** A página consulta `GET /api/movimentos`, mas nunca
-   carrega a lista de produtos (`produtosStock` fica vazia), pelo que o painel de stock
-   aparece sempre vazio. As URLs de escrita de stock já foram alinhadas com o backend
-   (`POST /api/entrada|saida|ajuste`), mas continua a faltar um CRUD/listagem de produtos.
-9. **Sem página dedicada de caixa.** As operações existem por API e são usadas por
-   atendimentos/despesas, mas não há ecrã próprio de abertura/fecho/levantamentos.
-10. **Sem interface de salários.** Processamento, deduções, aprovação e pagamento só por
-    API.
-11. **Sem página de catálogo público.** A API pública existe; não há vista pública no
-    frontend.
-12. **Modalidades/aplicações de serviços** têm API; a interface cobre o essencial do CRUD
-    de serviços, mas não expõe toda a gestão avançada.
+7. **Stock parcial em `/despesas`.** A página consulta `GET /api/movimentos` e monta a
+   lista de produtos a partir dos movimentos, mas continua a faltar um CRUD/listagem de
+   todos os produtos. As URLs de escrita de stock estão alinhadas com o backend
+   (`POST /api/entrada|saida|ajuste`).
+8. **Sem interface de salários.** Processamento, deduções, aprovação e pagamento só por
+   API.
+9. **Modalidades/aplicações de serviços** têm API; a interface cobre o essencial do CRUD
+   de serviços, mas não expõe toda a gestão avançada.
 
 ## Limitações técnicas
 
-13. **Sem testes automatizados.** Não existe suite de testes no backend nem no frontend;
-    a verificação é manual, através de [testes-endpoints.md](./testes-endpoints.md).
-14. **Offline depende de dados pré-carregados.** O modo offline cobre o app shell, as
+10. **Cobertura de testes reduzida.** Existem testes unitários em `Backend/test/`
+    (caixa, salários e autenticação), mas não há suite completa nem testes de frontend; a
+    verificação global continua manual, através de
+    [testes-endpoints.md](./testes-endpoints.md).
+11. **Offline depende de dados pré-carregados.** O modo offline cobre o app shell, as
     leituras já visitadas/pré-carregadas e as escritas não sensíveis. Ainda não existe
     resolução automática de conflitos entre dispositivos (as escritas são
     last-write-wins) nem sincronização em background quando a app está completamente
@@ -92,13 +87,13 @@ Prioridade alta porque afectam dinheiro, segurança ou requisitos explícitos.
     restantes operações; erros transitórios (rede/5xx/429) são repetidos. Operações de
     autenticação, perfil, contas e **todas as escritas de salários** são online-only por
     segurança. O cache expira ao fim de 30 dias (10 dias para a sessão).
-15. **Sem cópias de segurança (RF24).** Não há script de backup/restauro documentado.
-16. **Duração da sessão inconsistente.** O JWT expira em 30 dias e o cookie em 10 dias.
-17. **Paginação ausente.** As listagens devolvem arrays simples; não há paginação
+12. **Sem cópias de segurança (RF24).** Não há script de backup/restauro documentado.
+13. **Duração da sessão inconsistente.** O JWT expira em 30 dias e o cookie em 10 dias.
+14. **Paginação ausente.** As listagens devolvem arrays simples; não há paginação
     server-side (por decisão de projecto nesta fase).
-18. **Logs heterogéneos.** Uso misto de `console.log`/`console.error`; nem todas as
+15. **Logs heterogéneos.** Uso misto de `console.log`/`console.error`; nem todas as
     mensagens estão normalizadas.
-19. **Histórico de horários não guardado.** A substituição da programação apaga as linhas
+16. **Histórico de horários não guardado.** A substituição da programação apaga as linhas
     anteriores; não há versão histórica (turnos rotativos continuam em decisão).
 
 ## Pendências de produto (Fase 16)
@@ -132,11 +127,10 @@ implementadas por interpretação:
 
 ## Próximos passos sugeridos
 
-1. Corrigir a anulação de pagamentos (caixa, comissão e relatórios).
-2. Bloquear no servidor as rotas enquanto `alteracao_obrigatoria_senha = true`.
-3. Acrescentar `estoque:escrever` ao seed e completar o painel de stock (carregar produtos
-   e permitir entrada/saída/ajuste).
-4. Auditar criação/edição/estado/reposição de senha de contas.
-5. Criar CRUD de produtos e uma página de caixa.
-6. Decidir as questões da Fase 16 e actualizar os requisitos.
-7. Adicionar testes automatizados e scripts de backup/restauro.
+1. Corrigir a anulação de pagamentos (comissão e relatórios).
+2. Acrescentar `estoque:escrever` ao seed e completar o painel de stock (permitir
+   entrada/saída/ajuste).
+3. Auditar criação/edição/estado/reposição de senha de contas.
+4. Criar CRUD de produtos.
+5. Decidir as questões da Fase 16 e actualizar os requisitos.
+6. Ampliar os testes automatizados e criar scripts de backup/restauro.

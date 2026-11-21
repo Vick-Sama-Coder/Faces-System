@@ -9,7 +9,9 @@ const resumo = async () => {
                 coalesce((select sum(pp.valor)
                             from pagamento_parcela pp
                             join pagamento p on p.id = pp.pagamento_id
+                            left join atendimento a on a.id = p.atendimento_id
                            where p.estado <> 'Anulado'
+                             and (p.atendimento_id is null or a.estado <> 'Anulado')
                              and p.data_hora >= date_trunc('month', current_date)
                              and p.data_hora < date_trunc('month', current_date) + interval '1 month'), 0)
                 - coalesce((select sum(r.valor)
@@ -26,7 +28,9 @@ const resumo = async () => {
                 coalesce((select sum(pp.valor)
                             from pagamento_parcela pp
                             join pagamento p on p.id = pp.pagamento_id
+                            left join atendimento a on a.id = p.atendimento_id
                            where p.estado <> 'Anulado'
+                             and (p.atendimento_id is null or a.estado <> 'Anulado')
                              and p.data_hora >= date_trunc('month', current_date) - interval '1 month'
                              and p.data_hora < date_trunc('month', current_date)), 0)
                 - coalesce((select sum(r.valor)
@@ -91,7 +95,9 @@ const serie = async () => {
                 coalesce((select sum(pp.valor)
                             from pagamento_parcela pp
                             join pagamento p on p.id = pp.pagamento_id
+                            left join atendimento a on a.id = p.atendimento_id
                            where p.estado <> 'Anulado'
+                             and (p.atendimento_id is null or a.estado <> 'Anulado')
                              and p.data_hora >= m.mes
                              and p.data_hora < m.mes + interval '1 month'), 0)
                 - coalesce((select sum(r.valor)

@@ -682,12 +682,55 @@ const aplicarDesconto = async (atendimento_id, dados, registado_por) => {
     });
 };
 
+// A anulacao do atendimento tem de retirar as comissoes ainda nao pagas. As
+// comissoes ja pagas ficam no historico salarial. Os pagamentos sao mantidos,
+// mas os relatorios excluem os atendimentos anulados.
+const anular = async (id, { motivo, registado_por }) => {
+    if (!motivo || !String(motivo).trim()) {
+        throw criarErro(400, "O motivo da anulacao e obrigatorio");
+    }
+
+    const motivoLimpo = String(motivo).trim().slice(0, 255);
+
+    return db.transaction(async (tx) => {
+        const antes = await Atendimento.findById(id, tx);
+
+        if (!antes) {
+            throw criarErro(404, "Atendimento nao encontrado");
+        }
+        if (antes.estado === "Anulado") {
+            throw criarErro(409, "Este atendimento ja esta anulado");
+        }
+
+        const atendimento = await Atendimento.updateEstado(
+            id,
+            { estado: "Anulado", motivo_anulacao: motivoLimpo },
+            tx
+        );
+
+        await Comissao.deleteParaAtendimento(tx, id);
+
+        await AuditoriaService.registar({
+            id_utilizador: registado_por,
+            entidade: "atendimento",
+            id_registo: id,
+            operacao: "anular",
+            antes: { estado: antes.estado },
+            depois: { estado: "Anulado" },
+            motivo: motivoLimpo
+        }, tx);
+
+        return atendimento;
+    });
+};
+
 const AtendimentoService = {
     criar,
     atualizar,
     adicionarServico,
     removerServico,
-    aplicarDesconto
+    aplicarDesconto,
+    anular
 };
 
 export default AtendimentoService;

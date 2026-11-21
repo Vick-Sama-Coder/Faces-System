@@ -15,7 +15,9 @@ const resumo = async ({ de, ate } = {}) => {
                 coalesce((select sum(pp.valor)
                             from pagamento_parcela pp
                             join pagamento p on p.id = pp.pagamento_id
+                            left join atendimento a on a.id = p.atendimento_id
                            where p.estado <> 'Anulado'
+                             and (p.atendimento_id is null or a.estado <> 'Anulado')
                              and (${periodo(sql`p.data_hora::date`, de, ate)})), 0)
                 - coalesce((select sum(r.valor)
                               from agendamento_reembolso r
@@ -259,7 +261,9 @@ const resumoFinanceiro = async ({ de, ate } = {}) => {
                 coalesce((select sum(pp.valor)
                             from pagamento_parcela pp
                             join pagamento p on p.id = pp.pagamento_id
+                            left join atendimento a on a.id = p.atendimento_id
                            where p.estado <> 'Anulado'
+                             and (p.atendimento_id is null or a.estado <> 'Anulado')
                              and (${periodo(sql`p.data_hora::date`, de, ate)})), 0)
                 - coalesce((select sum(r.valor)
                               from agendamento_reembolso r
@@ -313,7 +317,9 @@ const resumoFinanceiro = async ({ de, ate } = {}) => {
                             select p.atendimento_id, sum(pp.valor)::int as pago
                               from pagamento p
                               join pagamento_parcela pp on pp.pagamento_id = p.id
+                              left join atendimento a on a.id = p.atendimento_id
                              where p.estado <> 'Anulado'
+                               and (p.atendimento_id is null or a.estado <> 'Anulado')
                              group by p.atendimento_id
                         ) pg on pg.atendimento_id = a.id
                        where a.estado = 'Concluido'
@@ -342,7 +348,9 @@ const receitasPorMetodo = async ({ de, ate } = {}) => {
                    pp.valor::int as valor
               from pagamento_parcela pp
               join pagamento p on p.id = pp.pagamento_id
+              left join atendimento a on a.id = p.atendimento_id
              where p.estado <> 'Anulado'
+               and (p.atendimento_id is null or a.estado <> 'Anulado')
                and (${periodo(sql`p.data_hora::date`, de, ate)})
 
             union all
@@ -702,7 +710,9 @@ const dividasFinanceiro = async ({ de, ate, salarioDe, salarioAte } = {}) => {
                   select p.atendimento_id, sum(pp.valor)::int as pago
                     from pagamento p
                     join pagamento_parcela pp on pp.pagamento_id = p.id
+                    left join atendimento a on a.id = p.atendimento_id
                    where p.estado <> 'Anulado'
+                     and (p.atendimento_id is null or a.estado <> 'Anulado')
                    group by p.atendimento_id
               ) pg on pg.atendimento_id = a.id
              where a.estado = 'Concluido'

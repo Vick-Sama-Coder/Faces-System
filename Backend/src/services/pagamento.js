@@ -4,7 +4,7 @@ import Atendimento from '../repository/atendimento.js';
 import Agendamento from '../repository/agendamento.js';
 import Comissao from '../repository/comissao.js';
 import Caixa from '../repository/caixa.js';
-import { METODOS_PAGAMENTO } from './caixa.js';
+import { METODOS_PAGAMENTO, validarSessaoDoDia } from './caixa.js';
 import AuditoriaService from './auditoria.js';
 import { criarErro } from '../utils/erro.js';
 
@@ -56,10 +56,7 @@ const registrarPara = async ({ atendimento_id = null, agendamento_id = null }, {
         }
 
         return db.transaction(async (tx) => {
-            const sessao = await Caixa.findSessaoAberta(tx);
-            if (!sessao) {
-                throw criarErro(409, 'Abra uma sessao de Caixa antes de registar pagamentos');
-            }
+            const sessao = validarSessaoDoDia(await Caixa.findSessaoAberta(tx));
 
             const jaPago = await Pagamento.somaParcelas(tx, atendimento_id);
             const devido = Number(atendimento.valor_total);
@@ -69,6 +66,16 @@ const registrarPara = async ({ atendimento_id = null, agendamento_id = null }, {
             }
 
             const totalPago = jaPago + somaNovas;
+
+            // RF08: nesta fase nao ha credito. O pagamento so e aceite quando
+            // liquida integralmente o atendimento.
+            if (devido > 0 && totalPago < devido) {
+                throw criarErro(
+                    400,
+                    `O pagamento tem de liquidar o valor total do atendimento (${devido - totalPago} em falta)`
+                );
+            }
+
             const estado = devido > 0 && totalPago >= devido ? 'Liquidado' : 'Parcial';
 
             const pagamento_id = await Pagamento.insert(tx, {
@@ -124,10 +131,7 @@ const registrarPara = async ({ atendimento_id = null, agendamento_id = null }, {
             throw criarErro(409, 'Um agendamento concluido nao pode ser pago');
         }
 
-        const sessao = await Caixa.findSessaoAberta(tx);
-        if (!sessao) {
-            throw criarErro(409, 'Abra uma sessao de Caixa antes de registar pagamentos');
-        }
+        const sessao = validarSessaoDoDia(await Caixa.findSessaoAberta(tx));
 
         const devido = Number(agendamento.valor_devido);
         const jaPago = Math.max(Number(agendamento.valor_pago) - Number(agendamento.valor_reembolsado), 0);

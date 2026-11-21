@@ -75,6 +75,24 @@ const getHorarios = async (req, res, next) => {
     }
 };
 
+const getHistorico = async (req, res, next) => {
+    try {
+        const funcionario = await Funcionario.findById(req.params.id);
+
+        if (!funcionario) {
+            return res.status(404).json({ message: "Funcionario nao encontrado" });
+        }
+
+        if (!podeGerirHorarios(req.user)) {
+            return res.status(403).json({ message: "Acesso negado: permissao horarios:gerir necessaria" });
+        }
+
+        res.status(200).json(await Horario.findHistorico(funcionario.id));
+    } catch (error) {
+        next(error);
+    }
+};
+
 const createHorario = async (req, res, next) => {
     try {
         const funcionario = await Funcionario.findById(req.params.id);
@@ -143,7 +161,7 @@ const substituirHorarios = async (req, res, next) => {
             normalizados.push(horario);
         }
 
-        await Horario.substituir(funcionario.id, normalizados);
+        await Horario.substituir(funcionario.id, normalizados, { substituido_por: req.user.id });
         res.status(200).json(await Horario.findByFuncionario(funcionario.id));
     } catch (error) {
         next(error);
@@ -175,7 +193,7 @@ const atualizarHorario = async (req, res, next) => {
             });
         }
 
-        res.status(200).json(await Horario.update(horarioAtual.id, horario));
+        res.status(200).json(await Horario.update(horarioAtual.id, horario, { substituido_por: req.user.id }));
     } catch (error) {
         next(error);
     }
@@ -194,7 +212,7 @@ const deletarHorario = async (req, res, next) => {
             return res.status(400).json({ field: "dia_semana", message: erroDia });
         }
 
-        await Horario.deletar(funcionario.id, Number(req.params.dia_semana));
+        await Horario.deletar(funcionario.id, Number(req.params.dia_semana), { substituido_por: req.user.id });
         res.status(200).json({ message: "Horario deletado com sucesso" });
     } catch (error) {
         next(error);
@@ -203,7 +221,7 @@ const deletarHorario = async (req, res, next) => {
 
 const deletarHorarioPorId = async (req, res, next) => {
     try {
-        const apagado = await Horario.deleteById(req.params.id);
+        const apagado = await Horario.deleteById(req.params.id, { substituido_por: req.user.id });
 
         if (!apagado) {
             return res.status(404).json({ message: "Horario nao encontrado" });
@@ -217,6 +235,7 @@ const deletarHorarioPorId = async (req, res, next) => {
 
 const HorarioController = {
     getHorarios,
+    getHistorico,
     createHorario,
     substituirHorarios,
     atualizarHorario,

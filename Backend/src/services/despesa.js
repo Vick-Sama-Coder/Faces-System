@@ -2,7 +2,7 @@ import db from '../db/client.js';
 import Despesa from '../repository/despesa.js';
 import Caixa from '../repository/caixa.js';
 import AuditoriaService from './auditoria.js';
-import { METODOS_PAGAMENTO } from './caixa.js';
+import { METODOS_PAGAMENTO, validarSessaoDoDia } from './caixa.js';
 import MovimentoEstoqueService from './movimento_estoque.js';
 import { criarErro } from '../utils/erro.js';
 
@@ -25,10 +25,7 @@ const criar = async (dados, registado_por) => {
     }
 
     return db.transaction(async (tx) => {
-        const sessao = await Caixa.findSessaoAberta(tx);
-        if (!sessao) {
-            throw criarErro(409, "Abra uma sessao de Caixa antes de registar despesas");
-        }
+        const sessao = validarSessaoDoDia(await Caixa.findSessaoAberta(tx));
 
         const despesa_id = await Despesa.insert(tx, {
             descricao: dados.descricao,

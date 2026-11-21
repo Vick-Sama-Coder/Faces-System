@@ -95,7 +95,8 @@ Autentica por **nome de utilizador** + senha e emite o cookie `token`.
   }
   ```
   > `deve_alterar_senha: true` sinaliza **primeiro acesso**: o frontend redireciona
-  > para `/primeiro-acesso` e só deixa entrar no dashboard depois de definir a nova senha.
+  > para `/primeiro-acesso` e o backend bloqueia as restantes rotas autenticadas com
+  > `403` (`code: "SENHA_ALTERACAO_OBRIGATORIA"`) até a nova senha ser definida.
 - `400` — `{ "message": "nome ou senha nao foram providenciados" }`
 - `401` — `{ "message": "Nome ou senha invalidos" }`
 - `403` — `{ "message": "Conta inativa: contacte o administrador" }`
@@ -146,6 +147,9 @@ Devolve o utilizador da sessão actual.
 
 - `401` — sem token, token inválido/expirado ou utilizador inexistente.
 - `403` — conta inativa.
+
+> Esta rota continua acessível durante o primeiro acesso, para o frontend conhecer o
+> estado da conta antes de exigir a troca de senha.
 
 ### `PATCH /api/auth/me` 🔒
 
@@ -465,10 +469,6 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 
 > A permissão `estoque:escrever` **não consta** do seed inicial; tem de ser concedida
 > manualmente (ou acrescentada ao seed). Não existe CRUD de produtos na API.
->
-> ⚠️ O `Frontend/src/services/api.js` chama actualmente `POST /api/estoque/entrada`,
-> `/api/estoque/saida` e `/api/estoque/ajuste`; essas rotas **não existem** no backend
-> (devolvem `404`). As rotas reais são as indicadas acima.
 
 ## Fidelização — `/api/clientes/:id/fidelizacao`
 
@@ -710,4 +710,6 @@ curl -b cookies.txt -X POST http://localhost:5000/api/categorias \
 | Erro interno | `500 { "message": "Erro interno do servidor" }` |
 | Sem token | `401 { "message": "Nao autenticado: token em falta" }` |
 | Token inválido/expirado | `401 { "message": "Nao autenticado: token invalido ou expirado" }` |
+| Conta inativa | `403 { "message": "Conta inativa: contacte o administrador" }` |
+| Senha padrão por trocar | `403 { "code": "SENHA_ALTERACAO_OBRIGATORIA", "message": "Defina uma nova senha antes de continuar" }` |
 | Perfil sem permissão | `403 { "message": "Acesso negado: perfil sem autorizacao" }` |
