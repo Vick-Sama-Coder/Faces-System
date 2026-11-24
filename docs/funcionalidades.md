@@ -133,7 +133,8 @@ Painel interno protegido por sessão, alimentado por `GET /api/dashboard`.
   apresentados como valores registados, sem reconciliação física.
 - Despesas ligadas a uma sessão fechada não podem ser editadas ou removidas.
 - A sessão de caixa é fechada automaticamente após a meia-noite (assumindo o saldo esperado
-  como valor contado) e reaberta automaticamente a partir das 08h, uma vez por dia.
+  como valor contado) e reaberta automaticamente a partir das 08h, uma vez por dia. Por isso,
+  a abertura e o fecho manuais estão desativados na interface e na API.
 - Operações sujeitas a `caixa:operar`, `caixa:levantar` e `caixa:fechar`.
 
 ## Fidelização ✅

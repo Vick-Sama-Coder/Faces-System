@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuthStore } from "../../store/authStore.js";
 import {
-    abrirCaixa,
-    fecharCaixa,
     getApiError,
     getCaixaAtual,
     getCaixaFechos,
@@ -12,8 +10,8 @@ import {
 import {
     ArrowDownLeft,
     CalendarCheck2,
+    Clock,
     Landmark,
-    PlusCircle,
     TrendingDown,
     Wallet,
 } from "lucide-react";
@@ -99,17 +97,13 @@ function Caixa() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [submitting, setSubmitting] = useState(false);
-    const [saldoInicial, setSaldoInicial] = useState("");
     const [levantamento, setLevantamento] = useState({
         valor: "",
         metodo_pagamento: "Dinheiro",
         descricao: "",
     });
-    const [fecho, setFecho] = useState({ valor_contado: "", observacoes: "" });
 
-    const podeOperar = user?.permissoes?.includes("caixa:operar");
     const podeLevantar = user?.permissoes?.includes("caixa:levantar");
-    const podeFechar = user?.permissoes?.includes("caixa:fechar");
 
     const resumo = useMemo(() => {
         const saldoInicialSessao = Number(estado?.sessao?.saldo_inicial ?? 0);
@@ -164,29 +158,6 @@ function Caixa() {
         };
     }, []);
 
-    async function handleAbrirCaixa(event) {
-        event.preventDefault();
-        if (!podeOperar) return;
-
-        const valor = Number(saldoInicial);
-        if (!Number.isFinite(valor) || valor < 0) {
-            setError("Indique um saldo inicial válido.");
-            return;
-        }
-
-        try {
-            setSubmitting(true);
-            setError(null);
-            await abrirCaixa({ saldo_inicial: valor });
-            setSaldoInicial("");
-            await carregarDados();
-        } catch (err) {
-            setError(getApiError(err));
-        } finally {
-            setSubmitting(false);
-        }
-    }
-
     async function handleLevantamento(event) {
         event.preventDefault();
         if (!podeLevantar) return;
@@ -214,32 +185,6 @@ function Caixa() {
         }
     }
 
-    async function handleFecharCaixa(event) {
-        event.preventDefault();
-        if (!podeFechar) return;
-
-        const valor = Number(fecho.valor_contado);
-        if (!Number.isFinite(valor) || valor < 0) {
-            setError("Indique o valor contado válido.");
-            return;
-        }
-
-        try {
-            setSubmitting(true);
-            setError(null);
-            await fecharCaixa({
-                valor_contado: valor,
-                observacoes: fecho.observacoes.trim() || undefined,
-            });
-            setFecho({ valor_contado: "", observacoes: "" });
-            await carregarDados();
-        } catch (err) {
-            setError(getApiError(err));
-        } finally {
-            setSubmitting(false);
-        }
-    }
-
     return (
         <div className="app-page">
                 <header className="admin-page-header caixa-page-header">
@@ -259,6 +204,14 @@ function Caixa() {
                 </header>
 
                 {error && <div className="caixa-alert caixa-alert-error">{error}</div>}
+
+                <div className="caixa-alert caixa-alert-info">
+                    <Clock size={16} />
+                    <span>
+                        A abertura e o fecho do caixa são automáticos: abre todos os dias às 08:00
+                        e fecha à meia-noite (00:00).
+                    </span>
+                </div>
 
                 {loading ? (
                     <div className="caixa-skeleton">
@@ -335,164 +288,88 @@ function Caixa() {
                             <section className="caixa-card">
                                 <div className="caixa-card-header">
                                     <div className="caixa-card-title-wrap">
-                                        <PlusCircle size={18} />
-                                        <h2>Abrir caixa</h2>
+                                        <Clock size={18} />
+                                        <h2>Caixa fechado</h2>
                                     </div>
                                 </div>
 
-                                <form onSubmit={handleAbrirCaixa} className="caixa-form">
+                                <div className="caixa-empty-state">
+                                    A sessão abre automaticamente às 08:00. Não é necessário (nem possível)
+                                    abrir o caixa manualmente.
+                                </div>
+                            </section>
+                        )}
+
+                        {estado?.aberta && (
+                            <article className="caixa-card">
+                                <div className="caixa-card-header">
+                                    <div className="caixa-card-title-wrap">
+                                        <ArrowDownLeft size={18} />
+                                        <h2>Levantamento</h2>
+                                    </div>
+                                </div>
+
+                                <form onSubmit={handleLevantamento} className="caixa-form compact">
                                     <label>
-                                        <span>Saldo inicial em dinheiro</span>
+                                        <span>Método de pagamento</span>
+                                        <select
+                                            value={levantamento.metodo_pagamento}
+                                            onChange={(event) =>
+                                                setLevantamento((anterior) => ({
+                                                    ...anterior,
+                                                    metodo_pagamento: event.target.value,
+                                                }))
+                                            }
+                                            disabled={!podeLevantar || submitting}
+                                        >
+                                            {METODOS_PAGAMENTO.map((metodo) => (
+                                                <option key={metodo} value={metodo}>{metodo}</option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                    <label>
+                                        <span>Valor</span>
                                         <input
                                             type="number"
-                                            min="0"
+                                            min="0.01"
                                             step="0.01"
-                                            value={saldoInicial}
-                                            onChange={(event) => setSaldoInicial(event.target.value)}
+                                            value={levantamento.valor}
+                                            onChange={(event) =>
+                                                setLevantamento((anterior) => ({
+                                                    ...anterior,
+                                                    valor: event.target.value,
+                                                }))
+                                            }
                                             placeholder="0.00"
-                                            disabled={!podeOperar || submitting}
+                                            disabled={!podeLevantar || submitting}
+                                        />
+                                    </label>
+
+                                    <label>
+                                        <span>Descrição</span>
+                                        <input
+                                            type="text"
+                                            value={levantamento.descricao}
+                                            onChange={(event) =>
+                                                setLevantamento((anterior) => ({
+                                                    ...anterior,
+                                                    descricao: event.target.value,
+                                                }))
+                                            }
+                                            placeholder="Motivo do levantamento"
+                                            disabled={!podeLevantar || submitting}
                                         />
                                     </label>
 
                                     <button
                                         type="submit"
                                         className="admin-btn primary"
-                                        disabled={!podeOperar || submitting}
+                                        disabled={!podeLevantar || submitting}
                                     >
-                                        {submitting ? "A abrir..." : "Abrir caixa"}
+                                        {submitting ? "A registar..." : "Registar levantamento"}
                                     </button>
                                 </form>
-                            </section>
-                        )}
-
-                        {estado?.aberta && (
-                            <section className="caixa-grid-2">
-                                <article className="caixa-card">
-                                    <div className="caixa-card-header">
-                                        <div className="caixa-card-title-wrap">
-                                            <ArrowDownLeft size={18} />
-                                            <h2>Levantamento</h2>
-                                        </div>
-                                    </div>
-
-                                    <form onSubmit={handleLevantamento} className="caixa-form compact">
-                                        <label>
-                                            <span>Método de pagamento</span>
-                                            <select
-                                                value={levantamento.metodo_pagamento}
-                                                onChange={(event) =>
-                                                    setLevantamento((anterior) => ({
-                                                        ...anterior,
-                                                        metodo_pagamento: event.target.value,
-                                                    }))
-                                                }
-                                                disabled={!podeLevantar || submitting}
-                                            >
-                                                {METODOS_PAGAMENTO.map((metodo) => (
-                                                    <option key={metodo} value={metodo}>{metodo}</option>
-                                                ))}
-                                            </select>
-                                        </label>
-                                        <label>
-                                            <span>Valor</span>
-                                            <input
-                                                type="number"
-                                                min="0.01"
-                                                step="0.01"
-                                                value={levantamento.valor}
-                                                onChange={(event) =>
-                                                    setLevantamento((anterior) => ({
-                                                        ...anterior,
-                                                        valor: event.target.value,
-                                                    }))
-                                                }
-                                                placeholder="0.00"
-                                                disabled={!podeLevantar || submitting}
-                                            />
-                                        </label>
-
-                                        <label>
-                                            <span>Descrição</span>
-                                            <input
-                                                type="text"
-                                                value={levantamento.descricao}
-                                                onChange={(event) =>
-                                                    setLevantamento((anterior) => ({
-                                                        ...anterior,
-                                                        descricao: event.target.value,
-                                                    }))
-                                                }
-                                                placeholder="Motivo do levantamento"
-                                                disabled={!podeLevantar || submitting}
-                                            />
-                                        </label>
-
-                                        <button
-                                            type="submit"
-                                            className="admin-btn primary"
-                                            disabled={!podeLevantar || submitting}
-                                        >
-                                            {submitting ? "A registar..." : "Registar levantamento"}
-                                        </button>
-                                    </form>
-                                </article>
-
-                                <article className="caixa-card">
-                                    <div className="caixa-card-header">
-                                        <div className="caixa-card-title-wrap">
-                                            <CalendarCheck2 size={18} />
-                                            <h2>Fecho do caixa</h2>
-                                        </div>
-                                    </div>
-
-                                    <form onSubmit={handleFecharCaixa} className="caixa-form compact">
-                                        <label>
-                                            <span>Dinheiro contado</span>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={fecho.valor_contado}
-                                                onChange={(event) =>
-                                                    setFecho((anterior) => ({
-                                                        ...anterior,
-                                                        valor_contado: event.target.value,
-                                                    }))
-                                                }
-                                                placeholder="0.00"
-                                                disabled={!podeFechar || submitting}
-                                            />
-                                        </label>
-                                        <p className="caixa-form-hint">
-                                            Apenas o dinheiro é contado fisicamente. Os outros métodos ficam registados por saldo, sem conferência no fecho.
-                                        </p>
-
-                                        <label>
-                                            <span>Observações</span>
-                                            <textarea
-                                                rows={3}
-                                                value={fecho.observacoes}
-                                                onChange={(event) =>
-                                                    setFecho((anterior) => ({
-                                                        ...anterior,
-                                                        observacoes: event.target.value,
-                                                    }))
-                                                }
-                                                placeholder="Detalhes do fecho (opcional)"
-                                                disabled={!podeFechar || submitting}
-                                            />
-                                        </label>
-
-                                        <button
-                                            type="submit"
-                                            className="admin-btn danger"
-                                            disabled={!podeFechar || submitting}
-                                        >
-                                            {submitting ? "A fechar..." : "Fechar caixa"}
-                                        </button>
-                                    </form>
-                                </article>
-                            </section>
+                            </article>
                         )}
 
                         <section className="caixa-card">

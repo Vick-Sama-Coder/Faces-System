@@ -39,6 +39,13 @@
     border: 1px solid var(--danger-soft-strong);
 }
 
+.caixa-alert-info {
+    gap: 10px;
+    background: var(--primary-soft);
+    color: var(--primary-text);
+    border: 1px solid var(--primary-soft-strong, var(--border));
+}
+
 .caixa-grid-summary {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
