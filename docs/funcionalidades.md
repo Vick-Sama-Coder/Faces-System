@@ -132,6 +132,8 @@ Painel interno protegido por sessão, alimentado por `GET /api/dashboard`.
   e comparado no fecho; saldos de M-Pesa, e-Mola, Cartão, Transferência e Outro são
   apresentados como valores registados, sem reconciliação física.
 - Despesas ligadas a uma sessão fechada não podem ser editadas ou removidas.
+- A sessão de caixa é fechada automaticamente após a meia-noite (assumindo o saldo esperado
+  como valor contado) e reaberta automaticamente a partir das 08h, uma vez por dia.
 - Operações sujeitas a `caixa:operar`, `caixa:levantar` e `caixa:fechar`.
 
 ## Fidelização ✅

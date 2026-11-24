@@ -52,8 +52,9 @@ Prioridade alta porque afectam dinheiro, segurança ou requisitos explícitos.
 3. **Auditoria incompleta de contas (RF02/RF23).** Criar/editar/activar/desactivar contas e
    repor senhas não geram log; não existe “resultado da operação” nem registo de tentativas
    falhadas. As alterações de permissões e do próprio perfil são auditadas.
-4. **Fecho de caixa do dia anterior (RF11).** Não há bloqueio de operações no dia seguinte
-   nem procedimento administrativo documentado para corrigir um fecho errado.
+4. **Fecho de caixa do dia anterior (RF11).** A sessão do dia anterior é agora fechada
+   automaticamente após a meia-noite, pelo que deixa de bloquear o dia seguinte. Continua a
+   faltar o procedimento administrativo documentado para corrigir um fecho errado.
 5. **Permissão `estoque:escrever` em falta no seed.** As rotas de stock exigem essa
    permissão, mas ela não consta de `drizzle/0001_seed.sql`, pelo que nem o
    `Administrador` a recebe automaticamente. É necessário concedê-la manualmente ou

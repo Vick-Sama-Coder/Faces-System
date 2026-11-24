@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { agruparParcelasPorMetodo } from "../src/services/pagamento.js";
-import { calcularSaldosPorMetodo, validarSessaoDoDia } from "../src/services/caixa.js";
+import {
+    calcularSaldosPorMetodo,
+    decidirAcaoAutomatica,
+    validarSessaoDoDia
+} from "../src/services/caixa.js";
 
 test("agrupa parcelas de atendimento por método sem misturar os respetivos saldos", () => {
     const parcelas = [
@@ -34,6 +38,38 @@ test("aceita a sessao aberta no dia atual", () => {
 
 test("rejeita a ausencia de sessao aberta", () => {
     assert.throws(() => validarSessaoDoDia(null), /Nao existe caixa aberto/);
+});
+
+test("fecha automaticamente a sessao aberta de um dia anterior", () => {
+    const agora = new Date(2026, 10, 24, 0, 1);
+    const sessaoAberta = { data_abertura: new Date(2026, 10, 23, 9, 0) };
+
+    assert.equal(decidirAcaoAutomatica({ agora, sessaoAberta }), "fechar");
+});
+
+test("mantem aberta a sessao iniciada no dia atual", () => {
+    const agora = new Date(2026, 10, 24, 23, 0);
+    const sessaoAberta = { data_abertura: new Date(2026, 10, 24, 8, 0) };
+
+    assert.equal(decidirAcaoAutomatica({ agora, sessaoAberta }), null);
+});
+
+test("abre automaticamente a partir das 8h quando ainda nao houve sessao no dia", () => {
+    const agora = new Date(2026, 10, 24, 8, 0);
+
+    assert.equal(decidirAcaoAutomatica({ agora }), "abrir");
+});
+
+test("nao abre antes das 8h", () => {
+    const agora = new Date(2026, 10, 24, 7, 59);
+
+    assert.equal(decidirAcaoAutomatica({ agora }), null);
+});
+
+test("nao reabre o caixa depois de uma sessao ja ter existido no dia", () => {
+    const agora = new Date(2026, 10, 24, 10, 0);
+
+    assert.equal(decidirAcaoAutomatica({ agora, existeSessaoHoje: true }), null);
 });
 
 test("calcula saldos individuais e adiciona o saldo inicial apenas ao Dinheiro", () => {

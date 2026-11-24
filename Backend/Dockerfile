@@ -19,6 +19,9 @@ RUN npm ci --omit=dev
 FROM node:22-bookworm-slim AS runtime
 
 ENV NODE_ENV=production
+# Fuso horario do negocio: garante que o fecho/abertura automatica do caixa
+# acontece a meia-noite e as 08h locais.
+ENV TZ=Africa/Maputo
 # O Render injeta a sua propria PORT; este valor e apenas o fallback/local
 ENV PORT=10000
 

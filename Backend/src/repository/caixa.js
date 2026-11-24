@@ -57,6 +57,16 @@ const findSessaoAberta = async (executor = db) => {
     return linha || null;
 };
 
+//existe alguma sessao (aberta ou fechada) iniciada no dia indicado (YYYY-MM-DD)?
+const existeSessaoNoDia = async (dia, executor = db) => {
+    const [linha] = await executor.select({ id: caixaSessao.id })
+        .from(caixaSessao)
+        .where(sql`${caixaSessao.data_abertura}::date = ${dia}`)
+        .limit(1);
+
+    return Boolean(linha);
+};
+
 const findById = async (id, executor = db) => {
     const [linha] = await executor.select(camposSessao)
         .from(caixaSessao)
@@ -205,6 +215,7 @@ const findFechos = async ({ de, ate } = {}) => {
 const Caixa = {
     caixaPrincipal,
     findSessaoAberta,
+    existeSessaoNoDia,
     findById,
     abrir,
     saldoEsperado,
