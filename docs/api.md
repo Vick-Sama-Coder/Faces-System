@@ -422,14 +422,14 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 
 ## Caixa — `/api/caixa`
 
-- `POST /api/caixa/abrir` 🔒(`caixa:operar`) — corpo: `{ saldo_inicial }` em Dinheiro. `201`
-  - `409` se já existir uma sessão aberta (caixa único)
+- `POST /api/caixa/abrir` 🔒(`caixa:operar`) — **desativado**: a abertura é automática (08h).
+  Devolve `403`
 - `GET /api/caixa/atual` 🔒(`caixa:operar`) — inclui `{ aberta, sessao, saldo_esperado, saldo_por_metodo }`
 - `POST /api/caixa/levantamento` 🔒(`caixa:levantar`) — corpo:
   `{ valor, metodo_pagamento, descricao? }`
 - `GET /api/caixa/movimentos` 🔒(`caixa:operar`) — movimentos da sessão aberta (`404` se fechada)
-- `POST /api/caixa/fechar` 🔒(`caixa:fechar`) — corpo:
-  `{ valor_contado, observacoes? }`; `valor_contado` é o dinheiro contado fisicamente
+- `POST /api/caixa/fechar` 🔒(`caixa:fechar`) — **desativado**: o fecho é automático
+  (após a meia-noite). Devolve `403`
 - `GET /api/caixa/fechos?de=&ate=` 🔒(`relatorios:ler`) — histórico de fechos, incluindo
   o snapshot de `saldos_por_metodo` guardado no fecho
 

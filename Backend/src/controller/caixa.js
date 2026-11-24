@@ -1,18 +1,12 @@
 import CaixaService from "../services/caixa.js";
 import Caixa from "../repository/caixa.js";
 
-const abrirCaixa = async (req, res, next) => {
-    try {
-        const { saldo_inicial } = req.body;
-
-        if (saldo_inicial === undefined) {
-            return res.status(400).json({ message: "O saldo_inicial e obrigatorio" });
-        }
-
-        res.status(201).json(await CaixaService.abrir({ saldo_inicial, aberto_por: req.user.id }));
-    } catch (error) {
-        next(error);
-    }
+// A abertura e o fecho sao automaticos; estas rotas ficam bloqueadas para
+// impedir que o estado seja alterado manualmente.
+const abrirCaixa = async (req, res) => {
+    res.status(403).json({
+        message: "A abertura do caixa e automatica (todos os dias a partir das 08h)"
+    });
 };
 
 const getCaixaAtual = async (req, res, next) => {
@@ -49,18 +43,10 @@ const getMovimentos = async (req, res, next) => {
     }
 };
 
-const fecharCaixa = async (req, res, next) => {
-    try {
-        const { valor_contado, observacoes } = req.body;
-
-        if (valor_contado === undefined) {
-            return res.status(400).json({ message: "O valor_contado e obrigatorio" });
-        }
-
-        res.status(200).json(await CaixaService.fechar({ valor_contado, observacoes, fechado_por: req.user.id }));
-    } catch (error) {
-        next(error);
-    }
+const fecharCaixa = async (req, res) => {
+    res.status(403).json({
+        message: "O fecho do caixa e automatico (todos os dias apos a meia-noite)"
+    });
 };
 
 const getFechos = async (req, res, next) => {
