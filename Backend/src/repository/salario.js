@@ -15,6 +15,8 @@ const campos = {
     periodo_fim: processamentoSalarial.periodo_fim,
     salario_base: processamentoSalarial.salario_base,
     total_comissoes: processamentoSalarial.total_comissoes,
+    total_horas_extras: processamentoSalarial.total_horas_extras,
+    valor_horas_extras: processamentoSalarial.valor_horas_extras,
     total_deducoes: processamentoSalarial.total_deducoes,
     total_a_pagar: processamentoSalarial.total_a_pagar,
     estado: processamentoSalarial.estado,
@@ -106,6 +108,8 @@ const inserirProcessamento = async (tx, {
     periodo_fim,
     salario_base,
     total_comissoes,
+    total_horas_extras,
+    valor_horas_extras,
     total_deducoes,
     total_a_pagar
 }) => {
@@ -116,6 +120,8 @@ const inserirProcessamento = async (tx, {
             periodo_fim,
             salario_base,
             total_comissoes,
+            total_horas_extras,
+            valor_horas_extras,
             total_deducoes,
             total_a_pagar
         })
@@ -157,12 +163,25 @@ const removerDeducoesPorTipo = async (tx, processamento_id, tipo) => {
         ));
 };
 
+//as horas extras sao recalculadas a partir da assiduidade, tal como a reducao
+const atualizarHorasExtras = async (tx, processamento_id, total_horas_extras, valor_horas_extras) => {
+    const [linha] = await tx.update(processamentoSalarial)
+        .set({
+            total_horas_extras,
+            valor_horas_extras
+        })
+        .where(eq(processamentoSalarial.id, processamento_id))
+        .returning({ id: processamentoSalarial.id });
+
+    return linha || null;
+};
+
 //recalcular a partir das linhas evita guardar totais que divergem das deducoes
 const recalcular = async (tx, processamento_id) => {
     await tx.execute(sql`
         update processamento_salarial p
            set total_deducoes = coalesce(t.total, 0),
-               total_a_pagar = p.salario_base + p.total_comissoes - coalesce(t.total, 0)
+               total_a_pagar = p.salario_base + p.total_comissoes + p.valor_horas_extras - coalesce(t.total, 0)
           from (select ${processamento_id}::int as id) x
           left join (
                select processamento_id, sum(valor)::int as total
@@ -243,6 +262,7 @@ const Salario = {
     somaComissoes,
     inserirProcessamento,
     substituirDeducoes,
+    atualizarHorasExtras,
     recalcular,
     inserirDeducao,
     removerDeducoesPorTipo,

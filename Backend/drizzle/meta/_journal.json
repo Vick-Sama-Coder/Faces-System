@@ -127,6 +127,13 @@
       "when": 1793971056297,
       "tag": "0017_horario_historico",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1795702593156,
+      "tag": "0018_horas_extras_salario",
+      "breakpoints": true
     }
   ]
 }

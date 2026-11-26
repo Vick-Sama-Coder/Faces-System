@@ -88,7 +88,8 @@ export const assiduidadeAusencia = pgTable('assiduidade_ausencia', {
     check('assiduidade_ausencia_intervalo_check', sql`${table.hora_fim} > ${table.hora_inicio}`)
 ]);
 
-// Processamento salarial mensal (base + comissoes - deducoes).
+// Processamento salarial mensal (base + comissoes + horas extras - deducoes).
+// total_horas_extras guarda os minutos acima das horas previstas no mes.
 export const processamentoSalarial = pgTable('processamento_salarial', {
     id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
     funcionario_id: integer('funcionario_id').notNull().references(() => funcionario.id),
@@ -96,6 +97,8 @@ export const processamentoSalarial = pgTable('processamento_salarial', {
     periodo_fim: date('periodo_fim').notNull(),
     salario_base: integer('salario_base').notNull().default(0),
     total_comissoes: integer('total_comissoes').notNull().default(0),
+    total_horas_extras: integer('total_horas_extras').notNull().default(0),
+    valor_horas_extras: integer('valor_horas_extras').notNull().default(0),
     total_deducoes: integer('total_deducoes').notNull().default(0),
     total_a_pagar: integer('total_a_pagar').notNull().default(0),
     estado: varchar('estado', { length: 20 }).notNull().default('Preparado'),

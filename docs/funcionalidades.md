@@ -85,11 +85,12 @@ Painel interno protegido por sessão, alimentado por `GET /api/dashboard`.
 - Programação semanal por funcionário, com vários turnos por dia e validação de
   sobreposição.
 - Página de **controlo mensal**: entrada/saída reais por dia, horas trabalhadas, horas
-  previstas (base `09:00–19:00`), percentagem de efectividade, faltas marcadas,
-  atrasos após as `09:00` e ocorrências no resumo da equipa.
-- Uma falta marcada equivale a 10 horas não trabalhadas; as horas registadas são
-  preservadas para consulta. Dias sem registo não são automaticamente classificados como
-  falta.
+  previstas (base `09:00–19:00`), défice total, horas extras, percentagem de efectividade,
+  faltas marcadas, atrasos após as `09:00` e ocorrências no resumo da equipa.
+- Uma falta marcada equivale a 10 horas de défice; as horas registadas são preservadas
+  para consulta. Dias sem registo não são automaticamente classificados como falta.
+  O **défice total** é a soma dos défices diários; as horas acima da meta mensal são
+  pagas como horas extras no processamento salarial.
 - **Ausências parciais**: vários intervalos por dia (ex.: saída para consulta e regresso),
   com motivo opcional. Cada intervalo é descontado às horas trabalhadas e ao salário,
   não pode sobrepor-se a outro nem coincidir com uma falta de dia inteiro.
@@ -151,7 +152,8 @@ Painel interno protegido por sessão, alimentado por `GET /api/dashboard`.
 ## Salários 🟡 · API completa, sem interface própria
 
 - Processamento mensal (`AAAA-MM`) de todos os funcionários activos:
-  `salário base + comissões − deduções`.
+  `salário base + comissões + horas extras − deduções`. As horas acima da meta mensal
+  são pagas ao valor da hora normal.
 - Deduções configuráveis, aprovação (`salarios:aprovar`) e pagamento; ao pagar, as
   comissões do período passam a `Paga`.
 - Sem interface dedicada; operações disponíveis por API.

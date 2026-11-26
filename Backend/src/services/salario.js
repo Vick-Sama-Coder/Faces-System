@@ -30,11 +30,17 @@ const processar = async (periodo, registado_por) => {
 
     return db.transaction(async (tx) => {
         const funcionarios = await Salario.findFuncionariosAtivos(tx);
+        const reducoes = await computarReducoesAssiduidade(periodo, tx);
+        const reducoesPorFuncionario = new Map(reducoes.map((r) => [r.funcionario_id, r]));
         const criados = [];
 
         for (const funcionario of funcionarios) {
             const comissoes = await Salario.somaComissoes(tx, funcionario.id, inicio, fim);
             const base = funcionario.salario;
+            const reducao = reducoesPorFuncionario.get(funcionario.id);
+            const totalHorasExtras = reducao?.horasExtrasMin || 0;
+            const valorHorasExtras = reducao?.valorHorasExtras || 0;
+            const totalAPagar = base + comissoes + valorHorasExtras;
 
             const id = await Salario.inserirProcessamento(tx, {
                 funcionario_id: funcionario.id,
@@ -42,8 +48,10 @@ const processar = async (periodo, registado_por) => {
                 periodo_fim: fim,
                 salario_base: base,
                 total_comissoes: comissoes,
+                total_horas_extras: totalHorasExtras,
+                valor_horas_extras: valorHorasExtras,
                 total_deducoes: 0,
-                total_a_pagar: base + comissoes
+                total_a_pagar: totalAPagar
             });
 
             if (id) {
@@ -53,13 +61,21 @@ const processar = async (periodo, registado_por) => {
                     entidade: "processamento_salarial",
                     id_registo: id,
                     operacao: "criar",
-                    depois: { funcionario_id: funcionario.id, periodo_inicio: inicio, periodo_fim: fim, salario_base: base, total_comissoes: comissoes, total_a_pagar: base + comissoes }
+                    depois: {
+                        funcionario_id: funcionario.id,
+                        periodo_inicio: inicio,
+                        periodo_fim: fim,
+                        salario_base: base,
+                        total_comissoes: comissoes,
+                        total_horas_extras: totalHorasExtras,
+                        valor_horas_extras: valorHorasExtras,
+                        total_a_pagar: totalAPagar
+                    }
                 }, tx);
             }
         }
 
         const processamentos = await Salario.findProcessamentos({ periodo }, tx);
-        const reducoes = await computarReducoesAssiduidade(periodo, tx);
         await aplicarReducoesNosProcessamentos(
             tx,
             periodo,
@@ -165,6 +181,9 @@ const pagar = async (processamento_id, registado_por) => {
 //ausencias parciais do dia sao subtraidas as horas entre entrada e saida.
 export const MINUTOS_PREVISTAS_DIA = 10 * 60;
 export const TIPO_DEDUCAO_ASSIDUIDADE = 'reducao_assiduidade';
+// As horas acima da meta mensal sao pagas ao valor da hora normal. Se a regra
+// da empresa mudar (por exemplo, 1.5x), basta alterar este fator.
+export const FATOR_HORAS_EXTRAS = 1;
 
 //Calcula, para cada funcionario ativo, a efetividade a partir do registo diario de
 //assiduidade e o desconto proporcional pelas horas mensais em falta, sem gravar nada.
@@ -228,9 +247,13 @@ export const computarReducoesAssiduidade = async (periodo, executor = db) => {
     return resultado.rows.map((linha) => {
         const trabalhadasMin = Number(linha.trabalhadas_segundos) / 60;
         const horasEmFaltaMin = Math.max(0, previstasMin - trabalhadasMin);
+        const horasExtrasMin = Math.max(0, trabalhadasMin - previstasMin);
         const salarioBase = Number(linha.salario_base);
         const efetividade = (trabalhadasMin / previstasMin) * 100;
         const valor = Math.round(salarioBase * horasEmFaltaMin / previstasMin);
+        const valorHorasExtras = Math.round(
+            (salarioBase * horasExtrasMin / previstasMin) * FATOR_HORAS_EXTRAS
+        );
         const reducaoPercentual = salarioBase > 0 ? (valor / salarioBase) * 100 : 0;
         const semRegistos = Number(linha.dias_com_registo) === 0;
         return {
@@ -240,6 +263,9 @@ export const computarReducoesAssiduidade = async (periodo, executor = db) => {
             trabalhadas: trabalhadasMin,
             previstas: previstasMin,
             horasEmFalta: horasEmFaltaMin / 60,
+            horasExtras: horasExtrasMin / 60,
+            horasExtrasMin,
+            valorHorasExtras,
             efetividade,
             reducaoPercentual,
             valor,
@@ -266,6 +292,12 @@ async function aplicarReducoesNosProcessamentos(tx, periodo, registado_por, proc
         const reducao = reducoesPorFuncionario.get(processamento.funcionario_id);
         if (!reducao) continue;
 
+        await Salario.atualizarHorasExtras(
+            tx,
+            processamento.id,
+            reducao.horasExtrasMin || 0,
+            reducao.valorHorasExtras || 0
+        );
         await Salario.removerDeducoesPorTipo(tx, processamento.id, TIPO_DEDUCAO_ASSIDUIDADE);
 
         if (reducao.valor > 0) {
@@ -277,11 +309,16 @@ async function aplicarReducoesNosProcessamentos(tx, periodo, registado_por, proc
                 motivo: `Assiduidade: ${reducao.horasEmFalta.toFixed(1)} horas em falta (${reducao.reducaoPercentual.toFixed(1)}% do salario base)`,
                 aprovado_por: registado_por
             });
+        }
+
+        if (reducao.valor > 0 || reducao.valorHorasExtras > 0) {
             aplicadas.push({
                 funcionario_id: reducao.funcionario_id,
                 efetividade: reducao.efetividade,
                 reducaoPercentual: reducao.reducaoPercentual,
-                valor: reducao.valor
+                valor: reducao.valor,
+                horasExtras: reducao.horasExtras,
+                valorHorasExtras: reducao.valorHorasExtras
             });
         }
 
@@ -301,10 +338,11 @@ async function aplicarReducoesNosProcessamentos(tx, periodo, registado_por, proc
     return { atualizacoes, ignorados, aplicadas };
 }
 
-//Calcula e aplica as reducoes de assiduidade aos processamentos do periodo.
-//A reducao e guardada como deducaoSalarial (tipo 'reducao_assiduidade'); antes de
-//gravar remove a reducao anterior do mesmo tipo, para o calculo poder ser repetido
-//sem duplicar o desconto. As deducoes manuais existentes nao sao tocadas e apenas
+//Calcula e aplica a assiduidade aos processamentos do periodo: desconto pelas
+//horas em falta e pagamento das horas acima da meta mensal. A reducao e guardada
+//como deducaoSalarial (tipo 'reducao_assiduidade'); antes de gravar remove a
+//reducao anterior do mesmo tipo, para o calculo poder ser repetido sem duplicar
+//o desconto. As deducoes manuais existentes nao sao tocadas e apenas
 //processamentos em Preparado sao alterados (os aprovados/pagos ficam fechados).
 export const aplicarReducoesAssiduidade = async (periodo, registado_por, executor = null) => {
     const aplicar = async (tx) => {
@@ -312,7 +350,7 @@ export const aplicarReducoesAssiduidade = async (periodo, registado_por, executo
         const processamentos = await Salario.findProcessamentos({ periodo }, tx);
         const comProcessamento = new Set(processamentos.map((p) => p.funcionario_id));
         const semProcessamento = reducoes.filter(
-            (r) => r.valor > 0 && !comProcessamento.has(r.funcionario_id)
+            (r) => (r.valor > 0 || r.valorHorasExtras > 0) && !comProcessamento.has(r.funcionario_id)
         ).length;
         const resultado = await aplicarReducoesNosProcessamentos(
             tx,

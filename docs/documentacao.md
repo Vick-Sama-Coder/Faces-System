@@ -1099,6 +1099,8 @@ Atributos principais:
 - periodo_fim
 - salario_base
 - total_comissoes
+- total_horas_extras
+- valor_horas_extras
 - total_deducoes
 - total_a_pagar
 - estado

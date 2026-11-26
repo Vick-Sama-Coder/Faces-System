@@ -149,10 +149,14 @@
 /* Tabelas */
 
 .admin-table-wrap {
+    max-width: 100%;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 14px;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
     box-shadow: 0 4px 20px var(--shadow-color-soft);
 }
 

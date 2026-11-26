@@ -41,10 +41,22 @@ test("desconta proporcionalmente as horas mensais em falta e limita o desconto a
     const reducoes = await computarReducoesAssiduidade("2026-10", executor);
 
     assert.deepEqual(
-        reducoes.map(({ trabalhadas, previstas, horasEmFalta, efetividade, reducaoPercentual, valor, tipo }) => ({
+        reducoes.map(({
             trabalhadas,
             previstas,
             horasEmFalta,
+            horasExtras,
+            valorHorasExtras,
+            efetividade,
+            reducaoPercentual,
+            valor,
+            tipo
+        }) => ({
+            trabalhadas,
+            previstas,
+            horasEmFalta,
+            horasExtras,
+            valorHorasExtras,
             efetividade,
             reducaoPercentual,
             valor,
@@ -55,6 +67,8 @@ test("desconta proporcionalmente as horas mensais em falta e limita o desconto a
                 trabalhadas: 18_000,
                 previstas: 31 * MINUTOS_PREVISTAS_DIA,
                 horasEmFalta: 10,
+                horasExtras: 0,
+                valorHorasExtras: 0,
                 efetividade: (300 / 310) * 100,
                 reducaoPercentual: (161 / 5_000) * 100,
                 valor: 161,
@@ -64,6 +78,8 @@ test("desconta proporcionalmente as horas mensais em falta e limita o desconto a
                 trabalhadas: 19_200,
                 previstas: 31 * MINUTOS_PREVISTAS_DIA,
                 horasEmFalta: 0,
+                horasExtras: 10,
+                valorHorasExtras: 161,
                 efetividade: (320 / 310) * 100,
                 reducaoPercentual: 0,
                 valor: 0,
@@ -83,6 +99,20 @@ test("considera ausência de registos como zero horas trabalhadas e desconta o s
     assert.equal(reducao.horasEmFalta, 310);
     assert.equal(reducao.reducaoPercentual, 100);
     assert.equal(reducao.valor, 5_000);
+    assert.equal(reducao.horasExtras, 0);
+    assert.equal(reducao.valorHorasExtras, 0);
+});
+
+test("paga as horas acima da meta mensal ao valor da hora normal", async () => {
+    const executor = criarExecutor([linha(1, 19_207, 5_000)]);
+
+    const [reducao] = await computarReducoesAssiduidade("2026-10", executor);
+
+    assert.equal(reducao.horasEmFalta, 0);
+    assert.equal(reducao.valor, 0);
+    assert.equal(reducao.horasExtrasMin, 607);
+    assert.equal(reducao.horasExtras, 607 / 60);
+    assert.equal(reducao.valorHorasExtras, 163);
 });
 
 test("ajusta as horas previstas ao número de dias do mês", async () => {

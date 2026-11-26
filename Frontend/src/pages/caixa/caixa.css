@@ -187,10 +187,14 @@
 }
 
 .caixa-table-wrap {
+    max-width: 100%;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 12px;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
 }
 
 .caixa-table {

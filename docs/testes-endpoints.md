@@ -1170,7 +1170,8 @@ curl -s -b "$JAR" -X POST "$BASE/salarios/processar" \
   -H 'Content-Type: application/json' -d '{"periodo":"2026-10"}'
 # 201 [{id, funcionario_id, funcionario_nome, periodo_inicio:"2026-10-01",
 #       periodo_fim:"2026-10-31", salario_base, total_comissoes,
-#       total_deducoes, total_a_pagar, estado:"Preparado", deducoes:[...]}]
+#       total_horas_extras, valor_horas_extras, total_deducoes, total_a_pagar,
+#       estado:"Preparado", deducoes:[...]}]
 ```
 
 As reduções por assiduidade são aplicadas automaticamente aos processamentos preparados
@@ -1189,7 +1190,7 @@ curl -s -b "$JAR" -X PUT "$BASE/salarios/processamentos/1/deducoes" \
       {"tipo":"falta","descricao":"Falta injustificada","valor":1500,"motivo":"RF16"}
     ]
   }'
-# 200 { total_deducoes:1500, total_a_pagar: (base + comissoes - 1500), deducoes:[...] }
+# 200 { total_deducoes:1500, total_a_pagar: (base + comissoes + horas extras - 1500), deducoes:[...] }
 ```
 
 **Aprovar e pagar**

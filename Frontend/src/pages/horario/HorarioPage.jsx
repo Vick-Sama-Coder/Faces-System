@@ -144,7 +144,7 @@ function calcularHorasDia(registo) {
         ? Math.max(0, minutosBase - ausenciasMin)
         : 0
     const previstas = falta || (completo && !invalido) ? HORAS_PREVISTAS_DIA : 0
-    const naoTrabalhadas = previstas > 0
+    const deficeDia = previstas > 0
         ? Math.max(0, HORAS_PREVISTAS_DIA - trabalhadas)
         : 0
 
@@ -159,7 +159,7 @@ function calcularHorasDia(registo) {
         ausencias,
         ausenciasMin,
         trabalhadas,
-        naoTrabalhadas,
+        deficeDia,
         previstas
     }
 }
@@ -226,9 +226,9 @@ function validarAusenciasDoDia(entrada, saida, tipoOcorrencia, ausencias) {
     return null
 }
 
-function resumirRegistos(registos) {
+function resumirRegistos(registos, diasNoMes) {
     let trabalhadas = 0
-    let naoTrabalhadas = 0
+    let deficeTotal = 0
     let previstas = 0
     let dias = 0
     let faltas = 0
@@ -257,16 +257,22 @@ function resumirRegistos(registos) {
 
         if (calculo.previstas > 0) {
             trabalhadas += calculo.trabalhadas
-            naoTrabalhadas += calculo.naoTrabalhadas
+            deficeTotal += calculo.deficeDia
             previstas += calculo.previstas
             if (calculo.completo && !calculo.invalido && !calculo.falta) dias += 1
         }
     }
 
+    // As horas extras seguem a mesma regra do salario: comparam o total
+    // trabalhado com a meta de 10h por todos os dias do mes, permitindo que
+    // um dia mais longo compense um dia mais curto.
+    const horasExtras = Math.max(0, trabalhadas - (Number(diasNoMes) || 0) * HORAS_PREVISTAS_DIA)
+
     return {
         trabalhadas,
-        naoTrabalhadas,
+        deficeTotal,
         previstas,
+        horasExtras,
         dias,
         faltas,
         atrasos,
@@ -409,8 +415,8 @@ function HorarioPage() {
     }), [dias, registosPorData])
 
     const resumo = useMemo(
-        () => resumirRegistos(Array.from(registosPorData.values())),
-        [registosPorData]
+        () => resumirRegistos(Array.from(registosPorData.values()), dias.length),
+        [registosPorData, dias.length]
     )
 
     const resumosEquipa = useMemo(() => {
@@ -428,9 +434,12 @@ function HorarioPage() {
 
         return funcionarios.map((funcionario) => ({
             ...funcionario,
-            resumo: resumirRegistos(porFuncionario.get(String(funcionario.id)) || [])
+            resumo: resumirRegistos(
+                porFuncionario.get(String(funcionario.id)) || [],
+                dias.length
+            )
         }))
-    }, [funcionarios, registosMes])
+    }, [funcionarios, registosMes, dias.length])
 
     const funcionarioSelecionado = funcionarios.find(
         (item) => String(item.id) === String(funcionarioId)
@@ -829,7 +838,7 @@ function HorarioPage() {
             return {
                 tipo: "aviso",
                 texto: "Falta",
-                titulo: "Falta marcada: conta como 10 horas não trabalhadas."
+                titulo: "Falta marcada: conta como 10 horas de défice."
             }
         }
 
@@ -991,12 +1000,12 @@ function HorarioPage() {
                     <article className="horario-stat-card">
                         <span className="horario-stat-icon warning"><AlertCircle size={20} /></span>
                         <div>
-                            <span className="horario-stat-label">Horas não trabalhadas</span>
-                            <strong>{formatarDuracao(resumo.naoTrabalhadas)}</strong>
+                            <span className="horario-stat-label">Défice total</span>
+                            <strong>{formatarDuracao(resumo.deficeTotal)}</strong>
                             <small>
                                 {resumo.ausenciasMin > 0
-                                    ? `Inclui ${formatarDuracao(resumo.ausenciasMin)} de ausências`
-                                    : "Diferença para as 10h diárias"}
+                                    ? `Soma dos défices diários · inclui ${formatarDuracao(resumo.ausenciasMin)} de ausências`
+                                    : "Soma dos défices diários"}
                             </small>
                         </div>
                     </article>
@@ -1007,6 +1016,15 @@ function HorarioPage() {
                             <span className="horario-stat-label">Horas previstas</span>
                             <strong>{resumo.previstas > 0 ? formatarDuracao(resumo.previstas) : "—"}</strong>
                             <small>10h por dia completo</small>
+                        </div>
+                    </article>
+
+                    <article className="horario-stat-card">
+                        <span className="horario-stat-icon accent"><TrendingUp size={20} /></span>
+                        <div>
+                            <span className="horario-stat-label">Horas extras</span>
+                            <strong>{formatarDuracao(resumo.horasExtras)}</strong>
+                            <small>Acima da meta mensal · pagas no processamento</small>
                         </div>
                     </article>
 
@@ -1074,7 +1092,7 @@ function HorarioPage() {
                                             <th>Saída</th>
                                             <th className="horario-ausencias-header">Ausências parciais</th>
                                             <th>Horas trabalhadas</th>
-                                            <th>Horas não trabalhadas</th>
+                                            <th>Défice do dia</th>
                                             <th>Horas previstas</th>
                                             <th>Estado</th>
                                         </tr>
@@ -1238,7 +1256,7 @@ function HorarioPage() {
                                                         {linha.previstas > 0 ? formatarDuracao(linha.trabalhadas) : "—"}
                                                     </td>
                                                     <td className="horario-value">
-                                                        {linha.previstas > 0 ? formatarDuracao(linha.naoTrabalhadas) : "—"}
+                                                        {linha.previstas > 0 ? formatarDuracao(linha.deficeDia) : "—"}
                                                     </td>
                                                     <td className="horario-value">
                                                         {linha.previstas > 0 ? formatarDuracao(linha.previstas) : "—"}
@@ -1273,7 +1291,7 @@ function HorarioPage() {
                                             <td colSpan={3}>Total do mês</td>
                                             <td>{resumo.ausenciasMin > 0 ? formatarDuracao(resumo.ausenciasMin) : "—"}</td>
                                             <td>{formatarDuracao(resumo.trabalhadas)}</td>
-                                            <td>{formatarDuracao(resumo.naoTrabalhadas)}</td>
+                                            <td>{formatarDuracao(resumo.deficeTotal)}</td>
                                             <td>{resumo.previstas > 0 ? formatarDuracao(resumo.previstas) : "—"}</td>
                                             <td />
                                         </tr>
@@ -1282,7 +1300,8 @@ function HorarioPage() {
                             </div>
 
                             <p className="horario-table-note">
-                                Dias sem marcação não entram nas horas previstas; uma falta marcada conta como 10 horas não trabalhadas.
+                                Dias sem marcação não entram nas horas previstas; uma falta marcada conta como 10 horas de défice.
+                                O défice total é a soma dos défices diários; as horas acima da meta mensal são pagas como horas extras.
                                 As ausências parciais descontam as horas trabalhadas e o salário, e não podem coincidir com uma falta de dia inteiro.
                                 Entradas depois das 09:00 contam como atraso. A saída tem de ser posterior à entrada e não há desconto de almoço.
                             </p>
@@ -1306,8 +1325,9 @@ function HorarioPage() {
                                         <th>Funcionário</th>
                                         <th>Dias completos</th>
                                         <th>Horas trabalhadas</th>
-                                        <th>Horas não trabalhadas</th>
+                                        <th>Défice total</th>
                                         <th>Horas previstas</th>
+                                        <th>Horas extras</th>
                                         <th>Efetividade</th>
                                         <th>Faltas</th>
                                         <th>Ausências</th>
@@ -1346,8 +1366,9 @@ function HorarioPage() {
                                                 </td>
                                                 <td>{resumoFuncionario.dias}</td>
                                                 <td>{formatarDuracao(resumoFuncionario.trabalhadas)}</td>
-                                                <td>{formatarDuracao(resumoFuncionario.naoTrabalhadas)}</td>
+                                                <td>{formatarDuracao(resumoFuncionario.deficeTotal)}</td>
                                                 <td>{resumoFuncionario.previstas > 0 ? formatarDuracao(resumoFuncionario.previstas) : "—"}</td>
+                                                <td>{formatarDuracao(resumoFuncionario.horasExtras)}</td>
                                                 <td>
                                                     <strong>
                                                         {resumoFuncionario.previstas > 0

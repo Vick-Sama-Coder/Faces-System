@@ -587,14 +587,14 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 - `PATCH /api/salarios/processamentos/:id/pagar` 🔒(`salarios:gerir`) — `Aprovado` → `Pago`;
   marca as comissões do período como `Paga`. `409` se não estiver aprovado
 - `GET /api/salarios/assiduidade/reducoes?periodo=AAAA-MM` 🔒(`salarios:gerir` ou
-  `relatorios:ler`) — calcula efetividade e reduções sem gravar
+  `relatorios:ler`) — calcula efetividade, reduções e horas extras sem gravar
 - `POST /api/salarios/assiduidade/reducoes` 🔒(`salarios:gerir`) — corpo
-  `{ periodo: "AAAA-MM" }`; grava a redução por assiduidade nas deduções de processamentos
-  `Preparado`. Pode ser usada novamente depois de corrigir a assiduidade; substitui a
-  redução anterior sem duplicá-la
+  `{ periodo: "AAAA-MM" }`; grava a redução por assiduidade e as horas extras nos
+  processamentos `Preparado`. Pode ser usada novamente depois de corrigir a assiduidade;
+  substitui a redução anterior sem duplicá-la
 
-> `total_a_pagar = salario_base + total_comissoes − total_deducoes`. Só funcionários
-> recebem salário/comissão (RF17).
+> `total_a_pagar = salario_base + total_comissoes + valor_horas_extras − total_deducoes`.
+> Só funcionários recebem salário/comissão (RF17).
 
 > Para o cálculo salarial, as horas previstas são `10 × todos os dias do mês` (por exemplo,
 > 310 horas num mês de 31 dias). Somam-se as horas efetivamente trabalhadas no mês, pelo que
@@ -602,9 +602,13 @@ Legenda: 🔒 requer sessão · 👑 só `Administrador` · 🛠️ requer a per
 > ocorrências de falta/ausência e intervalos de ausência parcial contam como horas não
 > trabalhadas. O desconto é proporcional:
 > `salario_base × max(0, horas_previstas − horas_trabalhadas) / horas_previstas`, arredondado
-> ao Metical. Assim, sem registos aplica-se o desconto correspondente ao salário base inteiro;
-> atingir ou ultrapassar a meta mensal não gera desconto. Este cálculo salarial é distinto
-> do resumo diário apresentado na página de controlo de horários.
+> ao Metical. Assim, sem registos aplica-se o desconto correspondente ao salário base inteiro.
+> Quando as horas trabalhadas ultrapassam a meta mensal, o excedente é pago como horas
+> extras ao valor da hora normal:
+> `valor_horas_extras = salario_base × max(0, horas_trabalhadas − horas_previstas) / horas_previstas`.
+> O processamento guarda `total_horas_extras` (minutos) e `valor_horas_extras` (Meticais).
+> Este cálculo salarial é distinto do resumo diário apresentado na página de controlo de
+> horários, onde o **défice total** é a soma dos défices de cada dia.
 
 ## Relatórios — `/api/relatorios`
 
@@ -613,7 +617,9 @@ filtro devolve todo o histórico.
 
 - `GET /api/relatorios/resumo?de=&ate=` — `{ receita, despesas, resultado }`
 - `GET /api/relatorios/financeiro?de=&ate=` — `{ periodo, resumo, comparacao, receitas,
-  despesas, fluxo, salarios, dividas, gerado_por, gerado_em }`
+  despesas, fluxo, salarios, dividas, gerado_por, gerado_em }`. Em `salarios`, cada
+  funcionário inclui `horas_extras_min` e `valor_horas_extras`; o `resumo` agrega os
+  mesmos campos.
 - `GET /api/relatorios/caixa?de=&ate=` — `{ entradas, saidas, levantamentos, sessoes }`
 - `GET /api/relatorios/servicos?de=&ate=` — serviços mais realizados
 - `GET /api/relatorios/funcionarios?de=&ate=` — serviços e comissões por funcionário

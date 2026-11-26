@@ -768,9 +768,12 @@
 
 .relatorio-table-scroll {
     width: 100%;
+    max-width: 100%;
     max-height: 460px;
     overflow: auto;
-    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
 }
 
 .relatorio-table-scroll-tall {
@@ -1410,7 +1413,23 @@
 }
 
 .relatorio-payroll-table {
-    min-width: 880px;
+    min-width: 1040px;
+}
+
+.relatorio-payroll-extra {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.relatorio-payroll-extra strong {
+    font-weight: 600;
+}
+
+.relatorio-payroll-extra small {
+    color: var(--text-muted);
+    font-size: 10px;
+    white-space: nowrap;
 }
 
 .relatorio-payroll-detail-toggle {

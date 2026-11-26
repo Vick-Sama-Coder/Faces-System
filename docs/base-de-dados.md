@@ -232,7 +232,8 @@ usuario 1───n log_auditoria
   intervalos de ausência parcial no mesmo dia; `check` garante `hora_fim > hora_inicio`
   e índice em `assiduidade_id`.
 - **`processamento_salarial`** — `id`, `funcionario_id` (FK), `periodo_inicio`,
-  `periodo_fim`, `salario_base`, `total_comissoes`, `total_deducoes`, `total_a_pagar`,
+  `periodo_fim`, `salario_base`, `total_comissoes`, `total_horas_extras` (minutos acima
+  da meta mensal), `valor_horas_extras` (Meticais), `total_deducoes`, `total_a_pagar`,
   `estado` (`Preparado`/`Aprovado`/`Pago`), `aprovado_por`, `data_aprovacao`,
   `data_pagamento`, `criado_em`. Índice único `(funcionario_id, periodo_inicio,
   periodo_fim)`.

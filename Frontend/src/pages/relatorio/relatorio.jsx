@@ -66,6 +66,13 @@ function formatarMoeda(valor) {
     return `${Number(valor || 0).toLocaleString("pt-MZ")} MT`;
 }
 
+function formatarDuracaoMinutos(valor) {
+    const total = Math.max(0, Math.round(Number(valor) || 0));
+    const horas = Math.floor(total / 60);
+    const minutos = total % 60;
+    return `${horas}h ${String(minutos).padStart(2, "0")}m`;
+}
+
 function formatarNumero(valor) {
     return Number(valor || 0).toLocaleString("pt-MZ");
 }
@@ -339,6 +346,8 @@ function Relatorio() {
     const descontosTotal = Number(receitasFinanceiro.descontos) || 0;
     const salarioFixo = Number(salarioResumo.salario_fixo) || 0;
     const comissoesEquipa = Number(salarioResumo.comissoes) || 0;
+    const horasExtrasEquipa = Number(salarioResumo.horas_extras_min) || 0;
+    const valorHorasExtrasEquipa = Number(salarioResumo.valor_horas_extras) || 0;
     const deducoesEquipa = Number(salarioResumo.deducoes) || 0;
     const totalAPagarEquipa = Number(salarioResumo.total_a_pagar) || 0;
     const totalPagoEquipa = Number(salarioResumo.total_pago) || 0;
@@ -590,11 +599,13 @@ function Relatorio() {
         ));
         adicionar();
         adicionar("SALARIOS E COMISSOES");
-        adicionar("Funcionario", "Salario fixo", "Comissoes", "Deducoes", "Total a pagar", "Total pago", "Saldo pendente");
+        adicionar("Funcionario", "Salario fixo", "Comissoes", "Horas extras (min)", "Valor horas extras", "Deducoes", "Total a pagar", "Total pago", "Saldo pendente");
         salariosFiltrados.forEach((funcionario) => adicionar(
             funcionario.funcionario_nome,
             funcionario.salario_fixo,
             funcionario.comissoes,
+            funcionario.horas_extras_min,
+            funcionario.valor_horas_extras,
             funcionario.deducoes,
             funcionario.total_a_pagar,
             funcionario.total_pago,
@@ -1607,11 +1618,12 @@ function Relatorio() {
                                         <div>
                                             <span>Total a pagar a equipa</span>
                                             <strong>{formatarMoeda(totalAPagarEquipa)}</strong>
-                                            <small>Salario fixo + comissoes acumuladas - deducoes</small>
+                                            <small>Salario fixo + comissoes + horas extras - deducoes</small>
                                         </div>
                                         <div className="relatorio-payroll-highlight-meta">
                                             <span><Banknote size={14} /> Fixo {formatarMoeda(salarioFixo)}</span>
                                             <span><Percent size={14} /> Comissoes {formatarMoeda(comissoesEquipa)}</span>
+                                            <span><TrendingUp size={14} /> Extras {formatarMoeda(valorHorasExtrasEquipa)}</span>
                                             <span><CheckCircle2 size={14} /> Pago {formatarMoeda(totalPagoEquipa)}</span>
                                         </div>
                                     </div>
@@ -1622,6 +1634,7 @@ function Relatorio() {
                                                 {[
                                                     { label: "Salario fixo", valor: salarioFixo, nota: `${salarioResumo.dias_referencia || 0} dia(s) em ${salarioResumo.meses_referencia || 1} mes(es)` },
                                                     { label: "Comissoes acumuladas", valor: comissoesEquipa, nota: `${formatarMoeda(salarioResumo.comissoes_pendentes)} pendentes` },
+                                                    { label: "Horas extras", valor: valorHorasExtrasEquipa, nota: `${formatarDuracaoMinutos(horasExtrasEquipa)} acima da meta` },
                                                     { label: "Deducoes", valor: deducoesEquipa, nota: "adiantamentos e ajustes" },
                                                     { label: "Total a pagar", valor: totalAPagarEquipa, nota: "valor liquido devido" },
                                                     { label: "Total pago", valor: totalPagoEquipa, nota: "processamentos liquidados" },
@@ -1655,6 +1668,7 @@ function Relatorio() {
                                                                 <th>Funcionario</th>
                                                                 <th>Salario fixo</th>
                                                                 <th>Comissoes</th>
+                                                                <th>Horas extras</th>
                                                                 <th>Deducoes</th>
                                                                 <th>Total a pagar</th>
                                                                 <th>Pago</th>
@@ -1692,6 +1706,12 @@ function Relatorio() {
                                                                     </td>
                                                                     <td>{formatarMoeda(funcionario.salario_fixo)}</td>
                                                                     <td>{formatarMoeda(funcionario.comissoes)}</td>
+                                                                    <td>
+                                                                        <div className="relatorio-payroll-extra">
+                                                                            <strong>{formatarMoeda(funcionario.valor_horas_extras)}</strong>
+                                                                            <small>{formatarDuracaoMinutos(funcionario.horas_extras_min)}</small>
+                                                                        </div>
+                                                                    </td>
                                                                     <td>{formatarMoeda(funcionario.deducoes)}</td>
                                                                     <td><strong>{formatarMoeda(funcionario.total_a_pagar)}</strong></td>
                                                                     <td>{formatarMoeda(funcionario.total_pago)}</td>
@@ -1747,6 +1767,7 @@ function Relatorio() {
                                                                         <th>Periodo</th>
                                                                         <th>Salario base</th>
                                                                         <th>Comissoes</th>
+                                                                        <th>Horas extras</th>
                                                                         <th>Deducoes</th>
                                                                         <th>Total</th>
                                                                         <th>Estado</th>
@@ -1761,6 +1782,12 @@ function Relatorio() {
                                                                             </td>
                                                                             <td>{formatarMoeda(processamento.salario_base)}</td>
                                                                             <td>{formatarMoeda(processamento.total_comissoes)}</td>
+                                                                            <td>
+                                                                                <div className="relatorio-payroll-extra">
+                                                                                    <strong>{formatarMoeda(processamento.valor_horas_extras)}</strong>
+                                                                                    <small>{formatarDuracaoMinutos(processamento.total_horas_extras)}</small>
+                                                                                </div>
+                                                                            </td>
                                                                             <td>{formatarMoeda(processamento.total_deducoes)}</td>
                                                                             <td>{formatarMoeda(processamento.total_a_pagar)}</td>
                                                                             <td>

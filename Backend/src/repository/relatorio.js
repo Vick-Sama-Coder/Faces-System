@@ -551,6 +551,7 @@ const salariosFinanceiro = async ({ de, ate } = {}) => {
             )
             select ps.id, ps.funcionario_id, f.nome as funcionario_nome,
                    ps.periodo_inicio, ps.periodo_fim, ps.salario_base, ps.total_comissoes,
+                   ps.total_horas_extras, ps.valor_horas_extras,
                    ps.total_deducoes, ps.total_a_pagar, ps.estado, ps.data_pagamento
               from processamento_salarial ps
               join funcionario f on f.id = ps.funcionario_id
@@ -585,10 +586,14 @@ const salariosFinanceiro = async ({ de, ate } = {}) => {
         const salarioFixo = Number(fixoLinha.salario_fixo) || 0;
         const totalComissoes = Number(comissaoLinha.comissoes) || 0;
         const totalDeducoes = Number(deducaoLinha.deducoes) || 0;
+        const totalHorasExtrasMin = listaProcessamentos
+            .reduce((soma, processamento) => soma + (Number(processamento.total_horas_extras) || 0), 0);
+        const valorHorasExtras = listaProcessamentos
+            .reduce((soma, processamento) => soma + (Number(processamento.valor_horas_extras) || 0), 0);
         const totalPago = listaProcessamentos
             .filter((processamento) => processamento.estado === "Pago")
             .reduce((soma, processamento) => soma + (Number(processamento.total_a_pagar) || 0), 0);
-        const totalAPagar = salarioFixo + totalComissoes - totalDeducoes;
+        const totalAPagar = salarioFixo + totalComissoes + valorHorasExtras - totalDeducoes;
 
         return {
             funcionario_id: funcionario.funcionario_id,
@@ -604,6 +609,8 @@ const salariosFinanceiro = async ({ de, ate } = {}) => {
             comissoes_pendentes: Number(comissaoLinha.comissoes_pendentes) || 0,
             comissoes_pagas: Number(comissaoLinha.comissoes_pagas) || 0,
             comissoes_quantidade: Number(comissaoLinha.comissoes_quantidade) || 0,
+            horas_extras_min: totalHorasExtrasMin,
+            valor_horas_extras: valorHorasExtras,
             deducoes: totalDeducoes,
             total_a_pagar: totalAPagar,
             total_pago: totalPago,
@@ -635,6 +642,8 @@ const salariosFinanceiro = async ({ de, ate } = {}) => {
             comissoes_pendentes: 0,
             comissoes_pagas: 0,
             comissoes_quantidade: 0,
+            horas_extras_min: 0,
+            valor_horas_extras: 0,
             deducoes: 0,
             total_a_pagar: 0,
             total_pago: totalPago,
@@ -678,6 +687,8 @@ const salariosFinanceiro = async ({ de, ate } = {}) => {
             comissoes: somar("comissoes"),
             comissoes_pendentes: somar("comissoes_pendentes"),
             comissoes_pagas: somar("comissoes_pagas"),
+            horas_extras_min: somar("horas_extras_min"),
+            valor_horas_extras: somar("valor_horas_extras"),
             deducoes: somar("deducoes"),
             total_a_pagar: somar("total_a_pagar"),
             total_processado: totalProcessado,
@@ -827,6 +838,8 @@ const financeiro = async ({ de, ate } = {}) => {
             salario_fixo: salarios.resumo.salario_fixo,
             comissoes: salarios.resumo.comissoes,
             comissoes_pendentes: salarios.resumo.comissoes_pendentes,
+            horas_extras_min: salarios.resumo.horas_extras_min,
+            valor_horas_extras: salarios.resumo.valor_horas_extras,
             saldo_pendente_equipa: salarios.resumo.saldo_pendente
         },
         comparacao,

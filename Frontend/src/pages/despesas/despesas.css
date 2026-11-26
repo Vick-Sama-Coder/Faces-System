@@ -208,7 +208,11 @@
 }
 
 .despesas-table-wrap {
+    max-width: 100%;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
 }
 
 .despesas-table {

@@ -218,8 +218,12 @@
 }
 
 .horario-table-wrap {
+    max-width: 100%;
     max-height: 620px;
     overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
 }
 
 .horario-table {
@@ -592,7 +596,11 @@
 }
 
 .horario-team-table-wrap {
+    max-width: 100%;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
 }
 
 .horario-team-table {
